@@ -89,7 +89,6 @@ Course content reaches Anthropic only when the student asks Cowork or Claude Cod
 - Does the school allow student-generated Canvas access tokens?
 - Which publisher or lab sites does each course use, and do they offer feeds or email alerts?
 - reMarkable Paper Pro or reMarkable 2? Both have the USB web interface.
-- Vault sync: Google Drive for Desktop or Obsidian Sync?
 - Pro or Max? Decide after Phase 1 usage is measured.
 - Chrome or another browser?
 - Each course's AI policy.
@@ -114,7 +113,7 @@ Course content reaches Anthropic only when the student asks Cowork or Claude Cod
 | --- | --- |
 | Pro usage limits bind during exam weeks | Measure in Phase 1; move transcription to a local vision model; upgrade to Max |
 | The cloud briefing task cannot reach the laptop | The service writes the day's facts into the vault, Drive syncs it, the task reads it there; a local Claude Code run is the fallback |
-| Vault sync conflicts between Drive and Obsidian | The service writes only to Inbox and generated files; Obsidian Sync is the fallback if Drive misbehaves |
+| Vault sync conflicts between Drive and Obsidian | The service writes only to Inbox and generated files |
 | Four apps feel like tool sprawl | Cowork is the only place to ask and Obsidian the only place to write; the service, connectors, and plugin are invisible |
 | Handwriting transcription misreads equations | Page image linked from every transcript, confidence shown, corrections made in place; test on real handwriting in Phase 2 |
 | School disables Canvas tokens | The calendar feed is the primary path and cannot be blocked; the token only adds grades and files |

@@ -37,7 +37,7 @@ You need a Google account (a Gmail address). Oso uses Google Drive to carry your
 2. Open Obsidian. Choose **Create new vault**. Name it `Vault` (or anything you like) and, for the location, pick a folder **inside your Google Drive folder** from step 1.4, for example `My Drive\Vault`. This matters: it is how your phone and Claude see your notes.
 3. Install the Obsidian Web Clipper in your browser from [obsidian.md/clipper](https://obsidian.md/clipper). It is the button you press to save a web page or paper into your notes. When it asks for a vault, pick the one you just made.
 4. Optional, for flashcards: in Obsidian, open Settings, then **Community plugins**, turn them on, browse, search for **Spaced Repetition**, install it, and enable it.
-5. Optional, on your phone: install the Obsidian app and open the same vault from Google Drive, or use Obsidian's own Sync service if you prefer.
+5. Optional, on your phone: install the Obsidian app and open the same vault from Google Drive.
 
 ### 1.6 Claude Code
 

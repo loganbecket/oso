@@ -41,6 +41,9 @@ class Config:
     quiet_hours: str | None = None  # "22:00-07:00": alerts wait until the end of the window
     muted_courses: list[str] = field(default_factory=list)
     remarkable_folder: str | None = None  # optional tablet folder that holds the course folders; None = tablet root
+    sync_interval_minutes: int = 15  # how often the watcher runs
+    urgent_days: int = 7  # a new or moved item due within this many days counts as urgent
+    stale_hours: int = 24  # a source with no successful sync for this long is called out
 
     @property
     def tz(self) -> ZoneInfo:
@@ -85,6 +88,9 @@ def load(path: Path | None = None) -> Config:
         quiet_hours=raw.get("quiet_hours") or None,
         muted_courses=[str(c) for c in raw.get("muted_courses", [])],
         remarkable_folder=raw.get("remarkable_folder") or None,
+        sync_interval_minutes=int(raw.get("sync_interval_minutes", 15)),
+        urgent_days=int(raw.get("urgent_days", 7)),
+        stale_hours=int(raw.get("stale_hours", 24)),
     )
 
 
@@ -98,6 +104,9 @@ def save(cfg: Config, path: Path | None = None) -> Path:
         f'quiet_hours = "{cfg.quiet_hours}"' if cfg.quiet_hours else '# quiet_hours = "22:00-07:00"',
         "muted_courses = [" + ", ".join(f'"{_toml_str(c)}"' for c in cfg.muted_courses) + "]",
         f'remarkable_folder = "{_toml_str(cfg.remarkable_folder)}"' if cfg.remarkable_folder else '# remarkable_folder = "School"',
+        f"sync_interval_minutes = {cfg.sync_interval_minutes}",
+        f"urgent_days = {cfg.urgent_days}",
+        f"stale_hours = {cfg.stale_hours}",
         "",
     ]
     for c in cfg.courses:

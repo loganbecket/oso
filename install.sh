@@ -63,3 +63,4 @@ echo
 echo "Oso is installed. Next:"
 echo "  1. Open Obsidian and open $VAULT as a vault."
 echo "  2. In Claude Code or Cowork, install the plugin from $REPO/plugin and ask it to set up your first course."
+echo "  3. Run 'oso settings' any time to change how often Oso checks, quiet hours, and the rest."

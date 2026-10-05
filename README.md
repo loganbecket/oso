@@ -114,7 +114,7 @@ The installer:
 - installs the Oso service
 - adds the starting folders to your vault
 - asks you to paste the Canvas calendar feed address from step 2.1 (right-click or Cmd-V to paste, then Enter)
-- schedules Oso to check for changes every hour, even when the computer is asleep (Windows Task Scheduler, a macOS launch agent, or a Linux systemd timer)
+- schedules Oso to check for changes every 15 minutes, even when the computer is asleep (Windows Task Scheduler, a macOS launch agent, or a Linux systemd timer)
 - on Linux, offers to keep the vault in sync with Google Drive through rclone
 - runs a first sync and a health check
 
@@ -124,7 +124,7 @@ The default time zone is US Eastern. For another, add a time zone name: on Windo
 
 ### 2.3 Check it worked
 
-Open your vault in Obsidian. There is now a file called `Today.md`. It lists what is due, what changed, and whether Canvas is connected. It is rewritten every hour; do not edit it.
+Open your vault in Obsidian. There is now a file called `Today.md`. It lists what is due, what changed, and whether Canvas is connected. It is rewritten every 15 minutes; do not edit it.
 
 If `Today.md` is missing or Canvas shows as not connected, run `oso doctor` in your command window and follow what it says.
 
@@ -184,7 +184,7 @@ The rule is simple: **a folder on the tablet with the same name as a course fold
 1. On the tablet, open **Settings**, then **Storage**, and turn on **USB web interface**.
 2. On the tablet, make one folder per course, named exactly as the course folder in your vault (capital letters do not matter). If you would rather keep them together, put them all inside one folder such as `School` and run `oso set-remarkable-folder School` once in your command window.
 3. Plug the tablet into your computer with its USB cable. It appears as a small network device; the first time can take a minute. On Windows, if asked about a new network, choose **Private**. On macOS and Linux nothing needs to be done.
-4. The next time Oso syncs (within the hour, or run `oso sync`), it copies any notebook you changed. Leave it plugged in for a few minutes; charging it at your desk is enough.
+4. The next time Oso syncs (within 15 minutes, or run `oso sync`), it copies any notebook you changed. Leave it plugged in for a few minutes; charging it at your desk is enough.
 5. To turn the pages into notes you can search, open Claude Code in your vault folder (`claude` in your command window from that folder) and say: *"Transcribe my handwritten notes."* Claude reads each page, writes it out with the equations, files it in the right course automatically, and tells you about any page it could not read well. Those also show up in your morning briefing.
 
 **If the computer does not see the tablet:** make sure the tablet's software is up to date (Settings, General, Software). Older tablet versions used a USB connection type that recent Windows releases dropped.
@@ -206,6 +206,7 @@ The rule is simple: **a folder on the tablet with the same name as a course fold
   - "Make flashcards for the vocabulary in lecture 5."
 - **Grades**: Oso tracks them if your school allows a Canvas token (below). Otherwise tell Claude a grade and it records it.
 - **Something looks wrong**: in Claude Code say *"Run the Oso doctor"*, or in your command window run `oso doctor --fix`.
+- **Changing settings**: run `oso settings` in your command window. A small window opens where you can change the vault folder, time zone, how often Oso checks for changes (15 minutes by default), what counts as urgent, quiet hours, which courses are muted, the tablet folder, and the Canvas feed or token. **Save and check** applies the change, reschedules the checks if needed, and runs the health check.
 
 ### Optional: a Canvas token
 
@@ -234,7 +235,7 @@ oso set-drive-folder MATH-101-001 "<path to that folder>"
 | What you see | What to do |
 | --- | --- |
 | The briefing did not arrive | Open the Claude app and check the scheduled task ran. Then check `Today.md` in your vault is from today; if not, run `oso doctor`. |
-| `Today.md` says Canvas has not synced in many hours | Your computer may have been off. Turn it on and wait an hour, or run `oso sync`. If it keeps happening, run `oso install-task` again. |
+| `Today.md` says Canvas has not synced in many hours | Your computer may have been off. Turn it on and wait a few minutes, or run `oso sync`. If it keeps happening, run `oso install-task` again. |
 | Canvas says the login was rejected or the address no longer works | Get a fresh calendar feed address (step 2.1) and run `oso init` again with it. |
 | Claude says it cannot reach Oso's tools | Run `oso doctor`. If it says `oso-mcp` is missing, run the installer again. Then restart the Claude app. |
 | A handwritten page came out wrong | The original page image is linked at the bottom of the note. Fix the text in Obsidian; Oso never overwrites your edits. |
@@ -250,7 +251,8 @@ oso health                when each source last synced
 oso add-course            register a course by hand
 oso set-drive-folder      mirror a shared Google Drive folder into a course
 oso set-remarkable-folder the tablet folder that holds the course folders
-oso install-task          schedule the hourly sync
+oso settings              open the settings window
+oso install-task          schedule the sync (every 15 minutes by default)
 ```
 
 ## For developers

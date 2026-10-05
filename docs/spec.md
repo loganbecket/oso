@@ -46,11 +46,11 @@ One list of every assignment, quiz, exam, and reading across all courses, with d
 
 ### Hearing about changes
 
-Every hour the service checks each source against its last snapshot. A moved due date, a rescheduled exam, or a new graded item due within the week is urgent: it becomes an event with a reminder on the student's Google Calendar. Everything else waits for the morning. Quiet hours and per-course muting are available. A broken connector or an expired login shows up in the briefing as a sentence.
+Every 15 minutes (adjustable) the service checks each source against its last snapshot. A moved due date, a rescheduled exam, or a new graded item due within the week is urgent: it becomes an event with a reminder on the student's Google Calendar. Everything else waits for the morning. Quiet hours and per-course muting are available. A broken connector or an expired login shows up in the briefing as a sentence.
 
 ### The morning briefing
 
-The service writes the day's facts into `Today.md` in the vault every hour: due today, due this week, overnight changes, exam countdowns, connector problems, pages that transcribed badly. A scheduled Cowork task each morning reads it through Google Drive and delivers the briefing in the Claude app on the phone, which works while the laptop sleeps. A local Claude Code run is the fallback. A Sunday review covers the week behind and the week ahead.
+The service writes the day's facts into `Today.md` in the vault on every check: due today, due this week, overnight changes, exam countdowns, connector problems, pages that transcribed badly. A scheduled Cowork task each morning reads it through Google Drive and delivers the briefing in the Claude app on the phone, which works while the laptop sleeps. A local Claude Code run is the fallback. A Sunday review covers the week behind and the week ahead.
 
 ### Studying
 
@@ -70,7 +70,7 @@ The vault is the center. The service fills it and keeps the SQLite facts file be
 | Installation and local runs | Claude Code |
 | Notes | Obsidian with the Web Clipper; vault in a folder synced to Google Drive (Drive for Desktop on Windows and macOS, rclone on Linux) |
 | Skills and tools | One Claude plugin installed in Cowork and Claude Code |
-| Service | Python 3.12; hourly on Windows Task Scheduler, a macOS launch agent, or a Linux systemd timer, with catch-up after sleep |
+| Service | Python 3.12; every 15 minutes on Windows Task Scheduler, a macOS launch agent, or a Linux systemd timer, with catch-up after sleep |
 | Facts | One SQLite file |
 | Search | SQLite FTS5 over the vault; sqlite-vec with local embeddings only if needed |
 | Canvas | Calendar feed; REST API with a token where allowed |

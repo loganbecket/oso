@@ -38,7 +38,7 @@ def run(cfg: Config, now: datetime | None = None) -> dict[str, object]:
             run_id = db.record_sync(conn, connector.name)
             try:
                 items = connector.fetch()
-                counts = merge.apply(conn, items, connector.name, now)
+                counts = merge.apply(conn, items, connector.name, now, urgent_days=cfg.urgent_days)
                 if isinstance(connector, CanvasApi):
                     counts["grades"] = _apply_grades(conn, connector)
                     counts.update(connector.mirror())

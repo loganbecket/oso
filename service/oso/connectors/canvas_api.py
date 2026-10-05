@@ -87,7 +87,7 @@ class CanvasApi:
     # ---- vault mirroring ---------------------------------------------------------------------
 
     def mirror(self) -> dict[str, int]:
-        """Download course files and announcements into the vault. Safe to run every hour."""
+        """Download course files and announcements into the vault. Safe to run on every check."""
         counts = {"files": 0, "announcements": 0}
         for course in self._courses():
             code = course.get("course_code") or str(course["id"])

@@ -20,7 +20,7 @@ from .db import Item, now_iso
 URGENT_WINDOW = timedelta(days=7)
 
 
-def apply(conn: sqlite3.Connection, items: list[Item], source: str, now: datetime) -> dict[str, int]:
+def apply(conn: sqlite3.Connection, items: list[Item], source: str, now: datetime, urgent_days: int = 7) -> dict[str, int]:
     seen_ids: list[str] = []
     counts = {"new": 0, "updated": 0, "changed": 0, "deleted": 0}
     ts = now_iso()
@@ -48,7 +48,7 @@ def apply(conn: sqlite3.Connection, items: list[Item], source: str, now: datetim
             if old != new:
                 conn.execute(
                     "INSERT INTO changes (item_id, field, old_value, new_value, detected_at, urgency) VALUES (?, ?, ?, ?, ?, ?)",
-                    (row["id"], field, old, new, ts, _urgency(field, row["kind"], it.due_at, now)),
+                    (row["id"], field, old, new, ts, _urgency(field, row["kind"], it.due_at, now, timedelta(days=urgent_days))),
                 )
                 changed = True
         conn.execute(
@@ -79,10 +79,10 @@ def apply(conn: sqlite3.Connection, items: list[Item], source: str, now: datetim
     return counts
 
 
-def _urgency(field: str, kind: str, due_at: datetime | None, now: datetime) -> str:
+def _urgency(field: str, kind: str, due_at: datetime | None, now: datetime, window: timedelta = URGENT_WINDOW) -> str:
     if field == "due_at" and kind == "exam":
         return "urgent"
-    if field == "due_at" and due_at is not None and due_at - now <= URGENT_WINDOW:
+    if field == "due_at" and due_at is not None and due_at - now <= window:
         return "urgent"
     return "routine"
 

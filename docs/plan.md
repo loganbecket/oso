@@ -21,7 +21,7 @@ Mostly installing and signing in. Should take a weekend.
 
 - [x] Service skeleton: config, logging without content, Windows scheduled task with wake timers, catch-up on wake
 - [x] Windows Credential Manager wrapper
-- [x] Canvas calendar feed connector, polled hourly
+- [x] Canvas calendar feed connector, polled on every check
 - [x] SQLite schema: courses, items (assignment, quiz, exam, reading), due dates, weights, status, source
 - [x] Duplicate merging across sources; hand edits survive sync
 - [x] Per-connector health: last sync, last error, re-auth needed
@@ -48,7 +48,7 @@ Mostly installing and signing in. Should take a weekend.
 
 ## Phase 3: alerts and grades
 
-- [x] Hourly diff against the last snapshot; rule-based urgent versus routine classification
+- [x] Diff against the last snapshot on every check (15 minutes by default, set in the settings window); rule-based urgent versus routine classification
 - [x] Urgent changes written as events with reminders to the Oso calendar, and noted in `Inbox/`
 - [x] Quiet hours and per-course mute
 - [x] Grade tracking from Canvas or manual entry
@@ -69,5 +69,6 @@ Mostly installing and signing in. Should take a weekend.
 - [x] `Dashboard.md`: deadlines, connector health, recent changes
 - [x] Nudge for items due within 24 hours not marked started
 - [x] Self-service health check and repair skill
+- [x] Settings window (`oso settings`): check interval, urgency window, quiet hours, mutes, tablet folder, Canvas feed and token
 - [ ] Browser automation for publisher sites with no feed
 - [x] Installer good enough that another student can set Oso up from this repo

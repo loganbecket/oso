@@ -38,8 +38,9 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("set-drive-folder", help="mirror a Google Drive folder (synced by Drive for Desktop) into a course")
     s.add_argument("code", help="course code")
     s.add_argument("path", help="local path of the Drive folder")
-    s = sub.add_parser("install-task", help="run sync every hour (Windows scheduled task, macOS launch agent, or Linux systemd timer)")
-    s.add_argument("--every", type=int, default=60, help="minutes between runs")
+    s = sub.add_parser("install-task", help="schedule the sync (Windows scheduled task, macOS launch agent, or Linux systemd timer)")
+    s.add_argument("--every", type=int, default=None, help="minutes between runs (default: the saved setting, 15)")
+    sub.add_parser("settings", help="open the settings window")
 
     args = p.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -139,7 +140,17 @@ def _dispatch(args: argparse.Namespace) -> int:
         print(f"{c.name} will mirror {p} into Courses/{c.folder}/Drive on every sync.")
         return 0
 
+    if args.cmd == "settings":
+        from .settings_gui import open_settings
+
+        open_settings(cfg)
+        return 0
+
     if args.cmd == "install-task":
+        if args.every:
+            cfg.sync_interval_minutes = args.every
+            cfgmod.save(cfg)
+        args.every = cfg.sync_interval_minutes
         if sys.platform == "win32":
             from .install_windows import install_task
 

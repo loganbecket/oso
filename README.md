@@ -1,6 +1,6 @@
 # Oso
 
-Oso is a study assistant for anyone taking courses. It tracks every deadline, exam, and grade weight across your classes, sends a short briefing to your phone each morning, and flags changes like a moved due date. When you study, it works from your own notes and course materials: it explains topics, writes study guides and practice tests, and checks your work, citing the note behind every answer.
+Oso is a study assistant for students. It tracks every deadline, exam, and grade weight across your classes, sends a short briefing to your phone each morning, and flags changes like a moved due date. When you study, it works from your own notes and course materials: it explains topics, writes study guides and practice tests, and checks your work, citing the note behind every answer.
 
 Oso combines three parts:
 

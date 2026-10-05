@@ -5,11 +5,20 @@ description: Deliver urgent coursework changes (moved due dates, rescheduled exa
 
 # Deliver urgent alerts
 
-1. Call `pending_alerts`. If empty, say "No urgent changes" and stop.
-2. For each alert whose `deliver_after` is null or already past:
-   - Create an event on the student's **Oso** calendar through the Google Calendar connector: title `Oso: <message>`, at the item's `due_at` if it has one (otherwise today at 6 pm), with a reminder 1 day before and another 2 hours before. Put the item's link in the description.
-   - Call `mark_alert_reported` with the `alert_id`.
-3. Alerts with a `deliver_after` in the future are inside quiet hours: leave them for the next run and say so.
-4. Reply with one line per alert delivered.
+This runs in Claude's cloud as a scheduled task, where Oso's local tools are not available, so it works from a file and the calendar alone. The same steps work when run locally.
 
-Never create duplicate events: if `mark_alert_reported` was already called for an alert, it will not appear again. Never write to any calendar other than the Oso calendar.
+## Steps
+
+1. Read `Inbox/Alerts.md` at the root of the student's vault through the Google Drive connector. If it is missing or has no lines, say "No urgent changes" and stop. (If the `pending_alerts` tool happens to be available, you may use it instead; it returns the same information.)
+2. Consider only lines noticed in the last 7 days. Each line is: `when noticed | what changed | due <date> | <link> (flags)`.
+   - Skip lines marked `(muted)`.
+   - Skip lines marked `(quiet until <time>)` if that time is still in the future.
+3. For each remaining line, look in the student's **Oso** Google Calendar for an event titled exactly `Oso: <what changed>`. If one exists, the alert was already delivered; skip it.
+4. Otherwise create the event on the **Oso** calendar: title `Oso: <what changed>`, at the item's due date and time (if the due date is `no date`, today at 6 pm), with reminders 1 day before and 2 hours before, and the link in the description. If the `mark_alert_reported` tool is available, call it with the alert number from the line's trailing comment.
+5. Reply with one line per event created, or "Nothing new" if none.
+
+## Rules
+
+- Never write to any calendar other than the Oso calendar.
+- Never create an event whose title already exists on the Oso calendar; the title check is what prevents duplicates.
+- Do not edit `Alerts.md`.

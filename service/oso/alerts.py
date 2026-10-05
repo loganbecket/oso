@@ -1,8 +1,11 @@
 """Urgent changes: what needs to reach the student before the next briefing.
 
 The service cannot write to Google Calendar itself. It records urgent changes and appends them to
-`Inbox/Alerts.md`; the alerts skill (a scheduled Cowork task) reads `pending_alerts`, creates the
-calendar events through the Calendar connector, and calls `mark_alert_reported`.
+`Inbox/Alerts.md`, one line per alert with everything the alerts skill needs. That skill runs as a
+Cowork scheduled task in Anthropic's cloud, where Oso's local tools are out of reach, so it reads
+`Alerts.md` through Google Drive and creates calendar events, checking the Oso calendar first so an
+alert is never posted twice. When the skill runs locally it can also use `pending_alerts` and
+`mark_alert_reported`.
 """
 
 from __future__ import annotations
@@ -62,7 +65,7 @@ def mark_reported(conn: sqlite3.Connection, alert_id: int) -> None:
 def write_inbox(conn: sqlite3.Connection, cfg: Config, now: datetime) -> int:
     """Append new urgent changes to Inbox/Alerts.md so they are visible in Obsidian even before delivery."""
     rows = conn.execute(
-        f"""SELECT c.id, c.field, c.old_value, c.new_value, c.detected_at, {EFFECTIVE}
+        f"""SELECT c.id, c.field, c.old_value, c.new_value, c.detected_at, i.url, {EFFECTIVE}
             FROM changes c JOIN items i ON i.id = c.item_id
             WHERE c.urgency = 'urgent' AND c.detected_at >= ?
             ORDER BY c.detected_at""",
@@ -72,7 +75,9 @@ def write_inbox(conn: sqlite3.Connection, cfg: Config, now: datetime) -> int:
         return 0
     path = cfg.vault / "Inbox" / "Alerts.md"
     path.parent.mkdir(parents=True, exist_ok=True)
-    existing = path.read_text(encoding="utf-8") if path.exists() else "---\ntype: oso-alerts\n---\n\n# Alerts\n\nUrgent changes Oso noticed. Newest at the bottom.\n"
+    existing = path.read_text(encoding="utf-8") if path.exists() else HEADER
+    muted = {m.lower() for m in cfg.muted_courses}
+    quiet = quiet_until(cfg, now)
     added = 0
     for r in rows:
         marker = f"<!-- alert {r['id']} -->"
@@ -80,12 +85,30 @@ def write_inbox(conn: sqlite3.Connection, cfg: Config, now: datetime) -> int:
             continue
         course = cfg.course_for(r["course_code"])
         label = f"**{course.name}**: " if course else ""
-        when = datetime.fromisoformat(r["detected_at"]).astimezone(cfg.tz).strftime("%a %b %d %I:%M %p")
-        existing += f"\n- {when}: {label}{describe(r)} {marker}"
+        when = datetime.fromisoformat(r["detected_at"]).astimezone(cfg.tz).strftime("%Y-%m-%d %H:%M")
+        due = r["due_at"] or "no date"
+        flags = ""
+        if (r["course_code"] or "").lower() in muted:
+            flags += " (muted)"
+        if quiet:
+            flags += f" (quiet until {quiet.strftime('%Y-%m-%d %H:%M')})"
+        link = f" | {r['url']}" if r["url"] else ""
+        existing += f"\n- {when} | {label}{describe(r)} | due {due}{link}{flags} {marker}"
         added += 1
     if added:
         path.write_text(existing + "\n", encoding="utf-8")
     return added
+
+
+HEADER = """---
+type: oso-alerts
+---
+
+# Alerts
+
+Urgent changes Oso noticed, newest at the bottom. Each line: when noticed | what changed | the item's due date | its link.
+The alerts skill turns lines into events on the Oso calendar. "(muted)" lines are skipped; "(quiet until …)" lines wait.
+"""
 
 
 def quiet_until(cfg: Config, now: datetime) -> datetime | None:

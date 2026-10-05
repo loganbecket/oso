@@ -82,7 +82,7 @@ The vault is the center. The service fills it and keeps the SQLite facts file be
 
 ## Privacy and integrity
 
-Course content reaches Anthropic only when the student asks Cowork or Claude Code something, under the consumer terms of their subscription. The account's data-use setting is reviewed and set deliberately at install. The cloud briefing reads only `Today.md` and what the briefing needs. Logs hold no credentials and no note content. BitLocker on the laptop; two-factor on the Google account. Export is copying a folder; wipe is deleting it. The tutor teaches and checks work; it never produces submittable answers, and each course's AI policy is shown at every session.
+Course content reaches Anthropic only when the student asks Cowork or Claude Code something, under the consumer terms of their subscription. The account's data-use setting is reviewed and set deliberately at install. The cloud briefing reads only `Today.md` and what the briefing needs. Logs hold no credentials and no note content. Export is copying a folder; wipe is deleting it. The tutor teaches and checks work; it never produces submittable answers, and each course's AI policy is shown at every session.
 
 ## Open questions
 

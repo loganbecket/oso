@@ -14,8 +14,6 @@ Everything below is written for someone who has never opened a terminal. It take
 
 You need a Google account (a Gmail address). Oso uses Google Drive to carry your notes to your phone and to Claude, and Google Calendar for alerts. If your school gives you a Google account, that works too.
 
-Turn on two-step verification for the account if you have not: go to [myaccount.google.com/security](https://myaccount.google.com/security) and follow "2-Step Verification". Your notes will live in this account, so protect it.
-
 ### 1.2 Claude Pro
 
 1. Go to [claude.ai](https://claude.ai) and sign in or create an account.

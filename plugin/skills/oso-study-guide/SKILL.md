@@ -11,6 +11,10 @@ description: Build a study guide for an upcoming exam from the student's notes a
 2. Find what it covers: `read_note` on the course's `Course.md` (the Exams table), the syllabus, and any announcement mentioning the exam. If the scope is not stated anywhere, ask the student for the lecture or chapter range and say the guide is based on their answer.
 3. Note the course's `ai_policy` and state it in one line at the top of the guide.
 
+## Model
+
+Delegate the writing to the `oso-examiner` agent, which runs on the model the student chose for exam preparation (Opus by default). Pass it the scope, the course's AI policy, and the source notes you gathered.
+
 ## Gather
 
 - `search_notes` for each topic in scope, opening lectures, the student's own notes, homework, and readings. Prefer the student's notes and the instructor's slides over textbook text.

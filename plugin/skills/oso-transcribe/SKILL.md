@@ -5,12 +5,16 @@ description: Transcribe handwritten tablet pages waiting in the vault into Markd
 
 # Transcribe handwritten pages
 
-Pages the student wrote on the tablet are waiting as images. Turn each notebook into one Markdown note.
+Pages the student wrote on the tablet (or scanned from paper) are waiting as images. Turn each notebook into one Markdown note.
 
-## Steps
+## Preferred: the command
+
+Run `oso transcribe` in the terminal. It sends each page to Claude Code one at a time with the model from the student's settings, so page images never accumulate in one conversation, and it writes the notes and marks the pages itself. Report its summary line and stop. If the command is missing or fails, fall back to the steps below.
+
+## Fallback: by hand, one page at a time
 
 1. Call `pending_pages`. Group the results by `notebook`. If there are none, say so and stop.
-2. Call `vault_path`, then for each notebook, read its page images in order (`<vault>/<path>`). Look at every page before writing.
+2. Call `vault_path`. For each page, in order, delegate to the `oso-transcriber` agent with the image's full path (`<vault>/<path>`), its page number, notebook, and course, and collect its transcription and confidence. One page per delegation, so the images stay out of this conversation.
 3. Each page carries its `course` (the tablet folder it came from). Use it; only pages dropped into `Inbox/Handwriting` by hand have no course, and for those ask once.
 4. Write one note per notebook at `Courses/<course folder>/Notes/<YYYY-MM-DD> <notebook>.md` (date from the file's queued_at), with this front matter:
 

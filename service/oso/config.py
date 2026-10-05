@@ -44,6 +44,9 @@ class Config:
     sync_interval_minutes: int = 15  # how often the watcher runs
     urgent_days: int = 7  # a new or moved item due within this many days counts as urgent
     stale_hours: int = 24  # a source with no successful sync for this long is called out
+    render_height_px: int = 1200  # height of page images sent for transcription
+    transcribe_model: str = "sonnet"  # Claude model for reading handwriting
+    exam_model: str = "opus"  # Claude model for study guides and practice tests
 
     @property
     def tz(self) -> ZoneInfo:
@@ -91,6 +94,9 @@ def load(path: Path | None = None) -> Config:
         sync_interval_minutes=int(raw.get("sync_interval_minutes", 15)),
         urgent_days=int(raw.get("urgent_days", 7)),
         stale_hours=int(raw.get("stale_hours", 24)),
+        render_height_px=int(raw.get("render_height_px", 1200)),
+        transcribe_model=str(raw.get("transcribe_model", "sonnet")),
+        exam_model=str(raw.get("exam_model", "opus")),
     )
 
 
@@ -107,6 +113,9 @@ def save(cfg: Config, path: Path | None = None) -> Path:
         f"sync_interval_minutes = {cfg.sync_interval_minutes}",
         f"urgent_days = {cfg.urgent_days}",
         f"stale_hours = {cfg.stale_hours}",
+        f"render_height_px = {cfg.render_height_px}",
+        f'transcribe_model = "{_toml_str(cfg.transcribe_model)}"',
+        f'exam_model = "{_toml_str(cfg.exam_model)}"',
         "",
     ]
     for c in cfg.courses:

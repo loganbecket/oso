@@ -74,6 +74,22 @@ def open_settings(cfg: cfgmod.Config) -> None:
     ttk.Entry(frm, textvariable=quiet_var, width=16).grid(row=row, column=1, sticky="w", **pad)
     row += 1
 
+    # Transcription and models
+    ttk.Separator(frm).grid(row=row, column=0, columnspan=3, sticky="we", pady=8)
+    row += 1
+    label("Page image height for transcription", "pixels; 1200 reads well and keeps usage down")
+    height_var = tk.IntVar(value=cfg.render_height_px)
+    ttk.Spinbox(frm, from_=600, to=2400, increment=100, textvariable=height_var, width=6).grid(row=row, column=1, sticky="w", **pad)
+    row += 1
+    label("Model for reading handwriting", "sonnet is accurate and light on usage")
+    tmodel_var = tk.StringVar(value=cfg.transcribe_model)
+    ttk.Combobox(frm, textvariable=tmodel_var, values=["sonnet", "opus", "haiku"], width=12).grid(row=row, column=1, sticky="w", **pad)
+    row += 1
+    label("Model for study guides and practice tests", "opus by default; type another name your plan offers")
+    emodel_var = tk.StringVar(value=cfg.exam_model)
+    ttk.Combobox(frm, textvariable=emodel_var, values=["opus", "sonnet"], width=12).grid(row=row, column=1, sticky="w", **pad)
+    row += 1
+
     # reMarkable folder
     label("Tablet folder holding the course folders", "leave empty if course folders are at the tablet's top level")
     rm_var = tk.StringVar(value=cfg.remarkable_folder or "")
@@ -138,6 +154,9 @@ def open_settings(cfg: cfgmod.Config) -> None:
             cfg.stale_hours = max(1, int(stale_var.get()))
             cfg.quiet_hours = quiet_var.get().strip() or None
             cfg.remarkable_folder = rm_var.get().strip() or None
+            cfg.render_height_px = max(600, int(height_var.get()))
+            cfg.transcribe_model = tmodel_var.get().strip() or "sonnet"
+            cfg.exam_model = emodel_var.get().strip() or "opus"
             cfg.muted_courses = [code for code, v in mute_vars.items() if v.get()]
             cfgmod.save(cfg)
             if feed_var.get().strip():
@@ -166,7 +185,8 @@ def open_settings(cfg: cfgmod.Config) -> None:
     ttk.Button(btns, text="Save", command=lambda: save(False)).grid(row=0, column=0, padx=4)
     ttk.Button(btns, text="Save and check", command=lambda: save(True)).grid(row=0, column=1, padx=4)
     ttk.Button(btns, text="Sync now", command=lambda: show(_sync_now())).grid(row=0, column=2, padx=4)
-    ttk.Button(btns, text="Close", command=root.destroy).grid(row=0, column=3, padx=4)
+    ttk.Button(btns, text="Transcribe now", command=lambda: show(_transcribe_now())).grid(row=0, column=3, padx=4)
+    ttk.Button(btns, text="Close", command=root.destroy).grid(row=0, column=4, padx=4)
 
     root.mainloop()
 
@@ -183,6 +203,18 @@ def _reschedule(minutes: int) -> str:
     from .install_linux import install_timer
 
     return install_timer(every_minutes=minutes)
+
+
+def _transcribe_now() -> str:
+    from . import config as cfgmod
+    from . import db, transcribe
+
+    try:
+        with db.connect() as conn:
+            counts = transcribe.run(conn, cfgmod.load())
+    except Exception as e:  # noqa: BLE001
+        return f"Transcription failed: {e}"
+    return f"Transcribed {counts['pages']} page(s) into {counts['notes']} note(s); {counts['low_confidence']} low confidence, {counts['failed']} failed."
 
 
 def _sync_now() -> str:

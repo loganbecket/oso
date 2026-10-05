@@ -4,6 +4,18 @@ from oso import convert, db, handwriting, index, notes
 from oso.config import Config, Course
 
 
+def inked_pdf(path, pages=1):
+    """A PDF whose pages carry ink, so the blank-page filter keeps them."""
+    from PIL import Image, ImageDraw
+
+    imgs = []
+    for _ in range(pages):
+        im = Image.new("L", (600, 800), 255)
+        ImageDraw.Draw(im).rectangle((80, 80, 520, 200), fill=0)
+        imgs.append(im)
+    imgs[0].save(path, save_all=True, append_images=imgs[1:])
+
+
 def make_cfg(tmp_path: Path) -> Config:
     vault = tmp_path / "vault"
     (vault / "Courses" / "Calculus I" / "Lectures").mkdir(parents=True)
@@ -85,14 +97,8 @@ def test_index_and_search(tmp_path: Path):
 
 
 def test_handwriting_queue_and_mark(tmp_path: Path):
-    from pypdf import PdfWriter
-
     cfg = make_cfg(tmp_path)
-    w = PdfWriter()
-    w.add_blank_page(width=300, height=400)
-    w.add_blank_page(width=300, height=400)
-    with (cfg.vault / "Inbox" / "Handwriting" / "Physics week 3.pdf").open("wb") as f:
-        w.write(f)
+    inked_pdf(cfg.vault / "Inbox" / "Handwriting" / "Physics week 3.pdf", pages=2)
     with db.connect(tmp_path / "t.sqlite") as conn:
         assert handwriting.queue_new(conn, cfg) == 2
         assert handwriting.queue_new(conn, cfg) == 0

@@ -36,7 +36,8 @@ Mostly installing and signing in. Should take a weekend.
 ## Phase 2: notes and tutor
 
 - [x] Tablet pages: a tablet folder named after a course folder is pulled over USB into `Courses/<folder>/Handwriting`; pages are rendered to PNG and queued with their course
-- [x] Transcription run in Claude Code: page image to Markdown with LaTeX, filed by course, image linked, confidence recorded
+- [x] Transcription: `oso transcribe` sends one page per Claude Code call with the configured model; blank pages skipped; image size configurable; notes filed by course with image links and confidence
+- [x] Model defaults: Sonnet for handwriting, Opus for study guides and practice tests, set in the settings window and applied through plugin agents
 - [x] Canvas Files and Modules mirrored into course folders (feed-based where possible, token if allowed)
 - [x] Office and PDF to Markdown conversion beside the original
 - [x] Front matter on every note: course, topic, type, source

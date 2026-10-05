@@ -5,6 +5,10 @@ description: Generate a practice test from the student's materials and grade the
 
 # Practice test
 
+## Model
+
+Delegate the writing to the `oso-examiner` agent, which runs on the model the student chose for exam preparation (Opus by default). Pass it the scope, the course's AI policy, and the source notes you gathered.
+
 ## Build it
 
 1. Settle the scope: an exam (via `list_deadlines` and `Course.md`) or a topic the student names. State the course's `ai_policy` in one line.

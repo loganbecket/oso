@@ -41,6 +41,9 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("install-task", help="schedule the sync (Windows scheduled task, macOS launch agent, or Linux systemd timer)")
     s.add_argument("--every", type=int, default=None, help="minutes between runs (default: the saved setting, 15)")
     sub.add_parser("settings", help="open the settings window")
+    s = sub.add_parser("transcribe", help="turn queued handwritten pages into notes, one page per Claude Code call")
+    s.add_argument("--model", help="override the model from settings (sonnet, opus, ...)")
+    s.add_argument("--limit", type=int, default=200, help="at most this many pages")
 
     args = p.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -138,6 +141,23 @@ def _dispatch(args: argparse.Namespace) -> int:
         c.drive_folder = str(p)
         cfgmod.save(cfg)
         print(f"{c.name} will mirror {p} into Courses/{c.folder}/Drive on every sync.")
+        return 0
+
+    if args.cmd == "transcribe":
+        from . import transcribe
+
+        with db.connect() as conn:
+            try:
+                counts = transcribe.run(conn, cfg, limit=args.limit, model=args.model)
+            except transcribe.ClaudeMissing as e:
+                print(e, file=sys.stderr)
+                return 2
+        print(f"Transcribed {counts['pages']} page(s) into {counts['notes']} note(s); {counts['low_confidence']} low confidence, {counts['failed']} failed.")
+        if counts["pages"]:
+            from . import today as todaymod
+
+            with db.connect() as conn:
+                todaymod.write(conn, cfg, datetime.now(cfg.tz))
         return 0
 
     if args.cmd == "settings":

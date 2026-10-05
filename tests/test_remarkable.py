@@ -9,7 +9,12 @@ from oso import db, handwriting
 from oso.config import Config, Course
 from oso.connectors.remarkable_usb import NotConnected, RemarkableUsb, last_pull
 
-PDF = b"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]>>endobj\ntrailer<</Root 1 0 R>>"
+from test_phase2 import inked_pdf  # noqa: E402
+
+_tmp = Path(__file__).parent / ".inked.pdf"
+inked_pdf(_tmp)
+PDF = _tmp.read_bytes()
+_tmp.unlink()
 
 DOCS = {
     "": [
@@ -97,19 +102,13 @@ def test_not_connected_is_not_an_error(tmp_path: Path):
 
 
 def test_requeue_only_new_pages_after_redownload(tmp_path: Path):
-    from pypdf import PdfWriter
-
     cfg = Config(vault=tmp_path / "vault")
     folder = cfg.vault / "Inbox" / "Handwriting"
     folder.mkdir(parents=True)
     src = folder / "Notes.pdf"
 
     def write_pdf(n):
-        w = PdfWriter()
-        for _ in range(n):
-            w.add_blank_page(width=100, height=100)
-        with src.open("wb") as f:
-            w.write(f)
+        inked_pdf(src, pages=n)
 
     with db.connect(tmp_path / "t.sqlite") as conn:
         write_pdf(2)

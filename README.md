@@ -185,7 +185,11 @@ The rule is simple: **a folder on the tablet with the same name as a course fold
 2. On the tablet, make one folder per course, named exactly as the course folder in your vault (capital letters do not matter). If you would rather keep them together, put them all inside one folder such as `School` and run `oso set-remarkable-folder School` once in your command window.
 3. Plug the tablet into your computer with its USB cable. It appears as a small network device; the first time can take a minute. On Windows, if asked about a new network, choose **Private**. On macOS and Linux nothing needs to be done.
 4. The next time Oso syncs (within 15 minutes, or run `oso sync`), it copies any notebook you changed. Leave it plugged in for a few minutes; charging it at your desk is enough.
-5. To turn the pages into notes you can search, open Claude Code in your vault folder (`claude` in your command window from that folder) and say: *"Transcribe my handwritten notes."* Claude reads each page, writes it out with the equations, files it in the right course automatically, and tells you about any page it could not read well. Those also show up in your morning briefing.
+5. To turn the pages into notes you can search, run `oso transcribe` in your command window (or click **Transcribe now** in `oso settings`). It sends each page to Claude one at a time, writes the pages out with their equations and a description of every diagram, files the note in the right course, and skips blank pages. Pages it could not read well are listed in your morning briefing. Saying *"Transcribe my handwritten notes"* in Claude Code does the same thing.
+
+**Paper notes** work the same way. Scan them with any phone scanning app (Adobe Scan, for example) and save the PDF to Google Drive inside your vault, in the course's `Handwriting` folder: `Vault/Courses/Physics/Handwriting`. Drive brings it to your computer, and the next check queues the pages. A photo saved there works too.
+
+**Usage.** Reading handwriting is the heaviest thing Oso asks of your Claude plan. Two settings in `oso settings` control it: the page image size (1200 pixels tall by default; smaller is cheaper, larger reads tiny writing better) and the model used for reading (Sonnet by default, which is accurate and light on usage). A separate setting picks the model for study guides and practice tests (Opus by default, where realism matters most). Which models your plan offers depends on Anthropic; the Claude app shows the current list.
 
 **If the computer does not see the tablet:** make sure the tablet's software is up to date (Settings, General, Software). Older tablet versions used a USB connection type that recent Windows releases dropped.
 
@@ -252,6 +256,7 @@ oso add-course            register a course by hand
 oso set-drive-folder      mirror a shared Google Drive folder into a course
 oso set-remarkable-folder the tablet folder that holds the course folders
 oso settings              open the settings window
+oso transcribe            turn queued handwritten pages into notes
 oso install-task          schedule the sync (every 15 minutes by default)
 ```
 

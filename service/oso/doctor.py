@@ -91,10 +91,8 @@ def run(fix: bool = False) -> list[tuple[str, str]]:
 
     from . import update
 
-    st = update.status(cfg, fetch=True)
-    if not st.get("known"):
-        out.append(("warn", st["message"]))
-    elif st.get("available"):
+    st = update.status(cfg)
+    if not st["known"] or st["available"]:
         out.append(("warn", st["message"]))
     else:
         out.append(("ok", st["message"]))

@@ -93,7 +93,6 @@ Course content reaches Anthropic only when the student asks Cowork or Claude Cod
 - Chrome or another browser?
 - Each course's AI policy.
 - Study blocks written to the calendar automatically, or only suggested?
-- Public or private repository?
 
 ## Success metrics
 

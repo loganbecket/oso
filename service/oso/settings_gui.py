@@ -98,6 +98,11 @@ def open_settings(cfg: cfgmod.Config) -> None:
     ttk.Checkbutton(frm, text="Keep a CLAUDE.md in the vault so Claude Code knows the layout", variable=instr_var).grid(row=row, column=0, columnspan=3, sticky="w", **pad)
     row += 1
 
+    label("Updates", "stable: tagged versions only; latest: every change as it lands")
+    channel_var = tk.StringVar(value=cfg.channel)
+    ttk.Combobox(frm, textvariable=channel_var, values=["stable", "latest"], width=12, state="readonly").grid(row=row, column=1, sticky="w", **pad)
+    row += 1
+
     # reMarkable folder
     label("Tablet folder holding the course folders", "leave empty if course folders are at the tablet's top level")
     rm_var = tk.StringVar(value=cfg.remarkable_folder or "")
@@ -167,6 +172,7 @@ def open_settings(cfg: cfgmod.Config) -> None:
             cfg.exam_model = emodel_var.get().strip() or "opus"
             cfg.read_cap_chars = max(0, int(cap_var.get()))
             cfg.write_vault_instructions = bool(instr_var.get())
+            cfg.channel = channel_var.get() or "stable"
             cfg.muted_courses = [code for code, v in mute_vars.items() if v.get()]
             cfgmod.save(cfg)
             if feed_var.get().strip():
@@ -196,6 +202,7 @@ def open_settings(cfg: cfgmod.Config) -> None:
     ttk.Button(btns, text="Save and check", command=lambda: save(True)).grid(row=0, column=1, padx=4)
     ttk.Button(btns, text="Sync now", command=lambda: show(_sync_now())).grid(row=0, column=2, padx=4)
     ttk.Button(btns, text="Transcribe now", command=lambda: show(_transcribe_now())).grid(row=0, column=3, padx=4)
+    ttk.Button(btns, text="Update Oso", command=lambda: show(_update_now())).grid(row=1, column=0, padx=4, pady=4)
     ttk.Button(btns, text="Connect Google Calendar…", command=lambda: show(_connect_calendar(cfg))).grid(row=0, column=4, padx=4)
     ttk.Button(btns, text="Close", command=root.destroy).grid(row=0, column=5, padx=4)
 
@@ -214,6 +221,13 @@ def _reschedule(minutes: int) -> str:
     from .install_linux import install_timer
 
     return install_timer(every_minutes=minutes)
+
+
+def _update_now() -> str:
+    from . import config as cfgmod
+    from . import update
+
+    return update.run(cfgmod.load())
 
 
 def _connect_calendar(cfg) -> str:

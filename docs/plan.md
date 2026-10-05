@@ -8,11 +8,11 @@ Mostly installing and signing in. Should take a weekend.
 
 - [ ] Claude Pro subscription; review and set the data-use setting
 - [ ] Claude desktop app with Cowork on Windows; Claude app on the phone
-- [ ] Claude Code installed; this repo cloned
+- [ ] Claude Code installed
 - [x] Obsidian with the Web Clipper, an Oso clipper template that keeps source and date, filing into the course on sync, and the Spaced Repetition plugin for flashcards
 - [ ] Google Drive for Desktop; vault folder inside it
 - [ ] Google Drive, Gmail, and Calendar connectors signed in; one dedicated "Oso" calendar created
-- [ ] `vault-template/` copied in: one folder per course (Lectures, Homework, Readings, Notes, Exams), `Inbox/`, `Course.md` template
+- [ ] Installer run: vault folders created, Canvas feed stored, sync scheduled
 - [x] Empty plugin skeleton installed in Cowork and Claude Code
 
 **Gate:** the student clips an article and asks Cowork a question about it from their phone.
@@ -70,7 +70,7 @@ Mostly installing and signing in. Should take a weekend.
 - [x] `Dashboard.md`: deadlines, connector health, recent changes
 - [x] Nudge for items due within 24 hours not marked started
 - [x] Self-service health check and repair skill
-- [x] `oso update`: pull and reinstall in one step; daily check that shows in the briefing and the doctor
+- [x] Install and update from GitHub downloads, no Git: one-line installers, `oso update` with stable (highest version tag, the default) and latest (master) channels, rollback to an exact version, daily update check in the briefing and the doctor
 - [x] Settings window (`oso settings`): check interval, urgency window, quiet hours, mutes, tablet folder, Canvas feed and token
 - [ ] Browser automation for publisher sites with no feed
-- [x] Installer good enough that another student can set Oso up from this repo
+- [x] One-line installer good enough that another student can set Oso up without Git

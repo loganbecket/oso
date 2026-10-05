@@ -41,12 +41,11 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("install-task", help="schedule the sync (Windows scheduled task, macOS launch agent, or Linux systemd timer)")
     s.add_argument("--every", type=int, default=None, help="minutes between runs (default: the saved setting, 15)")
     sub.add_parser("settings", help="open the settings window")
-    sub.add_parser("update", help="pull the latest Oso from its repository and reinstall")
+    s = sub.add_parser("update", help="install the newest Oso on your update channel (set in oso settings; stable by default)")
+    s.add_argument("--version", help="install this exact version (e.g. v0.1.0) or commit, for rolling back")
     s = sub.add_parser("connect-calendar", help="let Oso put urgent changes on its own Google calendar")
     s.add_argument("--client-file", required=True, help="the OAuth client file downloaded from Google Cloud")
     sub.add_parser("disconnect-calendar", help="stop Oso writing to Google Calendar and forget its access")
-    s = sub.add_parser("set-repo", help="tell Oso where its cloned repository is (the installer does this)")
-    s.add_argument("path")
     s = sub.add_parser("transcribe", help="turn queued handwritten pages into notes, one page per Claude Code call")
     s.add_argument("--model", help="override the model from settings (sonnet, opus, ...)")
     s.add_argument("--limit", type=int, default=200, help="at most this many pages")
@@ -188,18 +187,7 @@ def _dispatch(args: argparse.Namespace) -> int:
     if args.cmd == "update":
         from . import update
 
-        print(update.run(cfg))
-        return 0
-
-    if args.cmd == "set-repo":
-        from . import update
-
-        try:
-            commit = update.set_repo(cfg, Path(args.path).expanduser())
-        except ValueError as e:
-            print(e, file=sys.stderr)
-            return 2
-        print(f"Repository recorded; installed from commit {commit[:10]}.")
+        print(update.run(cfg, version=args.version))
         return 0
 
     if args.cmd == "settings":

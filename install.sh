@@ -1,31 +1,40 @@
 #!/usr/bin/env bash
-# Oso installer for Linux and macOS. Run from the folder you cloned this repo into:
-#   ./install.sh "/path/to/your/vault" [timezone]
+# Oso installer for macOS and Linux. Paste this into a terminal:
+#   bash -c "$(curl -fsSL https://raw.githubusercontent.com/loganbecket/oso/master/install.sh)"
 set -euo pipefail
 
-VAULT="${1:?usage: ./install.sh /path/to/vault [timezone]}"
-TZ_NAME="${2:-America/New_York}"
-REPO="$(cd "$(dirname "$0")" && pwd)"
+REPO="${OSO_REPO:-loganbecket/oso}"
+
+echo
+echo "Oso installer"
+echo
 
 if ! command -v uv >/dev/null 2>&1; then
-  echo "Installing uv (Python package manager)..."
+  echo "Installing uv, the tool that installs Oso..."
   curl -LsSf https://astral.sh/uv/install.sh | sh
-  export PATH="$HOME/.local/bin:$PATH"
 fi
+export PATH="$HOME/.local/bin:$PATH"
 
-echo "Installing the Oso service..."
-uv tool install --force --python 3.12 "$REPO"
+echo "Installing the Oso service (this takes a minute or two)..."
+uv tool install --force --python 3.12 "https://github.com/$REPO/archive/refs/heads/master.zip"
+uv tool update-shell >/dev/null 2>&1 || true
 
+echo
+echo "Where is your vault? This is the folder you created in Obsidian (inside your Google Drive folder on macOS)."
+read -r -p "Vault folder: " VAULT
+VAULT="${VAULT/#\~/$HOME}"
+VAULT="${VAULT%\"}"; VAULT="${VAULT#\"}"
 mkdir -p "$VAULT"
-cp -R "$REPO/vault-template/." "$VAULT/"
+
+read -r -p "Time zone (press Enter for America/New_York, or type e.g. America/Chicago): " TZ_NAME
+TZ_NAME="${TZ_NAME:-America/New_York}"
 
 echo
 echo "In Canvas, open Calendar, click 'Calendar Feed', and copy the address."
 read -r -p "Paste the Canvas Calendar Feed URL (or press Enter to skip): " FEED
-oso init --vault "$VAULT" --timezone "$TZ_NAME" --canvas-feed-url "${FEED:-}"
 
-oso set-repo "$REPO"
-oso install-task
+oso init --vault "$VAULT" --timezone "$TZ_NAME" --canvas-feed-url "${FEED:-}"
+oso update
 
 if [ "$(uname -s)" = "Linux" ] && command -v rclone >/dev/null 2>&1; then
   read -r -p "Keep the vault in sync with Google Drive through rclone (remote 'gdrive', folder 'Vault')? [y/N] " RC
@@ -63,5 +72,5 @@ oso doctor --fix || true
 echo
 echo "Oso is installed. Next:"
 echo "  1. Open Obsidian and open $VAULT as a vault."
-echo "  2. In Claude Code or Cowork, install the plugin from $REPO/plugin and ask it to set up your first course."
-echo "  3. Run 'oso settings' any time to change how often Oso checks, quiet hours, and the rest."
+echo "  2. In the Claude app (or claude.ai), open Customize, then Plugins, choose Add marketplace, enter $REPO, and install Oso."
+echo "  3. Run 'oso settings' any time to change how often Oso checks, quiet hours, updates, and the rest."

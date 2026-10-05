@@ -45,7 +45,7 @@ Your vault lives in a folder that Google Drive keeps in sync, so your phone and 
 **Web Clipper** (saving web pages and papers into your vault):
 
 1. Install the Obsidian Web Clipper in your browser from [obsidian.md/clipper](https://obsidian.md/clipper). When it asks for a vault, pick the one you just made.
-2. Give it Oso's template so clips land in the right place with the right properties: click the clipper's icon, open its **Settings** (the gear), go to **Templates**, choose **Import**, and pick the file `oso/obsidian/web-clipper-template.json` from the folder you cloned in step 1.7. If import is not offered, make a new template named `Oso` by hand: note location `Inbox`, note name `{{title}}`, and properties `type` = `reading`, `course` (empty), `source` = `{{url}}`, `author` = `{{author}}`, `clipped` = `{{date}}`.
+2. Give it Oso's template so clips land in the right place with the right properties: click the clipper's icon, open its **Settings** (the gear), go to **Templates**, choose **Import**, and pick Oso's template file. Download it first from [this link](https://raw.githubusercontent.com/loganbecket/oso/master/obsidian/web-clipper-template.json) (right-click the page and choose **Save as** if it opens as text). If import is not offered, make a new template named `Oso` by hand: note location `Inbox`, note name `{{title}}`, and properties `type` = `reading`, `course` (empty), `source` = `{{url}}`, `author` = `{{author}}`, `clipped` = `{{date}}`.
 3. To clip a page: click the clipper icon, pick the **Oso** template, type the course in the `course` box (its name, code, or folder, for example `Physics`), and save. The note goes to `Inbox`; on the next sync Oso moves it into that course's `Readings` folder. Leave `course` empty if it belongs to no class and it stays in `Inbox`.
 
 **Spaced Repetition** (flashcards):
@@ -63,21 +63,13 @@ Your vault lives in a folder that Google Drive keeps in sync, so your phone and 
 
 Claude Code is Claude in a command window. You use it for installing Oso and for transcribing your handwritten notes. Install it by following the instructions at [claude.ai/code](https://claude.ai/code) for your platform, then sign in with the same Claude account.
 
-### 1.7 Git and this repository
+### 1.7 A command window
 
-Git is the tool that downloads this project and keeps it up to date.
+A few steps below use a command window. Open one now:
 
-- **Windows**: install Git from [git-scm.com/download/win](https://git-scm.com/download/win), accepting the defaults. Then open **PowerShell** (press the Windows key, type `PowerShell`, press Enter).
-- **macOS**: open **Terminal** (in Applications, Utilities) and type `git --version`. If Git is missing, macOS offers to install it; accept.
-- **Linux**: install Git with your package manager (`sudo apt install git` on Ubuntu, for example) and open a terminal.
-
-In that window, run:
-
-```
-git clone https://github.com/loganbecket/oso
-```
-
-This copies Oso's files into a folder named `oso` in your current folder (on Windows, `C:\Users\<you>\oso`).
+- **Windows**: press the Windows key, type `PowerShell`, and press Enter.
+- **macOS**: open **Terminal** (in Applications, Utilities).
+- **Linux**: open a terminal.
 
 ---
 
@@ -94,33 +86,30 @@ Canvas is your school's course website where assignments and grades are posted. 
 
 ### 2.2 Run the installer
 
-In the same command window, from the folder you cloned into, run the installer for your platform, replacing the vault path with yours from step 1.5.
+Copy the line for your platform into the command window from step 1.7 and press Enter.
 
 - **Windows** (PowerShell):
 
   ```
-  powershell -ExecutionPolicy Bypass -File .\oso\install.ps1 -Vault "C:\Users\<you>\My Drive\Vault"
+  powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/loganbecket/oso/master/install.ps1 | iex"
   ```
 
 - **macOS and Linux**:
 
   ```
-  ./oso/install.sh "/path/to/My Drive/Vault"
+  bash -c "$(curl -fsSL https://raw.githubusercontent.com/loganbecket/oso/master/install.sh)"
   ```
 
 The installer:
 
-- installs a small Python helper called `uv` if you do not have it
-- installs the Oso service
+- installs a small helper called `uv` if you do not have it, then uses it to download and install Oso
+- asks where your vault is (the folder from step 1.5), your time zone (US Eastern unless you type another, such as `America/Chicago`), and the Canvas calendar feed address from step 2.1 (right-click or Cmd-V to paste, then Enter)
 - adds the starting folders to your vault
-- asks you to paste the Canvas calendar feed address from step 2.1 (right-click or Cmd-V to paste, then Enter)
 - schedules Oso to check for changes every 15 minutes, even when the computer is asleep (Windows Task Scheduler, a macOS launch agent, or a Linux systemd timer)
 - on Linux, offers to keep the vault in sync with Google Drive through rclone
 - runs a first sync and a health check
 
 When it finishes it prints a short report. Lines starting with `ok` are fine. Anything marked `WARN` or `FAIL` says what to do in plain words.
-
-The default time zone is US Eastern. For another, add a time zone name: on Windows `-Timezone "America/Chicago"`, on macOS and Linux a second argument, `./oso/install.sh "/path/to/Vault" America/Chicago`.
 
 ### 2.3 Check it worked
 
@@ -166,10 +155,11 @@ The plugin is the set of instructions that teach Claude how to use Oso.
 3. The Oso plugin appears. Click **Install**.
 4. Open the installed plugin and go to its **Connectors** tab. Connect the **oso** connector. This is what lets Claude read your deadlines and notes. (On Linux, where Cowork runs in the browser, this connector cannot reach your computer; use Claude Code for anything that needs it, and Cowork for the briefing and questions over the vault in Drive.)
 
-**In Claude Code:** in your command window, run:
+**In Claude Code:** a plugin installed in Cowork is saved to your Claude account, so Claude Code has it too. On Linux, where there is no desktop app, start Claude Code (`claude` in the command window) and type these two lines:
 
 ```
-claude plugin install ./oso/plugin
+/plugin marketplace add loganbecket/oso
+/plugin install oso@oso
 ```
 
 ### 3.4 Set up your first course
@@ -220,7 +210,7 @@ The rule is simple: **a folder on the tablet with the same name as a course fold
   - "Make flashcards for the vocabulary in lecture 5."
 - **Grades**: Oso tracks them if your school allows a Canvas token (below). Otherwise tell Claude a grade and it records it.
 - **Something looks wrong**: in Claude Code say *"Run the Oso doctor"*, or in your command window run `oso doctor --fix`.
-- **Updating Oso**: when a newer version exists, the morning briefing and `oso doctor` say so. Run `oso update` in your command window; it fetches the latest version, reinstalls the service, and keeps your notes, deadlines, and settings. The plugin half updates on its own if you turn on **Sync automatically** for the Oso marketplace under Customize, Plugins (or click **Check for updates** there); in Claude Code, rerun the plugin install command.
+- **Updating Oso**: when a newer version exists, the morning briefing and `oso doctor` say so. Run `oso update` in your command window (or click **Update Oso** in `oso settings`); it downloads the new version from GitHub, reinstalls the service, and keeps your notes, deadlines, and settings. By default Oso follows **stable**, meaning only versions marked as releases. To get every change as soon as it is published, set **Updates** to **latest** in `oso settings`. If a new version causes trouble, `oso update --version v0.1.0` (or any earlier release) goes back to it. The plugin half updates on its own if you turn on **Sync automatically** for the Oso marketplace under Customize, Plugins, or click **Check for updates** there.
 - **Changing settings**: run `oso settings` in your command window. A small window opens where you can change the vault folder, time zone, how often Oso checks for changes (15 minutes by default), what counts as urgent, quiet hours, which courses are muted, the tablet folder, and the Canvas feed or token. **Save and check** applies the change, reschedules the checks if needed, and runs the health check.
 
 ### Optional: a Canvas token
@@ -253,10 +243,10 @@ oso set-drive-folder MATH-101-001 "<path to that folder>"
 | The briefing did not arrive | Open the Claude app and check the scheduled task ran. Then check `Today.md` in your vault is from today; if not, run `oso doctor`. |
 | `Today.md` says Canvas has not synced in many hours | Your computer may have been off. Turn it on and wait a few minutes, or run `oso sync`. If it keeps happening, run `oso install-task` again. |
 | Canvas says the login was rejected or the address no longer works | Get a fresh calendar feed address (step 2.1) and run `oso init` again with it. |
-| Claude says it cannot reach Oso's tools | Run `oso doctor`. If it says `oso-mcp` is missing, run the installer again. Then restart the Claude app. |
+| Claude says it cannot reach Oso's tools | Run `oso doctor`. If it says `oso-mcp` is missing, run the installer line again. Then restart the Claude app. |
 | A handwritten page came out wrong | The original page image is linked at the bottom of the note. Fix the text in Obsidian; Oso never overwrites your edits. |
 | The tablet does not sync | Check **USB web interface** is on, the cable is in, and the tablet software is current. Check the notebook is inside a folder named after the course. Run `oso sync` while it is plugged in. |
-| I want to start over | Delete the vault folder and the Oso data folder (`oso doctor` prints where it is). Run the installer again. |
+| I want to start over | Delete the vault folder and the Oso data folder (`oso doctor` prints where it is). Run the installer line again. |
 
 ## Commands
 
@@ -270,14 +260,17 @@ oso set-remarkable-folder the tablet folder that holds the course folders
 oso settings              open the settings window
 oso transcribe            turn queued handwritten pages into notes
 oso install-task          schedule the sync (every 15 minutes by default)
-oso update                fetch the latest Oso and reinstall the service
+oso update                install the newest Oso on your update channel
+oso update --version V    install an exact earlier version
 oso connect-calendar      let Oso put urgent changes on its own Google calendar
 oso disconnect-calendar   stop that and forget the access
 ```
 
 ## For developers
 
-The design is in [docs/spec.md](docs/spec.md) and the build plan in [docs/plan.md](docs/plan.md). The service is in `service/`, the Claude plugin in `plugin/`, tests in `tests/`. Run tests with `uv run pytest`.
+The design is in [docs/spec.md](docs/spec.md) and the build plan in [docs/plan.md](docs/plan.md). The service is in `service/`, the Claude plugin in `plugin/`, tests in `tests/`. Run tests with `uv run --extra dev pytest`.
+
+Releases: the **stable** channel installs the highest tag of the form `v1.2.3`. Tag a commit on master (for example `git tag v0.1.0 && git push origin v0.1.0`, or create a release on GitHub) to publish it to stable users. Until the first tag exists, stable follows master.
 
 ## License
 

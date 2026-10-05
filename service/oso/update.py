@@ -1,108 +1,142 @@
-"""Keep the installed service current with the repository it was installed from.
+"""Install and update the service from GitHub's downloads, with no Git.
 
-`oso set-repo <path>` (the installers run it) records where the clone lives and which commit is installed.
-`oso update` pulls the clone, reinstalls the service from it, and re-registers the scheduler.
-Once a day the sync checks whether the repository is ahead of what is installed and says so in Today.md
-and in `oso doctor`.
+Two channels:
+- stable: the newest version tag (v1.2.3) on the repository. Until one exists, stable falls back to latest.
+- latest: whatever is on the master branch.
+
+Stable is the default; switching to latest is done in the settings window (`channel` in the config).
+`oso update` installs the newest version on the configured channel; `oso update --version v0.1.0` (or a
+commit) installs that exact version, for rolling back.
+Once a day the sync asks GitHub whether something newer exists and says so in Today.md and `oso doctor`.
 """
 
 from __future__ import annotations
 
+import re
 import shutil
 import sqlite3
 import subprocess
 import sys
 from datetime import datetime, timedelta
-from pathlib import Path
+
+import requests
 
 from . import config as cfgmod
 from .config import Config
 from .db import now_iso
 
-META = """
-CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
-"""
+API = "https://api.github.com/repos/{repo}"
+ZIP_BRANCH = "https://github.com/{repo}/archive/refs/heads/master.zip"
+ZIP_TAG = "https://github.com/{repo}/archive/refs/tags/{tag}.zip"
+ZIP_COMMIT = "https://github.com/{repo}/archive/{sha}.zip"
+CHANNELS = ("stable", "latest")
+_SEMVER = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)$")
+
+META = "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);"
 
 
-def _git(repo: Path, *args: str, timeout: int = 60) -> str:
-    r = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, timeout=timeout, check=True)
-    return r.stdout.strip()
+class UpdateError(Exception):
+    pass
 
 
-def head(repo: Path) -> str:
-    return _git(repo, "rev-parse", "HEAD")
+def _get(url: str, **kw):
+    r = requests.get(url, headers={"Accept": "application/vnd.github+json"}, timeout=20, **kw)
+    if r.status_code == 403 and "rate limit" in r.text.lower():
+        raise UpdateError("GitHub is limiting requests right now; try again in an hour")
+    r.raise_for_status()
+    return r
 
 
-def set_repo(cfg: Config, path: Path) -> str:
-    if not (path / ".git").exists():
-        raise ValueError(f"{path} is not a git clone of Oso")
-    cfg.repo_path = str(path.resolve())
-    cfg.installed_commit = head(path)
-    cfgmod.save(cfg)
-    return cfg.installed_commit
+def newest_tag(repo: str) -> str | None:
+    """The highest version tag (v1.2.3), or None if the repository has none."""
+    tags = [t["name"] for t in _get(API.format(repo=repo) + "/tags", params={"per_page": 100}).json()]
+    versions = [(tuple(int(x) for x in m.groups()), t) for t in tags if (m := _SEMVER.match(t))]
+    return max(versions)[1] if versions else None
 
 
-def status(cfg: Config, fetch: bool = True) -> dict:
-    """What is installed, what the clone has, what the remote has."""
-    if not cfg.repo_path:
-        return {"known": False, "available": False, "message": "Oso does not know where its repository is. Run 'oso set-repo <path to the cloned folder>'."}
-    repo = Path(cfg.repo_path)
-    if not (repo / ".git").exists():
-        return {"known": False, "available": False, "message": f"The Oso folder {repo} is gone. Clone it again and run 'oso set-repo'."}
-    if not shutil.which("git"):
-        return {"known": True, "available": False, "message": "git is not installed, so Oso cannot check for updates."}
+def master_commit(repo: str) -> str:
+    return _get(API.format(repo=repo) + "/commits/master").json()["sha"]
+
+
+def target(cfg: Config) -> dict:
+    """What the chosen channel points to right now: version label, download URL, and the note to show."""
+    if cfg.channel == "stable":
+        tag = newest_tag(cfg.repo)
+        if tag:
+            return {"version": tag, "url": ZIP_TAG.format(repo=cfg.repo, tag=tag), "fallback": False}
+    sha = master_commit(cfg.repo)
+    return {"version": sha[:12], "url": ZIP_BRANCH.format(repo=cfg.repo), "fallback": cfg.channel == "stable"}
+
+
+def status(cfg: Config) -> dict:
     try:
-        if fetch:
-            _git(repo, "fetch", "--quiet", "origin", timeout=90)
-        remote = _git(repo, "rev-parse", "origin/master")
-        behind = int(_git(repo, "rev-list", "--count", f"{cfg.installed_commit or 'HEAD'}..origin/master") or 0) if cfg.installed_commit else 0
-    except (subprocess.SubprocessError, OSError) as e:
-        return {"known": True, "available": False, "message": f"Could not check for updates: {_plain(e)}"}
-    available = bool(cfg.installed_commit) and remote != cfg.installed_commit
-    msg = f"An Oso update is available ({behind} new change{'s' if behind != 1 else ''}). Run 'oso update'." if available else "Oso is up to date."
-    return {"known": True, "available": available, "behind": behind, "installed": cfg.installed_commit, "remote": remote, "message": msg}
+        t = target(cfg)
+    except (requests.RequestException, UpdateError, KeyError, ValueError) as e:
+        return {"known": False, "available": False, "message": f"Could not check for Oso updates: {_plain(e)}"}
+    installed = cfg.installed_version
+    available = installed is not None and installed != t["version"]
+    where = "the latest version" if cfg.channel == "latest" or t["fallback"] else f"version {t['version']}"
+    msg = f"An Oso update is available ({where}). Run 'oso update'." if available else f"Oso is up to date ({cfg.channel})."
+    if t["fallback"]:
+        msg += " No stable release has been tagged yet, so stable follows the latest version for now."
+    return {"known": True, "available": available, "installed": installed, "target": t["version"], "message": msg}
 
 
 def check_daily(conn: sqlite3.Connection, cfg: Config, now: datetime) -> str | None:
-    """Fetch at most once a day; return the update message to show, or None when nothing to say."""
+    """Ask GitHub at most once a day; return the message to show in Today.md, or None."""
     conn.executescript(META)
     row = conn.execute("SELECT value FROM meta WHERE key = 'update_checked_at'").fetchone()
     last = datetime.fromisoformat(row["value"]) if row else None
     if last is not None and now.astimezone(last.tzinfo) - last < timedelta(hours=24):
         cached = conn.execute("SELECT value FROM meta WHERE key = 'update_message'").fetchone()
         return cached["value"] if cached and cached["value"] else None
-    st = status(cfg, fetch=True)
-    message = st["message"] if (st.get("available") or not st.get("known")) else ""
+    st = status(cfg)
+    message = st["message"] if st["available"] else ""
     conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('update_checked_at', ?)", (now_iso(),))
     conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('update_message', ?)", (message,))
     return message or None
 
 
-def run(cfg: Config) -> str:
-    """Pull, reinstall, re-register the scheduler. Returns a report."""
-    if not cfg.repo_path:
-        return "Oso does not know where its repository is. Run 'oso set-repo <path to the cloned folder>' first."
-    repo = Path(cfg.repo_path)
+def run(cfg: Config, channel: str | None = None, version: str | None = None) -> str:
+    """Install the newest version on the channel, or an exact version or commit. Returns a report."""
+    if channel:
+        if channel not in CHANNELS:
+            return f"Channel must be one of: {', '.join(CHANNELS)}."
+        cfg.channel = channel
+    try:
+        if version:
+            if _SEMVER.match(version):
+                t = {"version": version, "url": ZIP_TAG.format(repo=cfg.repo, tag=version), "fallback": False}
+            else:
+                t = {"version": version[:12], "url": ZIP_COMMIT.format(repo=cfg.repo, sha=version), "fallback": False}
+        else:
+            t = target(cfg)
+    except (requests.RequestException, UpdateError, KeyError, ValueError) as e:
+        return f"Could not reach GitHub: {_plain(e)}"
     lines = []
+    if not version and cfg.installed_version == t["version"]:
+        cfgmod.save(cfg)
+        return f"Oso is already at {t['version']} on the {cfg.channel} channel."
     try:
-        before = head(repo)
-        _git(repo, "pull", "--ff-only", "--quiet", "origin", "master", timeout=120)
-        after = head(repo)
-    except (subprocess.SubprocessError, OSError) as e:
-        return f"Could not pull the latest Oso: {_plain(e)}"
-    lines.append("Already current." if before == after else f"Pulled {_git(repo, 'rev-list', '--count', f'{before}..{after}')} new change(s).")
-    uv = shutil.which("uv")
-    if not uv:
-        return "\n".join(lines + ["uv is not installed; run the installer script again to finish updating."])
-    try:
-        subprocess.run([uv, "tool", "install", "--force", "--python", "3.12", str(repo)], capture_output=True, text=True, timeout=600, check=True)
-    except subprocess.SubprocessError as e:
-        return "\n".join(lines + [f"Reinstall failed: {_plain(e)}"])
-    cfg.installed_commit = after
+        install(t["url"])
+    except UpdateError as e:
+        return f"Could not install Oso {t['version']}: {e}"
+    cfg.installed_version = t["version"]
     cfgmod.save(cfg)
-    lines.append("Service reinstalled.")
+    lines.append(f"Installed Oso {t['version']} ({'pinned' if version else cfg.channel}).")
+    if t["fallback"]:
+        lines.append("No stable release has been tagged yet, so this is the latest version.")
     lines.append(_reschedule(cfg))
     return "\n".join(lines)
+
+
+def install(url: str) -> None:
+    uv = shutil.which("uv")
+    if not uv:
+        raise UpdateError("uv is not installed; run the Oso installer again")
+    r = subprocess.run([uv, "tool", "install", "--force", "--python", "3.12", url], capture_output=True, text=True, timeout=900)
+    if r.returncode != 0:
+        raise UpdateError((r.stderr or r.stdout).strip().splitlines()[-1][:200] if (r.stderr or r.stdout) else "uv failed")
 
 
 def _reschedule(cfg: Config) -> str:
@@ -120,5 +154,5 @@ def _reschedule(cfg: Config) -> str:
 
 
 def _plain(e: Exception) -> str:
-    text = getattr(e, "stderr", None) or str(e)
-    return (text or type(e).__name__).strip().splitlines()[-1][:160]
+    text = str(e) or type(e).__name__
+    return text.strip().splitlines()[-1][:160]

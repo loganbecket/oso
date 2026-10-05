@@ -36,6 +36,13 @@ def render(conn: sqlite3.Connection, cfg: Config, now: datetime) -> str:
     this_week = [r for r in open_items if r["due"] and today < r["due"].date() <= week_end]
     exams = [r for r in open_items if r["kind"] == "exam" and r["due"] and r["due"].date() >= today]
 
+    not_started = [r for r in open_items if r["due"] and r["status"] == "not_started" and now <= r["due"] <= now + timedelta(hours=24)]
+    if not_started:
+        lines.append("## Not started yet")
+        for r in not_started:
+            lines.append(f"- {_course_label(r, cfg)}{r['title']} is due within a day and is not marked started.")
+        lines.append("")
+
     lines += _section("Overdue", overdue, cfg, now)
     lines += _section("Due today", due_today, cfg, now)
     lines += _section("Due this week", this_week, cfg, now)

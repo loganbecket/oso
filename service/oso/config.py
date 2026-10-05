@@ -30,6 +30,7 @@ class Course:
     code: str
     name: str
     folder: str
+    drive_folder: str | None = None  # a local path synced by Google Drive for Desktop, mirrored into the course folder
 
 
 @dataclass
@@ -72,7 +73,8 @@ def load(path: Path | None = None) -> Config:
     except KeyError as e:
         raise ConfigError(f"{path} is missing the 'vault' setting") from e
     courses = [
-        Course(code=c["code"], name=c.get("name", c["code"]), folder=c.get("folder", c.get("name", c["code"])))
+        Course(code=c["code"], name=c.get("name", c["code"]), folder=c.get("folder", c.get("name", c["code"])),
+               drive_folder=c.get("drive_folder") or None)
         for c in raw.get("courses", [])
     ]
     return Config(
@@ -101,6 +103,7 @@ def save(cfg: Config, path: Path | None = None) -> Path:
             f'code = "{_toml_str(c.code)}"',
             f'name = "{_toml_str(c.name)}"',
             f'folder = "{_toml_str(c.folder)}"',
+            *([f'drive_folder = "{_toml_str(c.drive_folder)}"'] if c.drive_folder else []),
             "",
         ]
     path.write_text("\n".join(lines), encoding="utf-8")

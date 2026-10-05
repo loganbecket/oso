@@ -61,13 +61,13 @@ Mostly installing and signing in. Should take a weekend.
 
 - [x] Canvas API token connector where the school allows it: announcements, grades, files
 - [ ] Direct reMarkable cloud pull (rmapi or equivalent) so the student does not have to send notebooks by hand
-- [ ] Google Drive course folder mirroring and conversion
-- [ ] Check skill: review the student's attempt, teach the method before the answer
-- [ ] Weak-area tracking in the vault; practice weighted toward it
-- [ ] Flashcards into Obsidian
-- [ ] Sunday review
-- [ ] `Dashboard.md`: deadlines, connector health, recent changes
-- [ ] Nudge for items due within 24 hours not marked started
-- [ ] Self-service health check and repair skill
+- [x] Google Drive course folder mirroring and conversion
+- [x] Check skill: review the student's attempt, teach the method before the answer
+- [x] Weak-area tracking in the vault; practice weighted toward it
+- [x] Flashcards into Obsidian
+- [x] Sunday review
+- [x] `Dashboard.md`: deadlines, connector health, recent changes
+- [x] Nudge for items due within 24 hours not marked started
+- [x] Self-service health check and repair skill
 - [ ] Browser automation for publisher sites with no feed
-- [ ] Installer good enough that another student can set Oso up from this repo
+- [x] Installer good enough that another student can set Oso up from this repo

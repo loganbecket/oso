@@ -1,0 +1,55 @@
+from datetime import datetime, timedelta
+from pathlib import Path
+from zoneinfo import ZoneInfo
+
+from oso import dashboard, db, drive, merge, today
+from oso.config import Config, Course
+from oso.db import Item
+
+TZ = ZoneInfo("America/New_York")
+NOW = datetime(2026, 10, 5, 8, 0, tzinfo=TZ)
+
+
+def test_dashboard_renders(tmp_path: Path):
+    cfg = Config(vault=tmp_path / "vault", courses=[Course("MATH-101-001", "Calculus I", "Calculus I")])
+    cfg.vault.mkdir()
+    with db.connect(tmp_path / "t.sqlite") as conn:
+        merge.apply(
+            conn,
+            [
+                Item(source="syllabus", external_id="h1", kind="assignment", title="HW 1", due_at=NOW + timedelta(days=1), course_code="MATH-101-001", weight=30),
+                Item(source="syllabus", external_id="e1", kind="exam", title="Midterm", due_at=NOW + timedelta(days=9), course_code="MATH-101-001", weight=40),
+            ],
+            "syllabus",
+            NOW,
+        )
+        conn.execute("UPDATE items SET grade_points = 8, grade_max = 10 WHERE external_id = 'h1'")
+        run = db.record_sync(conn, "canvas_feed")
+        db.finish_sync(conn, run, ok=True)
+        path = dashboard.write(conn, cfg, NOW)
+    text = path.read_text()
+    assert "| [[Courses/Calculus I/Course\\|Calculus I]] | 80.0% |" in text
+    assert "Week of Oct 05" in text and "1 exam" in text
+    assert "canvas_feed: last success" in text and ", ok" in text
+
+
+def test_today_nudges_unstarted_items(tmp_path: Path):
+    cfg = Config(vault=tmp_path / "vault", courses=[Course("MATH-101-001", "Calculus I", "Calculus I")])
+    with db.connect(tmp_path / "t.sqlite") as conn:
+        merge.apply(conn, [Item(source="canvas_feed", external_id="a", kind="assignment", title="HW 9", due_at=NOW + timedelta(hours=10), course_code="MATH-101-001")], "canvas_feed", NOW)
+        text = today.render(conn, cfg, NOW)
+        assert "## Not started yet" in text and "HW 9 is due within a day" in text
+        conn.execute("UPDATE items SET user_status = 'started'")
+        assert "## Not started yet" not in today.render(conn, cfg, NOW)
+
+
+def test_drive_mirror_copies_new_files_only(tmp_path: Path):
+    src = tmp_path / "drive" / "Physics"
+    src.mkdir(parents=True)
+    (src / "Lecture 1.pdf").write_bytes(b"%PDF-1.4 fake")
+    (src / "Doc.gdoc").write_text("{}")
+    cfg = Config(vault=tmp_path / "vault", courses=[Course("PHYS-110", "Physics", "Physics", drive_folder=str(src))])
+    assert drive.mirror(cfg) == 1
+    assert (cfg.vault / "Courses" / "Physics" / "Drive" / "Lecture 1.pdf").exists()
+    assert not (cfg.vault / "Courses" / "Physics" / "Drive" / "Doc.gdoc").exists()
+    assert drive.mirror(cfg) == 0

@@ -31,6 +31,11 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("sync", help="pull every source and rewrite Today.md")
     sub.add_parser("today", help="rewrite Today.md from what is already stored")
     sub.add_parser("health", help="show when each source last synced")
+    s = sub.add_parser("doctor", help="check the installation and explain anything wrong")
+    s.add_argument("--fix", action="store_true", help="create missing vault folders")
+    s = sub.add_parser("set-drive-folder", help="mirror a Google Drive folder (synced by Drive for Desktop) into a course")
+    s.add_argument("code", help="course code")
+    s.add_argument("path", help="local path of the Drive folder")
     s = sub.add_parser("install-task", help="run sync every hour (Windows scheduled task or Linux systemd timer)")
     s.add_argument("--every", type=int, default=60, help="minutes between runs")
 
@@ -102,6 +107,27 @@ def _dispatch(args: argparse.Namespace) -> int:
         for r in rows:
             state = "ok" if r["last_ok"] else f"failed: {r['last_error']}"
             print(f"{r['connector']}: last run {r['last_run']} ({state}); last success {r['last_success']}")
+        return 0
+
+    if args.cmd == "doctor":
+        from . import doctor
+
+        results = doctor.run(fix=args.fix)
+        print(doctor.format_report(results))
+        return 1 if any(s == "fail" for s, _ in results) else 0
+
+    if args.cmd == "set-drive-folder":
+        c = cfg.course_for(args.code)
+        if c is None:
+            print(f"No course with code {args.code}. Add it first.", file=sys.stderr)
+            return 2
+        p = Path(args.path).expanduser().resolve()
+        if not p.is_dir():
+            print(f"{p} is not a folder.", file=sys.stderr)
+            return 2
+        c.drive_folder = str(p)
+        cfgmod.save(cfg)
+        print(f"{c.name} will mirror {p} into Courses/{c.folder}/Drive on every sync.")
         return 0
 
     if args.cmd == "install-task":

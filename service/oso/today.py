@@ -197,7 +197,7 @@ def _tablet_line(conn: sqlite3.Connection, now: datetime) -> str:
 
     t = last_pull(conn)
     if t is None:
-        return "- reMarkable has not been pulled yet. Plug the tablet in by USB with the USB web interface turned on."
+        return "- reMarkable has not been pulled yet. Plug the tablet in by USB with the USB web interface turned on, with a folder on it named after each course."
     days = (now.astimezone(t.tzinfo) - t).days
     if days >= 3:
         return f"- reMarkable was last pulled {days} days ago. Plug it in to bring new notes over."

@@ -145,14 +145,15 @@ These run in Claude's cloud, so they work even when your laptop is closed.
 
 ## Part 4: Your reMarkable tablet
 
-Oso pulls your handwritten notes straight off the tablet over the USB cable. No reMarkable account or subscription is needed.
+Oso pulls your handwritten notes straight off the tablet over the USB cable. No reMarkable account or subscription is needed, and only your coursework comes over.
+
+The rule is simple: **a folder on the tablet with the same name as a course folder in your vault belongs to that course.** When you set up a course in Part 3, Oso created a folder for it in the vault under `Courses`, for example `Courses\Physics`. Make a folder called `Physics` on the tablet and keep that class's notebooks in it. Every notebook in that folder, including any sub-folders you make, is copied into `Courses\Physics\Handwriting` in your vault. Notebooks anywhere else on the tablet, like a journal or a to-do list, are never touched.
 
 1. On the tablet, open **Settings**, then **Storage**, and turn on **USB web interface**.
-2. Plug the tablet into your laptop with its USB cable. Windows adds it as a small network device; the first time can take a minute. If Windows asks about a new network, choose **Private**.
-3. The next time Oso syncs (within the hour, or run `oso sync` in PowerShell), it copies any notebook you have changed into `Inbox/Handwriting` in your vault. Leave it plugged in for a few minutes; charging it at your desk is enough.
-4. To turn the pages into notes you can search, open Claude Code in your vault folder (`claude` in PowerShell from that folder) and say: *"Transcribe my handwritten notes."* Claude reads each page, writes it out with the equations, files it under the right course, and tells you about any page it could not read well. Those also show up in your morning briefing.
-
-If you only want some notebooks pulled, keep them in one folder on the tablet (for example `School`) and run `oso set-remarkable-folder School` once.
+2. On the tablet, make one folder per course, named exactly as the course folder in your vault (capital letters do not matter). If you would rather keep them together, put them all inside one folder such as `School` and run `oso set-remarkable-folder School` once in PowerShell.
+3. Plug the tablet into your laptop with its USB cable. Windows adds it as a small network device; the first time can take a minute. If Windows asks about a new network, choose **Private**.
+4. The next time Oso syncs (within the hour, or run `oso sync` in PowerShell), it copies any notebook you changed. Leave it plugged in for a few minutes; charging it at your desk is enough.
+5. To turn the pages into notes you can search, open Claude Code in your vault folder (`claude` in PowerShell from that folder) and say: *"Transcribe my handwritten notes."* Claude reads each page, writes it out with the equations, files it in the right course automatically, and tells you about any page it could not read well. Those also show up in your morning briefing.
 
 **If Windows does not see the tablet:** make sure the tablet's software is up to date (Settings, General, Software). Older tablet versions used a connection type that recent Windows releases dropped.
 
@@ -205,7 +206,7 @@ oso set-drive-folder MATH-101-001 "C:\Users\<you>\My Drive\Shared with me\MATH 1
 | Canvas says the login was rejected or the address no longer works | Get a fresh calendar feed address (step 2.1) and run `oso init` again with it. |
 | Claude says it cannot reach Oso's tools | Run `oso doctor`. If it says `oso-mcp` is missing, run the installer again. Then restart the Claude app. |
 | A handwritten page came out wrong | The original page image is linked at the bottom of the note. Fix the text in Obsidian; Oso never overwrites your edits. |
-| The tablet does not sync | Check **USB web interface** is on, the cable is in, and the tablet software is current. Run `oso sync` while it is plugged in. |
+| The tablet does not sync | Check **USB web interface** is on, the cable is in, and the tablet software is current. Check the notebook is inside a folder named after the course. Run `oso sync` while it is plugged in. |
 | I want to start over | Delete the vault folder and the Oso data folder (`oso doctor` prints where it is). Run the installer again. |
 
 ## Commands
@@ -216,7 +217,7 @@ oso doctor [--fix]        check the installation and explain anything wrong
 oso health                when each source last synced
 oso add-course            register a course by hand
 oso set-drive-folder      mirror a shared Google Drive folder into a course
-oso set-remarkable-folder only pull tablet notebooks from this folder
+oso set-remarkable-folder the tablet folder that holds the course folders
 oso install-task          schedule the hourly sync
 ```
 

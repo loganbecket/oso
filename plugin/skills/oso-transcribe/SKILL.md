@@ -11,7 +11,7 @@ Pages the student wrote on the tablet are waiting as images. Turn each notebook 
 
 1. Call `pending_pages`. Group the results by `notebook`. If there are none, say so and stop.
 2. Call `vault_path`, then for each notebook, read its page images in order (`<vault>/<path>`). Look at every page before writing.
-3. Work out the course: the notebook name or the content usually says. If it is not clear, ask once, then remember for the session.
+3. Each page carries its `course` (the tablet folder it came from). Use it; only pages dropped into `Inbox/Handwriting` by hand have no course, and for those ask once.
 4. Write one note per notebook at `Courses/<course folder>/Notes/<YYYY-MM-DD> <notebook>.md` (date from the file's queued_at), with this front matter:
 
    ```

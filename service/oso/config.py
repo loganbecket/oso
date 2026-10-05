@@ -40,7 +40,7 @@ class Config:
     courses: list[Course] = field(default_factory=list)
     quiet_hours: str | None = None  # "22:00-07:00": alerts wait until the end of the window
     muted_courses: list[str] = field(default_factory=list)
-    remarkable_folder: str | None = None  # only pull notebooks under this folder on the tablet; None = all
+    remarkable_folder: str | None = None  # optional tablet folder that holds the course folders; None = tablet root
 
     @property
     def tz(self) -> ZoneInfo:

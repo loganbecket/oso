@@ -35,7 +35,7 @@ Mostly installing and signing in. Should take a weekend.
 
 ## Phase 2: notes and tutor
 
-- [x] Tablet pages: pulled over USB into `Inbox/Handwriting` as PDFs; the service renders each page to PNG and queues it
+- [x] Tablet pages: a tablet folder named after a course folder is pulled over USB into `Courses/<folder>/Handwriting`; pages are rendered to PNG and queued with their course
 - [x] Transcription run in Claude Code: page image to Markdown with LaTeX, filed by course, image linked, confidence recorded
 - [x] Canvas Files and Modules mirrored into course folders (feed-based where possible, token if allowed)
 - [x] Office and PDF to Markdown conversion beside the original

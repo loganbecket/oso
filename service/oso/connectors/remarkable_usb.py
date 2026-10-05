@@ -1,9 +1,14 @@
 """reMarkable over USB, no cloud.
 
 When the tablet is plugged into the laptop with "USB web interface" turned on (Settings, Storage),
-it serves a small web server at http://10.11.99.1. Oso lists the notebooks, and downloads any that
-changed since the last pull as a PDF rendered by the tablet itself, into `Inbox/Handwriting`,
-where the handwriting queue picks the pages up for transcription.
+it serves a small web server at http://10.11.99.1.
+
+Organization mirrors the vault: a folder on the tablet named exactly like a course folder in the
+vault (for example "Physics") is that course's handwriting. Every notebook inside it that changed
+since the last pull is downloaded, as a PDF rendered by the tablet itself, into
+`Courses/<folder>/Handwriting/`, keeping any sub-folders. Notebooks anywhere else on the tablet are
+ignored, so personal notes never enter the vault. An optional root folder (config `remarkable_folder`)
+holds the course folders if the student prefers them grouped.
 
 If the tablet is not plugged in, nothing happens and nothing is reported as a failure.
 """
@@ -68,16 +73,26 @@ class RemarkableUsb:
         conn.executescript(SCHEMA)
         if not self.connected():
             raise NotConnected()
-        dest = self.cfg.vault / "Inbox" / "Handwriting"
-        dest.mkdir(parents=True, exist_ok=True)
+        folders = {c.folder.lower(): c for c in self.cfg.courses}
         pulled = 0
         for doc in self._walk():
             if doc.get("Type") != "DocumentType":
                 continue
             if doc.get("fileType") not in (None, "", "notebook"):
                 continue  # imported PDFs and books are not handwriting
-            if self.cfg.remarkable_folder and not doc["_path"].lower().startswith(self.cfg.remarkable_folder.lower()):
-                continue
+            parts = doc["_path"].split("/")
+            if self.cfg.remarkable_folder:
+                if not parts or parts[0].lower() != self.cfg.remarkable_folder.lower():
+                    continue
+                parts = parts[1:]
+            if len(parts) < 2 or parts[0].lower() not in folders:
+                continue  # not inside a course folder
+            course = folders[parts[0].lower()]
+            sub = [notes.safe_name(p) for p in parts[1:-1]]
+            dest = self.cfg.vault / "Courses" / course.folder / "Handwriting"
+            for p in sub:
+                dest = dest / p
+            dest.mkdir(parents=True, exist_ok=True)
             doc_id = doc["ID"]
             modified = doc.get("ModifiedClient") or ""
             row = conn.execute("SELECT modified FROM remarkable_docs WHERE id = ?", (doc_id,)).fetchone()

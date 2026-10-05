@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from . import alerts, convert, dashboard, db, drive, filing, handwriting, index, instructions, merge, secrets, today, update
+from . import alerts, convert, dashboard, db, drive, filing, handwriting, instructions, merge, secrets, today, update
 from .config import Config
 from .connectors import Connector
 from .connectors.canvas_api import CanvasApi
@@ -52,17 +52,32 @@ def run(cfg: Config, now: datetime | None = None) -> dict[str, object]:
             log.info("%s: %s", connector.name, counts)
 
         results["alerts"] = _safe(lambda: alerts.write_inbox(conn, cfg, now), 0)
+        results["calendar"] = _deliver_calendar(conn, cfg, now)
         results["filed"] = _safe(lambda: filing.file_inbox(cfg), 0)
         results["drive_mirrored"] = _safe(lambda: drive.mirror(cfg), 0)
         results["converted"] = len(_safe(lambda: convert.convert_vault(cfg), []))
         results["remarkable"] = _pull_tablet(conn, cfg)
         results["handwriting_queued"] = _safe(lambda: handwriting.queue_new(conn, cfg), 0)
-        results["index"] = _safe(lambda: index.rebuild(conn, cfg), {})
         results["update"] = _safe(lambda: update.check_daily(conn, cfg, now), None)
         today.write(conn, cfg, now)
         _safe(lambda: dashboard.write(conn, cfg, now), None)
         _safe(lambda: instructions.write(cfg), None)
     return results
+
+
+def _deliver_calendar(conn, cfg: Config, now: datetime) -> str | int:
+    from . import gcal
+
+    if not gcal.connected():
+        return "not connected"
+    run_id = db.record_sync(conn, "google_calendar")
+    try:
+        n = gcal.deliver(conn, cfg, now)
+    except Exception as e:  # noqa: BLE001
+        db.finish_sync(conn, run_id, ok=False, error=plain_error(e))
+        return plain_error(e)
+    db.finish_sync(conn, run_id, ok=True, items_seen=n)
+    return n
 
 
 def _pull_tablet(conn, cfg: Config) -> str | int:

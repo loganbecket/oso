@@ -49,9 +49,9 @@ def test_drive_mirror_copies_new_files_only(tmp_path: Path):
     (src / "Lecture 1.pdf").write_bytes(b"%PDF-1.4 fake")
     (src / "Doc.gdoc").write_text("{}")
     cfg = Config(vault=tmp_path / "vault", courses=[Course("PHYS-110", "Physics", "Physics", drive_folder=str(src))])
-    assert drive.mirror(cfg) == 1
+    assert drive.mirror(cfg) == 2
     assert (cfg.vault / "Courses" / "Physics" / "Drive" / "Lecture 1.pdf").exists()
-    assert not (cfg.vault / "Courses" / "Physics" / "Drive" / "Doc.gdoc").exists()
+    assert (cfg.vault / "Courses" / "Physics" / "Drive" / "Doc.gdoc").exists()
     assert drive.mirror(cfg) == 0
 
 

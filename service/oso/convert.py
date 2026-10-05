@@ -1,33 +1,54 @@
-"""Convert Word, PowerPoint, Excel, and PDF files to Markdown beside the original.
+"""Turn course files into Markdown beside the original, so Claude can read and search them.
 
-The Markdown file has the same name with `.md` appended, so `Lecture 3.pptx` gets `Lecture 3.pptx.md`.
-A file is reconverted only when the original is newer than its Markdown.
+The Markdown file has the same name with `.md` appended (`Lecture 3.pptx` gets `Lecture 3.pptx.md`) and is
+rewritten only when the original is newer.
+
+- Microsoft Office, PDF, CSV, HTML, EPUB: Microsoft's MarkItDown.
+- LibreOffice (.odt, .ods, .odp) and older Office formats (.doc, .xls, .ppt, .rtf): LibreOffice itself, run
+  headless, turns them into the modern Office format, then MarkItDown reads that. Without LibreOffice
+  installed, OpenDocument files still get a plain-text reading from a small built-in reader.
+- Google Docs, Sheets, and Slides: Google Drive for Desktop keeps only a pointer to them, not their content,
+  and reading the content would need a broad Google permission. They get a short note with the link, which
+  Claude follows through its Google Drive connector.
 """
 
 from __future__ import annotations
 
+import json
 import logging
+import shutil
+import subprocess
+import tempfile
+import zipfile
 from pathlib import Path
+from xml.etree import ElementTree
 
 from . import notes
 from .config import Config
 
 log = logging.getLogger("oso.convert")
 
-CONVERTIBLE = {".docx", ".pptx", ".xlsx", ".pdf"}
+MARKITDOWN = {".docx", ".pptx", ".xlsx", ".xls", ".pdf", ".csv", ".html", ".htm", ".epub"}
+OPENDOCUMENT = {".odt", ".ods", ".odp"}
+LEGACY = {".doc", ".ppt", ".rtf"}
+GOOGLE = {".gdoc": "document", ".gsheet": "spreadsheets", ".gslides": "presentation"}
+CONVERTIBLE = MARKITDOWN | OPENDOCUMENT | LEGACY | set(GOOGLE)
+
+_LO_TARGET = {".odt": "docx", ".doc": "docx", ".rtf": "docx", ".ods": "xlsx", ".odp": "pptx", ".ppt": "pptx"}
+SKIP_FOLDERS = {"Handwriting", "pages", ".obsidian", ".trash"}
 
 
 def convert_vault(cfg: Config) -> list[Path]:
-    """Walk Courses/ and Inbox/ and convert anything new. Returns the Markdown files written."""
+    """Convert anything new or changed under Courses/ and Inbox/. Returns the Markdown files written."""
     written: list[Path] = []
     for root in (cfg.vault / "Courses", cfg.vault / "Inbox"):
         if not root.exists():
             continue
         for src in root.rglob("*"):
-            if src.suffix.lower() not in CONVERTIBLE or not src.is_file():
+            if not src.is_file() or src.suffix.lower() not in CONVERTIBLE:
                 continue
-            if "Handwriting" in src.parts:
-                continue  # handwritten pages are transcribed, not converted
+            if SKIP_FOLDERS & set(src.relative_to(cfg.vault).parts):
+                continue
             out = src.with_name(src.name + ".md")
             if out.exists() and out.stat().st_mtime >= src.stat().st_mtime:
                 continue
@@ -36,114 +57,149 @@ def convert_vault(cfg: Config) -> list[Path]:
             except Exception as e:  # noqa: BLE001
                 log.warning("could not convert %s: %s", src.name, type(e).__name__)
                 continue
-            course = _course_from_path(cfg, src)
             fm = {
-                "type": notes.guess_type(src.stem),
-                "course": course,
+                "type": "google-file" if src.suffix.lower() in GOOGLE else notes.guess_type(src.stem),
+                "course": _course_from_path(cfg, src),
                 "source": src.name,
                 "converted": notes.stamp(),
             }
-            out.write_text(notes.with_front_matter(fm, f"# {src.stem}\n\n{body}"), encoding="utf-8")
+            out.write_text(notes.with_front_matter(fm, f"# {src.stem}\n\n{body.strip()}\n"), encoding="utf-8")
             written.append(out)
     return written
 
 
 def to_markdown(path: Path) -> str:
     ext = path.suffix.lower()
-    if ext == ".docx":
-        return _docx(path)
-    if ext == ".pptx":
-        return _pptx(path)
-    if ext == ".xlsx":
-        return _xlsx(path)
-    if ext == ".pdf":
-        return _pdf(path)
+    if ext in GOOGLE:
+        return _google_pointer(path)
+    if ext in MARKITDOWN:
+        return _markitdown(path)
+    if ext in OPENDOCUMENT or ext in LEGACY:
+        converted = _via_libreoffice(path)
+        if converted is not None:
+            return converted
+        if ext in OPENDOCUMENT:
+            return _odf_text(path)
+        raise RuntimeError("LibreOffice is needed to read this older file format")
     raise ValueError(f"unsupported file type {ext}")
 
 
-def _docx(path: Path) -> str:
-    import docx
+def _markitdown(path: Path) -> str:
+    from markitdown import MarkItDown
 
-    d = docx.Document(str(path))
+    result = MarkItDown(enable_plugins=False).convert(str(path))
+    text = (getattr(result, "markdown", None) or result.text_content or "").strip()
+    if not text and path.suffix.lower() == ".pdf":
+        return "(No text layer found. If this is a scan or handwriting, move it to the course's Handwriting folder to have it transcribed.)"
+    return text
+
+
+def libreoffice() -> str | None:
+    for name in ("soffice", "libreoffice"):
+        exe = shutil.which(name)
+        if exe:
+            return exe
+    for candidate in (
+        Path("C:/Program Files/LibreOffice/program/soffice.exe"),
+        Path("C:/Program Files (x86)/LibreOffice/program/soffice.exe"),
+        Path("/Applications/LibreOffice.app/Contents/MacOS/soffice"),
+    ):
+        if candidate.exists():
+            return str(candidate)
+    return None
+
+
+def _via_libreoffice(path: Path) -> str | None:
+    exe = libreoffice()
+    if not exe:
+        return None
+    target = _LO_TARGET[path.suffix.lower()]
+    with tempfile.TemporaryDirectory() as tmp:
+        profile = Path(tmp) / "profile"
+        try:
+            subprocess.run(
+                [exe, f"-env:UserInstallation={profile.as_uri()}", "--headless", "--convert-to", target, "--outdir", tmp, str(path)],
+                capture_output=True, timeout=180, check=True,
+            )
+        except (subprocess.SubprocessError, OSError) as e:
+            log.warning("LibreOffice could not convert %s: %s", path.name, type(e).__name__)
+            return None
+        out = Path(tmp) / f"{path.stem}.{target}"
+        if not out.exists():
+            return None
+        return _markitdown(out)
+
+
+_ODF_NS = {
+    "text": "urn:oasis:names:tc:opendocument:xmlns:text:1.0",
+    "table": "urn:oasis:names:tc:opendocument:xmlns:table:1.0",
+    "draw": "urn:oasis:names:tc:opendocument:xmlns:drawing:1.0",
+}
+
+
+def _odf_text(path: Path) -> str:
+    """Plain reading of an OpenDocument file when LibreOffice is not installed: headings, paragraphs, tables, slides."""
+    with zipfile.ZipFile(path) as z:
+        root = ElementTree.fromstring(z.read("content.xml"))
+    t = "{%s}" % _ODF_NS["text"]
+    tb = "{%s}" % _ODF_NS["table"]
+    dr = "{%s}" % _ODF_NS["draw"]
     out: list[str] = []
-    for p in d.paragraphs:
-        text = p.text.strip()
-        if not text:
-            continue
-        style = (p.style.name or "").lower()
-        if style.startswith("heading"):
-            level = "".join(ch for ch in style if ch.isdigit()) or "2"
-            out.append(f"{'#' * min(int(level) + 1, 6)} {text}")
-        elif style.startswith("list"):
-            out.append(f"- {text}")
-        else:
-            out.append(text)
-        out.append("")
-    for t in d.tables:
-        out.append(_table([[c.text.strip() for c in row.cells] for row in t.rows]))
-        out.append("")
-    return "\n".join(out)
+
+    def text_of(el) -> str:
+        return "".join(el.itertext()).strip()
+
+    def walk(el):
+        for child in el:
+            tag = child.tag
+            if tag == t + "h":
+                level = int(child.get(t + "outline-level", "1"))
+                if text_of(child):
+                    out.append(f"{'#' * min(level + 1, 6)} {text_of(child)}\n")
+            elif tag == t + "p":
+                if text_of(child):
+                    out.append(text_of(child) + "\n")
+            elif tag == t + "list-item":
+                if text_of(child):
+                    out.append(f"- {text_of(child)}")
+            elif tag == tb + "table":
+                rows = []
+                for row in child.iter(tb + "table-row"):
+                    cells = [text_of(c) for c in row if c.tag == tb + "table-cell"]
+                    if any(cells):
+                        rows.append(cells)
+                if rows:
+                    out.append(f"## Sheet: {child.get(tb + 'name', '')}" if path.suffix.lower() == ".ods" else "")
+                    out.append(_table(rows) + "\n")
+            elif tag == dr + "page":
+                out.append(f"## Slide: {child.get(dr + 'name', '')}")
+                walk(child)
+            else:
+                walk(child)
+
+    walk(root)
+    return "\n".join(line for line in out if line is not None)
 
 
-def _pptx(path: Path) -> str:
-    from pptx import Presentation
-
-    prs = Presentation(str(path))
-    out: list[str] = []
-    for n, slide in enumerate(prs.slides, start=1):
-        title = slide.shapes.title.text.strip() if slide.shapes.title is not None and slide.shapes.title.has_text_frame else ""
-        out.append(f"## Slide {n}{': ' + title if title else ''}")
-        for shape in slide.shapes:
-            if shape == slide.shapes.title:
-                continue
-            if shape.has_text_frame:
-                for para in shape.text_frame.paragraphs:
-                    text = "".join(r.text for r in para.runs).strip()
-                    if text:
-                        out.append(f"{'  ' * para.level}- {text}")
-            if getattr(shape, "has_table", False) and shape.has_table:
-                out.append(_table([[c.text.strip() for c in row.cells] for row in shape.table.rows]))
-        if slide.has_notes_slide:
-            notes_text = slide.notes_slide.notes_text_frame.text.strip()
-            if notes_text:
-                out.append(f"\n> Speaker notes: {notes_text}")
-        out.append("")
-    return "\n".join(out)
-
-
-def _xlsx(path: Path) -> str:
-    from openpyxl import load_workbook
-
-    wb = load_workbook(str(path), read_only=True, data_only=True)
-    out: list[str] = []
-    for ws in wb.worksheets:
-        rows = [["" if v is None else str(v) for v in row] for row in ws.iter_rows(values_only=True, max_row=200)]
-        rows = [r for r in rows if any(c.strip() for c in r)]
-        if not rows:
-            continue
-        out.append(f"## Sheet: {ws.title}")
-        out.append(_table(rows))
-        out.append("")
-    return "\n".join(out)
-
-
-def _pdf(path: Path) -> str:
-    from pypdf import PdfReader
-
-    reader = PdfReader(str(path))
-    out: list[str] = []
-    for n, page in enumerate(reader.pages, start=1):
-        text = (page.extract_text() or "").strip()
-        if text:
-            out.append(f"## Page {n}\n\n{text}\n")
-    if not out:
-        out.append("(No text layer found. If this is scanned or handwritten, move it to Inbox/Handwriting to have it transcribed.)")
-    return "\n".join(out)
+def _google_pointer(path: Path) -> str:
+    kind = GOOGLE[path.suffix.lower()]
+    url = None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8", errors="replace") or "{}")
+        url = data.get("url") or (f"https://docs.google.com/{kind}/d/{data['doc_id']}" if data.get("doc_id") else None)
+    except (ValueError, OSError):
+        pass
+    label = {"document": "Google Doc", "spreadsheets": "Google Sheet", "presentation": "Google Slides file"}[kind]
+    lines = [
+        f"This is a {label}. Its content lives in Google Drive, not on this computer, so it is not in this note.",
+        "Claude: read it through the Google Drive connector.",
+    ]
+    if url:
+        lines.append(f"\nLink: {url}")
+    return "\n".join(lines)
 
 
 def _table(rows: list[list[str]]) -> str:
-    if not rows:
-        return ""
     width = max(len(r) for r in rows)
     rows = [r + [""] * (width - len(r)) for r in rows]
     esc = lambda c: c.replace("|", "\\|").replace("\n", " ")  # noqa: E731

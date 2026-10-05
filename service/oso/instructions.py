@@ -11,7 +11,7 @@ from .config import Config
 
 TEMPLATE = """# This vault
 
-This is a student's course vault managed by Oso. Use the Oso tools (`list_deadlines`, `search_notes`, `read_section`, `read_note`, `grade_summary`, and the rest) and the Oso skills rather than exploring the folders by hand.
+This is a student's course vault managed by Oso. Use the Oso tools (`list_deadlines`, `read_section`, `read_note`, `grade_summary`, and the rest) and the Oso skills. To find material, search the course's folder with your file search for the key terms; the Markdown copies next to Office, LibreOffice, and PDF files are what make those searchable.
 
 ## Courses
 
@@ -27,7 +27,7 @@ This is a student's course vault managed by Oso. Use the Oso tools (`list_deadli
 
 ## Which skill
 
-- Set up a course from a syllabus: oso-setup. Morning briefing: oso-briefing. Alerts to the calendar: oso-alerts.
+- Set up a course from a syllabus: oso-setup. Morning briefing: oso-briefing. Recent urgent changes: oso-alerts (the service puts them on the calendar itself).
 - Explain a topic: oso-explain. Summarize: oso-summarize. Study guide: oso-study-guide. Practice test: oso-quiz. Check an attempt: oso-check. Flashcards: oso-flashcards.
 - Grades and what-if: oso-grades. Study plan: oso-plan. Handwriting: run `oso transcribe` (or oso-transcribe). Something broken: oso-doctor.
 
@@ -35,7 +35,8 @@ This is a student's course vault managed by Oso. Use the Oso tools (`list_deadli
 
 - Cite notes as `[[path]]`. Say so when the notes have nothing relevant; never invent course content.
 - State the course's AI policy at the start of tutoring. Never produce submittable answers to graded work.
-- Read notes in sections (`read_section`) or bounded pieces (`read_note`); whole textbooks do not belong in context.
+- Search within `Courses/<course folder>/`, then read the matching section (`read_section`) or bounded pieces (`read_note`); whole textbooks do not belong in context.
+- A note of `type: google-file` is only a pointer; read the Google Doc it links through the Google Drive connector.
 - Never edit a note the student wrote by hand.
 """
 

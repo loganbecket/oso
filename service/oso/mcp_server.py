@@ -208,17 +208,8 @@ def health() -> list[dict]:
 
 
 @mcp.tool()
-def search_notes(query: str, course: str | None = None, limit: int = 10) -> list[dict]:
-    """Full-text search of the vault: path, heading, snippet per hit. Cite the path."""
-    from . import index
-
-    with db.connect() as conn:
-        return index.search(conn, query, course=course, limit=limit)
-
-
-@mcp.tool()
 def read_note(path: str, start: int = 0, max_chars: int | None = None) -> dict:
-    """Read a vault file from `start`. Long files are capped (see `truncated`, `next_start`); prefer read_section."""
+    """Read a vault file (path relative to the vault) from `start`. Long files are capped (see `truncated`, `next_start`); prefer read_section."""
     cfg = _cfg()
     text = _vault_file(cfg, path).read_text(encoding="utf-8", errors="replace")
     cap = cfg.read_cap_chars if max_chars is None else max_chars
@@ -230,9 +221,8 @@ def read_note(path: str, start: int = 0, max_chars: int | None = None) -> dict:
 
 @mcp.tool()
 def read_section(path: str, heading: str) -> dict:
-    """Read just the section under `heading` (as returned by search_notes) of a vault file."""
-    from .index import split_sections
-    from .notes import read_front_matter
+    """Read just the section under `heading` of a vault file."""
+    from .notes import read_front_matter, split_sections
 
     cfg = _cfg()
     text = _vault_file(cfg, path).read_text(encoding="utf-8", errors="replace")

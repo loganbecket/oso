@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from oso import convert, db, handwriting, index, notes
+from oso import convert, db, handwriting, notes
 from oso.config import Config, Course
 
 
@@ -30,11 +30,31 @@ def test_front_matter_roundtrip():
     assert body.startswith("# Hi")
 
 
-def test_convert_docx_pptx_xlsx_pdf(tmp_path: Path):
+def _odt(path):
+    import zipfile
+
+    content = """<?xml version="1.0" encoding="UTF-8"?>
+<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" office:version="1.2">
+ <office:body><office:text>
+  <text:h text:outline-level="1">Kinematics</text:h>
+  <text:p>Velocity is the derivative of position.</text:p>
+ </office:text></office:body></office:document-content>"""
+    manifest = """<?xml version="1.0" encoding="UTF-8"?>
+<manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0" manifest:version="1.2">
+ <manifest:file-entry manifest:full-path="/" manifest:media-type="application/vnd.oasis.opendocument.text"/>
+ <manifest:file-entry manifest:full-path="content.xml" manifest:media-type="text/xml"/>
+</manifest:manifest>"""
+    with zipfile.ZipFile(path, "w") as z:
+        z.writestr("mimetype", "application/vnd.oasis.opendocument.text", compress_type=zipfile.ZIP_STORED)
+        z.writestr("content.xml", content)
+        z.writestr("META-INF/manifest.xml", manifest)
+
+
+def test_convert_office_pdf_libreoffice_and_google(tmp_path: Path):
     import docx
     from openpyxl import Workbook
     from pptx import Presentation
-    from pypdf import PdfWriter
 
     cfg = make_cfg(tmp_path)
     lect = cfg.vault / "Courses" / "Calculus I" / "Lectures"
@@ -52,48 +72,41 @@ def test_convert_docx_pptx_xlsx_pdf(tmp_path: Path):
 
     wb = Workbook()
     ws = wb.active
-    ws.title = "Grades"
     ws.append(["Item", "Weight"])
     ws.append(["Homework", 30])
     wb.save(str(lect / "weights.xlsx"))
 
-    w = PdfWriter()
-    w.add_blank_page(width=200, height=200)
-    with (lect / "blank.pdf").open("wb") as f:
-        w.write(f)
+    inked_pdf(lect / "scan.pdf")
+    _odt(lect / "Kinematics.odt")
+    (lect / "Shared notes.gdoc").write_text('{"doc_id": "abc123", "email": "x@y"}')
 
     written = convert.convert_vault(cfg)
     names = sorted(p.name for p in written)
-    assert names == ["Lecture 2.pptx.md", "Week 1 notes.docx.md", "blank.pdf.md", "weights.xlsx.md"]
+    assert names == ["Kinematics.odt.md", "Lecture 2.pptx.md", "Shared notes.gdoc.md", "Week 1 notes.docx.md", "scan.pdf.md", "weights.xlsx.md"]
 
-    md = (lect / "Week 1 notes.docx.md").read_text()
-    fm, body = notes.read_front_matter(md)
+    fm, body = notes.read_front_matter((lect / "Week 1 notes.docx.md").read_text())
     assert fm["course"] == "MATH-101-001" and fm["type"] == "lecture"
-    assert "## Limits" in body and "approaches" in body
+    assert "Limits" in body and "approaches" in body
     assert "Rate of change" in (lect / "Lecture 2.pptx.md").read_text()
-    assert "| Homework | 30 |" in (lect / "weights.xlsx.md").read_text()
-    assert "No text layer" in (lect / "blank.pdf.md").read_text()
+    assert "Homework" in (lect / "weights.xlsx.md").read_text()
+    assert "No text layer" in (lect / "scan.pdf.md").read_text()
+    assert "Velocity is the derivative" in (lect / "Kinematics.odt.md").read_text()
+    g = (lect / "Shared notes.gdoc.md").read_text()
+    assert "type: google-file" in g and "https://docs.google.com/document/d/abc123" in g
 
-    # Second run converts nothing: originals are not newer than their Markdown.
     assert convert.convert_vault(cfg) == []
 
 
-def test_index_and_search(tmp_path: Path):
-    cfg = make_cfg(tmp_path)
-    note = cfg.vault / "Courses" / "Calculus I" / "Lectures" / "Lecture 3.md"
-    note.write_text("---\ntype: lecture\n---\n# Chain rule\n\nThe chain rule differentiates composite functions.\n\n## Example\n\nd/dx sin(x^2) = 2x cos(x^2)\n")
-    (cfg.vault / "Today.md").write_text("# Today\n\nchain rule should not be indexed here")
-    with db.connect(tmp_path / "t.sqlite") as conn:
-        counts = index.rebuild(conn, cfg)
-        assert counts["indexed"] == 1
-        hits = index.search(conn, "chain rule composite", course="MATH-101-001")
-        assert hits and hits[0]["path"] == "Courses/Calculus I/Lectures/Lecture 3.md"
-        assert hits[0]["type"] == "lecture"
-        assert index.search(conn, "chain rule", course="PHYS-110") == []
-        assert index.rebuild(conn, cfg)["indexed"] == 0
-        note.unlink()
-        assert index.rebuild(conn, cfg)["removed"] == 1
-        assert index.search(conn, "chain rule") == []
+def test_opendocument_without_libreoffice(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(convert, "libreoffice", lambda: None)
+    _odt(tmp_path / "k.odt")
+    text = convert.to_markdown(tmp_path / "k.odt")
+    assert "## Kinematics" in text and "Velocity is the derivative" in text
+
+
+def test_split_sections():
+    secs = notes.split_sections("intro\n# A\n\none\n## B\n\ntwo")
+    assert secs == [("", "intro"), ("A", "one"), ("B", "two")]
 
 
 def test_handwriting_queue_and_mark(tmp_path: Path):

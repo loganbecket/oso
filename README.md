@@ -134,11 +134,26 @@ If `Today.md` is missing or Canvas shows as not connected, run `oso doctor` in y
 
 ### 3.1 Connect Google to Claude
 
-In the Claude app (or claude.ai), open **Settings**, then **Connectors**. Connect **Google Drive**, **Google Calendar**, and **Gmail**, signing in with your Google account each time. Drive is required; Calendar is needed for alerts and study blocks; Gmail is optional.
+In the Claude app (or claude.ai), open **Settings**, then **Connectors**. Connect **Google Drive**, **Google Calendar**, and **Gmail**, signing in with your Google account each time. Drive is required; Calendar lets Claude put study blocks on your calendar; Gmail is optional.
 
-### 3.2 Create the Oso calendar
+### 3.2 Connect the Oso calendar
 
-Go to [calendar.google.com](https://calendar.google.com). On the left, next to "Other calendars", click **+** and choose **Create new calendar**. Name it `Oso`. Oso only ever writes to this calendar, so you can turn it off or delete it any time without touching the rest of your calendar.
+Oso puts urgent changes (a moved due date, a rescheduled exam, a new graded item due soon) on a Google calendar of its own, with reminders, within minutes of noticing them. It does this itself, without Claude, so it costs none of your Claude usage. It can only touch calendars it created, never your others.
+
+Google requires a one-time setup to let a program like Oso do this. It takes about ten minutes, and the file it produces can be reused on any computer.
+
+1. Go to [console.cloud.google.com](https://console.cloud.google.com) and sign in with your Google account. Accept the terms if asked.
+2. At the top, click the project picker and choose **New project**. Name it `Oso` and click **Create**. Make sure the new project is selected.
+3. In the search bar, type **Google Calendar API**, open it, and click **Enable**.
+4. In the search bar, type **Google Auth Platform** and open it. Click **Get started**. App name `Oso`; your email as the support and contact email; audience **External**. Finish the steps and click **Create**.
+5. In the left menu, open **Audience** and click **Publish app**, then confirm. This keeps the connection from expiring every seven days.
+6. In the left menu, open **Clients**, click **Create client**, choose application type **Desktop app**, name it `Oso`, and click **Create**. Click **Download JSON** and save the file somewhere you can find it.
+7. Run `oso connect-calendar --client-file "<path to the downloaded file>"` in your command window, or click **Connect Google Calendar** in `oso settings` and pick the file.
+8. A browser window opens. Sign in, and if Google says the app is not verified, click **Advanced**, then **Go to Oso**. Allow access.
+
+Oso then creates a calendar named **Oso** in your Google Calendar. To stop it, run `oso disconnect-calendar`; the calendar stays until you delete it.
+
+Without this step, urgent changes still appear in `Today.md`, in your morning briefing, and in `Inbox/Alerts.md`; they just don't reach your calendar.
 
 ### 3.3 Install the Oso plugin
 
@@ -149,7 +164,7 @@ The plugin is the set of instructions that teach Claude how to use Oso.
 1. In the sidebar, open **Customize**, then **Plugins**.
 2. Select **Add marketplace** and enter `loganbecket/oso`.
 3. The Oso plugin appears. Click **Install**.
-4. Open the installed plugin and go to its **Connectors** tab. Connect the **oso** connector. This is what lets Claude read your deadlines and notes. (On Linux, where Cowork runs in the browser, this connector cannot reach your computer; use Claude Code for anything that needs it, and Cowork for the briefing, alerts, and questions over the vault in Drive.)
+4. Open the installed plugin and go to its **Connectors** tab. Connect the **oso** connector. This is what lets Claude read your deadlines and notes. (On Linux, where Cowork runs in the browser, this connector cannot reach your computer; use Claude Code for anything that needs it, and Cowork for the briefing and questions over the vault in Drive.)
 
 **In Claude Code:** in your command window, run:
 
@@ -164,14 +179,9 @@ claude plugin install ./oso/plugin
 3. Claude reads the syllabus and shows you every date, exam, and grade weight it found. Check them, correct anything wrong, and confirm. Only then does it save anything.
 4. Repeat for each course.
 
-### 3.5 Schedule the morning briefing and alerts
+### 3.5 Schedule the morning briefing
 
-In Cowork, create two scheduled tasks:
-
-- **Morning briefing**: every day at the time you wake up. Instruction: *"Run the oso-briefing skill."* It reads `Today.md` from your vault through Google Drive and the result appears in the Claude app on your phone.
-- **Alerts**: every 3 hours. Instruction: *"Run the oso-alerts skill."* It puts moved due dates and rescheduled exams on your Oso calendar so your phone buzzes.
-
-These run in Claude's cloud, so they work even when your computer is off.
+In Cowork, create a scheduled task that runs every day at the time you wake up, with the instruction *"Run the oso-briefing skill."* It reads `Today.md` from your vault through Google Drive, and the result appears in the Claude app on your phone. It runs in Claude's cloud, so it works even when your computer is off.
 
 ---
 
@@ -199,7 +209,7 @@ The rule is simple: **a folder on the tablet with the same name as a course fold
 
 - **Every morning** the briefing is in the Claude app on your phone: due today, due this week, what changed, days until each exam, and what to focus on.
 - **Reading online**: click the Web Clipper, choose the Oso template, type the course, save. The note is filed into that course's Readings folder on the next sync.
-- **Course files**: anything your professor posts to Canvas (with a Canvas token, see below) or to a shared Google Drive folder is copied into the course folder and turned into readable text.
+- **Course files**: anything your professor posts to Canvas (with a Canvas token, see below) or to a shared Google Drive folder is copied into the course folder, and a readable text copy is made next to it so Claude can search it. Word, PowerPoint, Excel, PDF, and LibreOffice files all work; installing LibreOffice (free, [libreoffice.org](https://www.libreoffice.org)) gives the best results for LibreOffice files and older Office formats. Google Docs, Sheets, and Slides stay in Google Drive; Oso leaves a short note with the link, and Claude reads them through its Google Drive connector.
 - **Studying**: open Cowork on your vault and ask. Examples:
   - "Explain the chain rule from my notes."
   - "Make a study guide for the physics midterm."
@@ -239,6 +249,7 @@ oso set-drive-folder MATH-101-001 "<path to that folder>"
 
 | What you see | What to do |
 | --- | --- |
+| Urgent changes are not reaching my calendar | Run `oso doctor`. If it says Google Calendar is not connected, do step 3.2. If the connection expired, check the Google project is published (step 3.2, point 5) and connect again. |
 | The briefing did not arrive | Open the Claude app and check the scheduled task ran. Then check `Today.md` in your vault is from today; if not, run `oso doctor`. |
 | `Today.md` says Canvas has not synced in many hours | Your computer may have been off. Turn it on and wait a few minutes, or run `oso sync`. If it keeps happening, run `oso install-task` again. |
 | Canvas says the login was rejected or the address no longer works | Get a fresh calendar feed address (step 2.1) and run `oso init` again with it. |
@@ -260,6 +271,8 @@ oso settings              open the settings window
 oso transcribe            turn queued handwritten pages into notes
 oso install-task          schedule the sync (every 15 minutes by default)
 oso update                fetch the latest Oso and reinstall the service
+oso connect-calendar      let Oso put urgent changes on its own Google calendar
+oso disconnect-calendar   stop that and forget the access
 ```
 
 ## For developers

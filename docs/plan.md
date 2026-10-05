@@ -39,9 +39,9 @@ Mostly installing and signing in. Should take a weekend.
 - [x] Transcription: `oso transcribe` sends one page per Claude Code call with the configured model; blank pages skipped; image size configurable; notes filed by course with image links and confidence
 - [x] Model defaults: Sonnet for handwriting, Opus for study guides and practice tests, set in the settings window and applied through plugin agents
 - [x] Canvas Files and Modules mirrored into course folders (feed-based where possible, token if allowed)
-- [x] Office and PDF to Markdown conversion beside the original
+- [x] Office, LibreOffice, and PDF to Markdown beside the original (MarkItDown plus LibreOffice headless); pointer notes for Google Docs
 - [x] Front matter on every note: course, topic, type, source
-- [x] Full-text index over the vault exposed as an MCP search tool
+- [x] Search through Claude's own file search over the Markdown copies (the separate index was removed)
 - [x] Skills: explain (with citations), study guide (scoped to an exam), quiz (key withheld until attempted), summarize
 - [x] Every tutoring skill opens with the course's AI policy and declines on empty retrieval
 
@@ -50,7 +50,7 @@ Mostly installing and signing in. Should take a weekend.
 ## Phase 3: alerts and grades
 
 - [x] Diff against the last snapshot on every check (15 minutes by default, set in the settings window); rule-based urgent versus routine classification
-- [x] Urgent changes written as events with reminders to the Oso calendar, and noted in `Inbox/`
+- [x] Urgent changes written by the service straight to its own Oso Google calendar (Calendar API, app-created calendars only), and noted in `Inbox/`
 - [x] Quiet hours and per-course mute
 - [x] Grade tracking from Canvas or manual entry
 - [x] What-if calculator skill

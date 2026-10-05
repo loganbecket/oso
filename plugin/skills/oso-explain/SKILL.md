@@ -8,12 +8,12 @@ description: Answer a question about coursework from the student's own notes and
 ## Before answering
 
 1. Identify the course. Call `list_courses` if needed and note its `ai_policy`. Begin the reply with one line: "Policy for <course>: <policy, shortened>" (or "no AI policy recorded; check with the instructor").
-2. Call `search_notes` with the key terms, scoped to the course. Try two or three phrasings if the first returns little. Open the most relevant hits with `read_section` (the heading from the hit), and `read_note` only when a whole note is needed.
+2. Using `Course.md` for the folder, search the course folder (`Courses/<folder>/`) with your file search for the key terms. Try two or three phrasings and related terms (search does not match word variants). Open the most relevant matches with `read_section` (the heading above the match), and `read_note` only when a whole note is needed.
 
 ## Answer
 
 - Build the explanation from what the notes and course materials say, in the order the course teaches it.
-- Cite every claim drawn from the vault as `[[path]]` (the vault-relative path from `search_notes`), at the end of the sentence or paragraph it supports.
+- Cite every claim drawn from the vault as `[[path]]` (the path relative to the vault), at the end of the sentence or paragraph it supports.
 - Where general knowledge is needed to connect the student's notes, say so plainly: "Not in your notes, but:".
 - Equations in LaTeX. Worked steps shown one at a time.
 - End with one check-your-understanding question.

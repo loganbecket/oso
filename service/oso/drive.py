@@ -16,7 +16,7 @@ from .config import Config
 log = logging.getLogger("oso.drive")
 
 MAX_MB = 50
-SKIP_SUFFIXES = {".gdoc", ".gsheet", ".gslides", ".gform", ".tmp"}
+SKIP_SUFFIXES = {".gform", ".gmap", ".gsite", ".tmp"}
 
 
 def mirror(cfg: Config) -> int:

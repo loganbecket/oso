@@ -1,11 +1,11 @@
 ---
 name: oso-alerts
-description: Deliver urgent coursework changes (moved due dates, rescheduled exams, new items due soon) to the student's Google Calendar. Run as a scheduled task every few hours, or when asked to check for alerts.
+description: Show or deliver urgent coursework changes (moved due dates, rescheduled exams, new items due soon). Use when asked about alerts or recent changes. Oso normally puts these on the calendar itself; this is for when that is not connected.
 ---
 
-# Deliver urgent alerts
+# Urgent alerts
 
-This runs in Claude's cloud as a scheduled task, where Oso's local tools are not available, so it works from a file and the calendar alone. The same steps work when run locally.
+Oso's service normally delivers urgent changes to the Oso calendar by itself. Use this skill when the student asks what changed, or when the service's calendar connection is not set up (`Today.md` or `oso doctor` will say so) and they want the alerts on the calendar anyway.
 
 ## Steps
 
@@ -13,8 +13,8 @@ This runs in Claude's cloud as a scheduled task, where Oso's local tools are not
 2. Consider only lines noticed in the last 7 days. Each line is: `when noticed | what changed | due <date> | <link> (flags)`.
    - Skip lines marked `(muted)`.
    - Skip lines marked `(quiet until <time>)` if that time is still in the future.
-3. For each remaining line, look in the student's **Oso** Google Calendar for an event titled exactly `Oso: <what changed>`. If one exists, the alert was already delivered; skip it.
-4. Otherwise create the event on the **Oso** calendar: title `Oso: <what changed>`, at the item's due date and time (if the due date is `no date`, today at 6 pm), with reminders 1 day before and 2 hours before, and the link in the description. If the `mark_alert_reported` tool is available, call it with the alert number from the line's trailing comment.
+3. The event title is `Oso: <what changed>` with the `**` bold markers removed (for example `Oso: Calculus I: Homework 1 moved from Wed Oct 07 to Fri Oct 09`); the service uses exactly the same title. For each remaining line, look in the student's **Oso** Google Calendar for an event with that title. If one exists, the alert was already delivered; skip it.
+4. Otherwise create the event on the **Oso** calendar with that title, at the item's due date and time (if the due date is `no date`, today at 6 pm), with reminders 1 day before and 2 hours before, and the link in the description. If the `mark_alert_reported` tool is available, call it with the alert number from the line's trailing comment.
 5. Reply with one line per event created, or "Nothing new" if none.
 
 ## Rules

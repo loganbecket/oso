@@ -42,6 +42,9 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--every", type=int, default=None, help="minutes between runs (default: the saved setting, 15)")
     sub.add_parser("settings", help="open the settings window")
     sub.add_parser("update", help="pull the latest Oso from its repository and reinstall")
+    s = sub.add_parser("connect-calendar", help="let Oso put urgent changes on its own Google calendar")
+    s.add_argument("--client-file", required=True, help="the OAuth client file downloaded from Google Cloud")
+    sub.add_parser("disconnect-calendar", help="stop Oso writing to Google Calendar and forget its access")
     s = sub.add_parser("set-repo", help="tell Oso where its cloned repository is (the installer does this)")
     s.add_argument("path")
     s = sub.add_parser("transcribe", help="turn queued handwritten pages into notes, one page per Claude Code call")
@@ -161,6 +164,25 @@ def _dispatch(args: argparse.Namespace) -> int:
 
             with db.connect() as conn:
                 todaymod.write(conn, cfg, datetime.now(cfg.tz))
+        return 0
+
+    if args.cmd == "connect-calendar":
+        from . import gcal
+
+        client = Path(args.client_file).expanduser()
+        if not client.is_file():
+            print(f"{client} is not a file. Download the OAuth client file from Google Cloud first (see the README).", file=sys.stderr)
+            return 2
+        print("A browser window will open. Sign in with your Google account and allow access.")
+        gcal.connect(client, cfg)
+        print("Connected. Oso created a calendar named 'Oso' and will put urgent changes on it.")
+        return 0
+
+    if args.cmd == "disconnect-calendar":
+        from . import gcal
+
+        gcal.disconnect()
+        print("Disconnected. Oso will no longer write to Google Calendar. The Oso calendar itself is left as is.")
         return 0
 
     if args.cmd == "update":

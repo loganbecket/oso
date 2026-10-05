@@ -196,7 +196,8 @@ def open_settings(cfg: cfgmod.Config) -> None:
     ttk.Button(btns, text="Save and check", command=lambda: save(True)).grid(row=0, column=1, padx=4)
     ttk.Button(btns, text="Sync now", command=lambda: show(_sync_now())).grid(row=0, column=2, padx=4)
     ttk.Button(btns, text="Transcribe now", command=lambda: show(_transcribe_now())).grid(row=0, column=3, padx=4)
-    ttk.Button(btns, text="Close", command=root.destroy).grid(row=0, column=4, padx=4)
+    ttk.Button(btns, text="Connect Google Calendar…", command=lambda: show(_connect_calendar(cfg))).grid(row=0, column=4, padx=4)
+    ttk.Button(btns, text="Close", command=root.destroy).grid(row=0, column=5, padx=4)
 
     root.mainloop()
 
@@ -213,6 +214,21 @@ def _reschedule(minutes: int) -> str:
     from .install_linux import install_timer
 
     return install_timer(every_minutes=minutes)
+
+
+def _connect_calendar(cfg) -> str:
+    from pathlib import Path
+
+    from . import gcal
+
+    path = filedialog.askopenfilename(title="Choose the OAuth client file from Google Cloud", filetypes=[("JSON", "*.json"), ("All files", "*")])
+    if not path:
+        return "No file chosen."
+    try:
+        gcal.connect(Path(path), cfg)
+    except Exception as e:  # noqa: BLE001
+        return f"Could not connect Google Calendar: {e}"
+    return "Connected. Oso created a calendar named 'Oso' and will put urgent changes on it."
 
 
 def _transcribe_now() -> str:

@@ -216,4 +216,4 @@ def _tablet_line(conn: sqlite3.Connection, now: datetime) -> str:
 
 
 def _friendly(connector: str) -> str:
-    return {"canvas_feed": "Canvas calendar feed", "canvas_api": "Canvas (token)", "remarkable_usb": "reMarkable"}.get(connector, connector)
+    return {"canvas_feed": "Canvas calendar feed", "canvas_api": "Canvas (token)", "remarkable_usb": "reMarkable", "google_calendar": "Google Calendar alerts"}.get(connector, connector)

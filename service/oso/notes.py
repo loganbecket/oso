@@ -11,6 +11,7 @@ import yaml
 from .config import Config
 
 _FM = re.compile(r"\A---\r?\n(.*?)\r?\n---\r?\n?", re.DOTALL)
+_HEADING = re.compile(r"^(#{1,6})\s+(.*)$", re.MULTILINE)
 
 
 def read_front_matter(text: str) -> tuple[dict, str]:
@@ -57,3 +58,28 @@ def guess_type(title: str, default: str = "reading") -> str:
 
 def stamp() -> str:
     return datetime.now().isoformat(timespec="minutes")
+
+
+def split_sections(body: str, max_chars: int = 2500) -> list[tuple[str, str]]:
+    """(heading, text) pairs; long sections are split into pieces that keep the heading."""
+    out: list[tuple[str, str]] = []
+    pos = 0
+    heading = ""
+    for m in _HEADING.finditer(body):
+        _emit(out, heading, body[pos:m.start()], max_chars)
+        heading = m.group(2).strip()
+        pos = m.end()
+    _emit(out, heading, body[pos:], max_chars)
+    return out
+
+
+def _emit(out: list[tuple[str, str]], heading: str, text: str, max_chars: int) -> None:
+    text = text.strip()
+    while len(text) > max_chars:
+        cut = text.rfind("\n\n", 0, max_chars)
+        if cut <= 0:
+            cut = max_chars
+        out.append((heading, text[:cut]))
+        text = text[cut:].strip()
+    if text:
+        out.append((heading, text))

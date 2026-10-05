@@ -17,7 +17,7 @@ Delegate the writing to the `oso-examiner` agent, which runs on the model the st
 
 ## Gather
 
-- `search_notes` for each topic in scope, opening the relevant sections with `read_section` (whole notes with `read_note` only when needed): lectures, the student's own notes, homework, and readings. Prefer the student's notes and the instructor's slides over textbook text.
+- Search the course folder (`Courses/<folder>/`) with your file search for each topic in scope, opening the relevant sections with `read_section` (whole notes with `read_note` only when needed): lectures, the student's own notes, homework, and readings. Prefer the student's notes and the instructor's slides over textbook text.
 
 ## Write the guide
 

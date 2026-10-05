@@ -38,7 +38,7 @@ The student drops each syllabus into the vault and runs the setup skill once per
 
 ### Capturing what the student reads and writes
 
-Pages written on the reMarkable are pulled over USB whenever the tablet is plugged in, transcribed to text with equations preserved, and filed under the right course with the original page image linked. Articles and papers read in the browser go into the vault with one click through the Obsidian Web Clipper, tagged with course and source. Files posted in Canvas or Google Drive are mirrored into the course folder; Word, PowerPoint, Excel, and PDF files get a readable text version beside the original. Every note carries course, topic, and type in its front matter. Search is full-text to begin with; embeddings only if that proves insufficient.
+Pages written on the reMarkable are pulled over USB whenever the tablet is plugged in, transcribed to text with equations preserved, and filed under the right course with the original page image linked. Articles and papers read in the browser go into the vault with one click through the Obsidian Web Clipper, tagged with course and source. Files posted in Canvas or Google Drive are mirrored into the course folder; Word, PowerPoint, Excel, PDF, and LibreOffice files get a readable Markdown copy beside the original (Microsoft's MarkItDown, with LibreOffice converting its own formats when installed); Google Docs get a pointer note and are read through Claude's Drive connector. Every note carries course, topic, and type in its front matter. Claude finds material with its own file search over the course folder.
 
 ### Knowing what is due
 
@@ -46,7 +46,7 @@ One list of every assignment, quiz, exam, and reading across all courses, with d
 
 ### Hearing about changes
 
-Every 15 minutes (adjustable) the service checks each source against its last snapshot. A moved due date, a rescheduled exam, or a new graded item due within the week is urgent: it becomes an event with a reminder on the student's Google Calendar. Everything else waits for the morning. Quiet hours and per-course muting are available. A broken connector or an expired login shows up in the briefing as a sentence.
+Every 15 minutes (adjustable) the service checks each source against its last snapshot. A moved due date, a rescheduled exam, or a new graded item due within the urgent window is urgent: the service puts it straight on the Oso Google calendar with reminders, without involving Claude. Everything else waits for the morning. Quiet hours and per-course muting are available. A broken connector or an expired login shows up in the briefing as a sentence.
 
 ### The morning briefing
 
@@ -72,11 +72,11 @@ The vault is the center. The service fills it and keeps the SQLite facts file be
 | Skills and tools | One Claude plugin installed in Cowork and Claude Code |
 | Service | Python 3.12; every 15 minutes on Windows Task Scheduler, a macOS launch agent, or a Linux systemd timer, with catch-up after sleep |
 | Facts | One SQLite file |
-| Search | SQLite FTS5 over the vault; sqlite-vec with local embeddings only if needed |
+| Search | Claude's own file search over the Markdown in the vault |
 | Canvas | Calendar feed; REST API with a token where allowed |
 | reMarkable | Built-in USB web interface: notebooks downloaded as PDFs when plugged in, pages rendered to PNG, transcribed by a Claude Code run on the laptop |
-| Office and PDF | python-docx, openpyxl, python-pptx, pypdf to Markdown |
-| Google | Built-in Drive, Gmail, and Calendar connectors; one dedicated calendar is the only write |
+| Office, LibreOffice, PDF | MarkItDown; LibreOffice headless for OpenDocument and legacy formats; pointer notes for Google Docs |
+| Google | Built-in Drive, Gmail, and Calendar connectors for Claude; the service writes urgent changes to its own Oso calendar directly through the Calendar API |
 | Browser | Claude in Chrome |
 | Secrets | The operating system's credential store (Windows Credential Manager, macOS Keychain, Linux Secret Service) |
 

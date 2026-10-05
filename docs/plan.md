@@ -13,23 +13,23 @@ Mostly installing and signing in. Should take a weekend.
 - [ ] Google Drive for Desktop; vault folder inside it
 - [ ] Google Drive, Gmail, and Calendar connectors signed in; one dedicated "Oso" calendar created
 - [ ] `vault-template/` copied in: one folder per course (Lectures, Homework, Readings, Notes, Exams), `Inbox/`, `Course.md` template
-- [ ] Empty plugin skeleton installed in Cowork and Claude Code
+- [x] Empty plugin skeleton installed in Cowork and Claude Code
 
 **Gate:** the student clips an article and asks Cowork a question about it from their phone.
 
 ## Phase 1: the briefing
 
-- [ ] Service skeleton: config, logging without content, Windows scheduled task with wake timers, catch-up on wake
-- [ ] Windows Credential Manager wrapper
-- [ ] Canvas calendar feed connector, polled hourly
-- [ ] SQLite schema: courses, items (assignment, quiz, exam, reading), due dates, weights, status, source
-- [ ] Duplicate merging across sources; hand edits survive sync
-- [ ] Per-connector health: last sync, last error, re-auth needed
-- [ ] `Today.md` writer: due today, due this week, changes, exam countdowns, connector problems
-- [ ] MCP server over SQLite: list deadlines, get course, update status, record grade
-- [ ] Setup skill: read a syllabus from the vault, propose dates, weights, office hours, AI policy; confirm; write `Course.md` and the database
-- [ ] Briefing skill, run as a scheduled Cowork task each morning reading `Today.md` via Drive
-- [ ] Fallback: the same briefing from a local Claude Code run
+- [x] Service skeleton: config, logging without content, Windows scheduled task with wake timers, catch-up on wake
+- [x] Windows Credential Manager wrapper
+- [x] Canvas calendar feed connector, polled hourly
+- [x] SQLite schema: courses, items (assignment, quiz, exam, reading), due dates, weights, status, source
+- [x] Duplicate merging across sources; hand edits survive sync
+- [x] Per-connector health: last sync, last error, re-auth needed
+- [x] `Today.md` writer: due today, due this week, changes, exam countdowns, connector problems
+- [x] MCP server over SQLite: list deadlines, get course, update status, record grade
+- [x] Setup skill: read a syllabus from the vault, propose dates, weights, office hours, AI policy; confirm; write `Course.md` and the database
+- [x] Briefing skill, run as a scheduled Cowork task each morning reading `Today.md` via Drive
+- [x] Fallback: the same briefing from a local Claude Code run
 
 **Gate:** the morning briefing in the Claude app on the phone lists every deadline from Canvas and the calendar.
 

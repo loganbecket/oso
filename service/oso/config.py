@@ -1,0 +1,101 @@
+"""Configuration: one TOML file in the user's config directory.
+
+Secrets never go here; see secrets.py.
+"""
+
+from __future__ import annotations
+
+import tomllib
+from dataclasses import dataclass, field
+from pathlib import Path
+from zoneinfo import ZoneInfo
+
+from platformdirs import user_config_dir, user_data_dir
+
+APP = "oso"
+
+
+def config_path() -> Path:
+    return Path(user_config_dir(APP)) / "config.toml"
+
+
+def data_dir() -> Path:
+    p = Path(user_data_dir(APP))
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
+@dataclass
+class Course:
+    code: str
+    name: str
+    folder: str
+
+
+@dataclass
+class Config:
+    vault: Path
+    timezone: str = "America/New_York"
+    courses: list[Course] = field(default_factory=list)
+
+    @property
+    def tz(self) -> ZoneInfo:
+        return ZoneInfo(self.timezone)
+
+    def course_for(self, code: str | None) -> Course | None:
+        if not code:
+            return None
+        code = code.strip().lower()
+        for c in self.courses:
+            if c.code.lower() == code:
+                return c
+        return None
+
+
+class ConfigError(Exception):
+    pass
+
+
+def load(path: Path | None = None) -> Config:
+    path = path or config_path()
+    if not path.exists():
+        raise ConfigError(
+            f"Oso is not set up yet. Run 'oso init --vault <path to your Obsidian vault>'. "
+            f"(Looked for {path})"
+        )
+    with path.open("rb") as f:
+        raw = tomllib.load(f)
+    try:
+        vault = Path(raw["vault"]).expanduser()
+    except KeyError as e:
+        raise ConfigError(f"{path} is missing the 'vault' setting") from e
+    courses = [
+        Course(code=c["code"], name=c.get("name", c["code"]), folder=c.get("folder", c.get("name", c["code"])))
+        for c in raw.get("courses", [])
+    ]
+    return Config(vault=vault, timezone=raw.get("timezone", "America/New_York"), courses=courses)
+
+
+def save(cfg: Config, path: Path | None = None) -> Path:
+    path = path or config_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines = [
+        "# Oso configuration. Secrets are not stored here.",
+        f'vault = "{_toml_str(str(cfg.vault))}"',
+        f'timezone = "{cfg.timezone}"',
+        "",
+    ]
+    for c in cfg.courses:
+        lines += [
+            "[[courses]]",
+            f'code = "{_toml_str(c.code)}"',
+            f'name = "{_toml_str(c.name)}"',
+            f'folder = "{_toml_str(c.folder)}"',
+            "",
+        ]
+    path.write_text("\n".join(lines), encoding="utf-8")
+    return path
+
+
+def _toml_str(s: str) -> str:
+    return s.replace("\\", "\\\\").replace('"', '\\"')

@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "oso": {
+      "type": "stdio",
+      "command": "oso-mcp",
+      "args": []
+    }
+  }
+}

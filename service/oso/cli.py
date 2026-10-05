@@ -29,7 +29,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("sync", help="pull every source and rewrite Today.md")
     sub.add_parser("today", help="rewrite Today.md from what is already stored")
     sub.add_parser("health", help="show when each source last synced")
-    s = sub.add_parser("install-task", help="run sync every hour as a Windows scheduled task")
+    s = sub.add_parser("install-task", help="run sync every hour (Windows scheduled task or Linux systemd timer)")
     s.add_argument("--every", type=int, default=60, help="minutes between runs")
 
     args = p.parse_args(argv)
@@ -98,9 +98,14 @@ def _dispatch(args: argparse.Namespace) -> int:
         return 0
 
     if args.cmd == "install-task":
-        from .install_windows import install_task
+        if sys.platform == "win32":
+            from .install_windows import install_task
 
-        print(install_task(every_minutes=args.every))
+            print(install_task(every_minutes=args.every))
+        else:
+            from .install_linux import install_timer
+
+            print(install_timer(every_minutes=args.every))
         return 0
 
     return 1

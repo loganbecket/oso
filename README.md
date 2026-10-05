@@ -4,7 +4,7 @@ Oso is a study assistant for college students. It keeps track of everything that
 
 It is built from three things you already have or can get: **Obsidian** (a free notes app) holds everything you read and write; **Claude** (on a Pro subscription) supplies the intelligence; and a small program on your laptop, the **Oso service**, does the plumbing: pulling Canvas and your reMarkable tablet, keeping the list of deadlines, and noticing changes. Nothing runs on a server anywhere. Nobody else can see your notes. You install it once and it is yours.
 
-Everything below is written for someone who has never opened a terminal. It takes about an hour, most of it installing and signing in to apps. Do the sections in order.
+Installation instructions follow. Setup takes about an hour, most of it installing and signing in to apps. Do the sections in order.
 
 ---
 
@@ -18,7 +18,7 @@ You need a Google account (a Gmail address). Oso uses Google Drive to carry your
 
 1. Go to [claude.ai](https://claude.ai) and sign in or create an account.
 2. Upgrade to the **Pro** plan (about $20 a month). Oso needs Pro for Cowork, scheduled tasks, and Claude Code.
-3. In Settings, find the **privacy** or **data** section and decide whether Claude may use your conversations to improve its models. Oso works either way; this is your choice, but make it deliberately, because your coursework will pass through Claude.
+3. In Settings, find the **privacy** or **data** section and turn off the option that lets Claude use your conversations to improve its models.
 
 ### 1.3 Claude desktop app and phone app
 

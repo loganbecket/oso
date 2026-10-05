@@ -51,6 +51,7 @@ def render(conn: sqlite3.Connection, cfg: Config, now: datetime) -> str:
     lines.append("")
 
     lines += _changes(conn, cfg, now)
+    lines += _handwriting(conn)
     lines += _health(conn, now)
     return "\n".join(lines) + "\n"
 
@@ -141,6 +142,23 @@ def _fmt(iso: str | None) -> str:
         return iso
 
 
+def _handwriting(conn: sqlite3.Connection) -> list[str]:
+    from . import handwriting
+
+    pending = handwriting.pending(conn, limit=200)
+    low = handwriting.low_confidence(conn)
+    if not pending and not low:
+        return []
+    lines = ["## Handwritten notes"]
+    if pending:
+        notebooks = sorted({p["notebook"] for p in pending})
+        lines.append(f"- {len(pending)} page{'s' if len(pending) != 1 else ''} waiting to be transcribed: {', '.join(notebooks)}. Run the transcribe skill in Claude Code.")
+    for p in low:
+        lines.append(f"- Page {p['page']} of {p['notebook']} transcribed with low confidence; check [[{p['note_path']}]].")
+    lines.append("")
+    return lines
+
+
 def _health(conn: sqlite3.Connection, now: datetime) -> list[str]:
     from .db import connector_health
 
@@ -165,4 +183,4 @@ def _health(conn: sqlite3.Connection, now: datetime) -> list[str]:
 
 
 def _friendly(connector: str) -> str:
-    return {"canvas_feed": "Canvas calendar feed"}.get(connector, connector)
+    return {"canvas_feed": "Canvas calendar feed", "canvas_api": "Canvas (token)"}.get(connector, connector)

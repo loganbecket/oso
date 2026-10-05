@@ -35,14 +35,14 @@ Mostly installing and signing in. Should take a weekend.
 
 ## Phase 2: notes and tutor
 
-- [ ] reMarkable cloud connector: pull new or changed notebooks, render pages to PNG
-- [ ] Transcription run in Claude Code: page image to Markdown with LaTeX, filed by course, image linked, confidence recorded
-- [ ] Canvas Files and Modules mirrored into course folders (feed-based where possible, token if allowed)
-- [ ] Office and PDF to Markdown conversion beside the original
-- [ ] Front matter on every note: course, topic, type, source
-- [ ] Full-text index over the vault exposed as an MCP search tool
-- [ ] Skills: explain (with citations), study guide (scoped to an exam), quiz (key withheld until attempted), summarize
-- [ ] Every tutoring skill opens with the course's AI policy and declines on empty retrieval
+- [x] Tablet pages: the student sends a notebook to Google Drive into `Inbox/Handwriting`; the service renders each PDF page to PNG and queues it (direct reMarkable cloud pull is a later item)
+- [x] Transcription run in Claude Code: page image to Markdown with LaTeX, filed by course, image linked, confidence recorded
+- [x] Canvas Files and Modules mirrored into course folders (feed-based where possible, token if allowed)
+- [x] Office and PDF to Markdown conversion beside the original
+- [x] Front matter on every note: course, topic, type, source
+- [x] Full-text index over the vault exposed as an MCP search tool
+- [x] Skills: explain (with citations), study guide (scoped to an exam), quiz (key withheld until attempted), summarize
+- [x] Every tutoring skill opens with the course's AI policy and declines on empty retrieval
 
 **Gate:** a page written on the tablet is searchable with a cited answer by the next morning, and a practice test comes back for a real exam.
 
@@ -59,7 +59,8 @@ Mostly installing and signing in. Should take a weekend.
 
 ## Phase 4: polish and handoff
 
-- [ ] Canvas API token connector where the school allows it: announcements, grades, files
+- [x] Canvas API token connector where the school allows it: announcements, grades, files
+- [ ] Direct reMarkable cloud pull (rmapi or equivalent) so the student does not have to send notebooks by hand
 - [ ] Google Drive course folder mirroring and conversion
 - [ ] Check skill: review the student's attempt, teach the method before the answer
 - [ ] Weak-area tracking in the vault; practice weighted toward it

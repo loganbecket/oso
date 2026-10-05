@@ -7,6 +7,8 @@ import keyring
 SERVICE = "oso"
 
 CANVAS_FEED_URL = "canvas_feed_url"
+CANVAS_BASE_URL = "canvas_base_url"
+CANVAS_TOKEN = "canvas_token"
 
 
 def get(name: str) -> str | None:

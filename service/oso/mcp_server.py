@@ -157,3 +157,50 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+# ---- notes and handwriting -------------------------------------------------------------------
+
+
+@mcp.tool()
+def search_notes(query: str, course: str | None = None, limit: int = 10) -> list[dict]:
+    """Full-text search over the student's vault. Returns path, heading, and a snippet per hit; cite the path."""
+    from . import index
+
+    with db.connect() as conn:
+        return index.search(conn, query, course=course, limit=limit)
+
+
+@mcp.tool()
+def read_note(path: str) -> str:
+    """Read one vault file by its path relative to the vault root (as returned by search_notes)."""
+    cfg = _cfg()
+    target = (cfg.vault / path).resolve()
+    if cfg.vault.resolve() not in target.parents and target != cfg.vault.resolve():
+        raise ValueError("path must be inside the vault")
+    return target.read_text(encoding="utf-8", errors="replace")
+
+
+@mcp.tool()
+def pending_pages(limit: int = 20) -> list[dict]:
+    """Handwritten page images waiting to be transcribed, as vault-relative paths grouped by notebook."""
+    from . import handwriting
+
+    with db.connect() as conn:
+        return handwriting.pending(conn, limit=limit)
+
+
+@mcp.tool()
+def mark_transcribed(page_path: str, note_path: str, confidence: float) -> dict:
+    """Record that a page image was transcribed into note_path, with confidence from 0 to 1."""
+    from . import handwriting
+
+    with db.connect() as conn:
+        handwriting.mark(conn, page_path, note_path, confidence)
+    return {"page": page_path, "note": note_path, "confidence": confidence}
+
+
+@mcp.tool()
+def vault_path() -> str:
+    """The absolute path of the Obsidian vault on this machine."""
+    return str(_cfg().vault)

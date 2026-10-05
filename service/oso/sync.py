@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from . import alerts, convert, dashboard, db, drive, filing, handwriting, index, merge, secrets, today
+from . import alerts, convert, dashboard, db, drive, filing, handwriting, index, instructions, merge, secrets, today
 from .config import Config
 from .connectors import Connector
 from .connectors.canvas_api import CanvasApi
@@ -60,6 +60,7 @@ def run(cfg: Config, now: datetime | None = None) -> dict[str, object]:
         results["index"] = _safe(lambda: index.rebuild(conn, cfg), {})
         today.write(conn, cfg, now)
         _safe(lambda: dashboard.write(conn, cfg, now), None)
+        _safe(lambda: instructions.write(cfg), None)
     return results
 
 

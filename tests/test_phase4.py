@@ -67,3 +67,40 @@ def test_filing_moves_clips_with_a_course(tmp_path: Path):
     moved = cfg.vault / "Courses" / "Physics" / "Readings" / "Orbital mechanics.md"
     assert moved.exists() and "course: PHYS-110" in moved.read_text()
     assert (inbox / "Unfiled.md").exists()
+
+
+def test_vault_instructions_written_and_switchable(tmp_path: Path):
+    from oso import instructions
+
+    cfg = Config(vault=tmp_path / "vault", courses=[Course("PHYS-110", "Physics", "Physics")])
+    cfg.vault.mkdir()
+    path = instructions.write(cfg)
+    text = path.read_text()
+    assert "**Physics** (`PHYS-110`)" in text and "oso-quiz" in text
+    cfg.write_vault_instructions = False
+    assert instructions.write(cfg) is None
+
+
+def test_read_note_cap_and_section(tmp_path: Path, monkeypatch):
+    from oso import mcp_server
+
+    cfg = Config(vault=tmp_path / "vault", read_cap_chars=50)
+    cfg.vault.mkdir()
+    (cfg.vault / "big.md").write_text("---\ntype: lecture\n---\n# Intro\n\n" + "a" * 100 + "\n\n## Chain rule\n\nThe chain rule text.\n")
+    monkeypatch.setattr(mcp_server, "_cfg", lambda: cfg)
+    first = mcp_server.read_note("big.md")
+    assert first["truncated"] and len(first["text"]) == 50 and first["next_start"] == 50
+    rest = mcp_server.read_note("big.md", start=first["next_start"])
+    assert rest["truncated"] and rest["next_start"] == 100
+    whole = mcp_server.read_note("big.md", max_chars=0)
+    assert not whole["truncated"] and "Chain rule" in whole["text"]
+    cfg.read_cap_chars = 0
+    assert not mcp_server.read_note("big.md")["truncated"]
+    sec = mcp_server.read_section("big.md", "Chain rule")
+    assert sec["found"] and sec["text"] == "The chain rule text."
+    assert not mcp_server.read_section("big.md", "Nope")["found"]
+    try:
+        mcp_server.read_note("../outside.md")
+        raise AssertionError("expected ValueError")
+    except ValueError:
+        pass

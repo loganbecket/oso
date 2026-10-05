@@ -6,7 +6,7 @@ description: Make flashcards from course notes for spaced repetition in Obsidian
 # Flashcards
 
 1. Settle the scope (a lecture, a topic, an exam) and state the course's `ai_policy` in one line.
-2. `search_notes` and open the sources. Cards come only from the materials.
+2. `search_notes` and open the relevant sections with `read_section` (whole notes with `read_note` only when needed). Cards come only from the materials.
 3. Write to `Courses/<folder>/Notes/Flashcards <scope>.md` with front matter `type: flashcards`, `course`, `scope`, `generated`, using the format the Obsidian Spaced Repetition plugin reads:
 
    ```

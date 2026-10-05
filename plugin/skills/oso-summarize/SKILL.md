@@ -5,7 +5,7 @@ description: Summarize a lecture, chapter, reading, or a set of notes from the v
 
 # Summarize course material
 
-1. Find the material: `search_notes` by name or topic, or `read_note` on the path the student gives. State the course's `ai_policy` in one line.
+1. Find the material: `search_notes` by name or topic, then `read_note` on the path (it comes back in pieces if long; keep calling with `next_start`). State the course's `ai_policy` in one line.
 2. Read the whole thing before writing.
 3. Write the summary and save it next to the source as `<source name> summary.md` with front matter (`type: summary`, `course`, `source: [[path]]`, `generated`):
    - **In one sentence**: what this material is about.

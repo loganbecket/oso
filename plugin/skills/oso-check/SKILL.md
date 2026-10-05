@@ -7,7 +7,7 @@ description: Review the student's own attempt at a problem, find where it goes w
 
 1. Identify the course and state its `ai_policy` in one line. If the policy forbids AI help on this kind of work, say so and stop.
 2. Read the attempt fully (text, or the image they attach). Find the first point where it goes wrong, if any.
-3. `search_notes` for the method in the course materials and open the source, so the correction uses the course's own notation and approach.
+3. `search_notes` for the method in the course materials and open that section with `read_section`, so the correction uses the course's own notation and approach.
 4. Respond in this order:
    - What is right so far, in one line.
    - The first mistake, named precisely ("the chain rule was applied to the outer function only"), with the relevant rule quoted from the notes and cited as `[[path]]`.

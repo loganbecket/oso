@@ -8,7 +8,7 @@ description: Answer a question about coursework from the student's own notes and
 ## Before answering
 
 1. Identify the course. Call `list_courses` if needed and note its `ai_policy`. Begin the reply with one line: "Policy for <course>: <policy, shortened>" (or "no AI policy recorded; check with the instructor").
-2. Call `search_notes` with the key terms, scoped to the course. Try two or three phrasings if the first returns little. Open the most relevant hits with `read_note`.
+2. Call `search_notes` with the key terms, scoped to the course. Try two or three phrasings if the first returns little. Open the most relevant hits with `read_section` (the heading from the hit), and `read_note` only when a whole note is needed.
 
 ## Answer
 

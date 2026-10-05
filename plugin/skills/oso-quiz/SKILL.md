@@ -12,7 +12,7 @@ Delegate the writing to the `oso-examiner` agent, which runs on the model the st
 ## Build it
 
 1. Settle the scope: an exam (via `list_deadlines` and `Course.md`) or a topic the student names. State the course's `ai_policy` in one line.
-2. `search_notes` across the scope and open the sources. Questions must be answerable from the course materials; model them on the homework and examples the instructor used.
+2. `search_notes` across the scope and open the relevant sections with `read_section` (whole notes with `read_note` only when needed). Questions must be answerable from the course materials; model them on the homework and examples the instructor used.
 3. Write the test to `Courses/<folder>/Exams/Practice <topic or exam> <date>.md` with front matter (`type: practice-test`, `course`, `scope`, `generated`) and show it.
    - Default mix for a technical course: 4 short-answer or conceptual questions, 4 worked problems, 4 multiple choice. Adjust to what the student asks for.
    - Number every question. Note the source note for each as `[[path]]` in a comment line `<!-- source: ... -->` so the key can cite it.

@@ -47,6 +47,8 @@ class Config:
     render_height_px: int = 1200  # height of page images sent for transcription
     transcribe_model: str = "sonnet"  # Claude model for reading handwriting
     exam_model: str = "opus"  # Claude model for study guides and practice tests
+    read_cap_chars: int = 12000  # read_note returns at most this many characters per call; 0 = no cap
+    write_vault_instructions: bool = True  # keep a CLAUDE.md at the vault root for Claude Code sessions
 
     @property
     def tz(self) -> ZoneInfo:
@@ -97,6 +99,8 @@ def load(path: Path | None = None) -> Config:
         render_height_px=int(raw.get("render_height_px", 1200)),
         transcribe_model=str(raw.get("transcribe_model", "sonnet")),
         exam_model=str(raw.get("exam_model", "opus")),
+        read_cap_chars=int(raw.get("read_cap_chars", 12000)),
+        write_vault_instructions=bool(raw.get("write_vault_instructions", True)),
     )
 
 
@@ -116,6 +120,8 @@ def save(cfg: Config, path: Path | None = None) -> Path:
         f"render_height_px = {cfg.render_height_px}",
         f'transcribe_model = "{_toml_str(cfg.transcribe_model)}"',
         f'exam_model = "{_toml_str(cfg.exam_model)}"',
+        f"read_cap_chars = {cfg.read_cap_chars}",
+        f"write_vault_instructions = {'true' if cfg.write_vault_instructions else 'false'}",
         "",
     ]
     for c in cfg.courses:

@@ -90,6 +90,14 @@ def open_settings(cfg: cfgmod.Config) -> None:
     ttk.Combobox(frm, textvariable=emodel_var, values=["opus", "sonnet"], width=12).grid(row=row, column=1, sticky="w", **pad)
     row += 1
 
+    label("Cap on how much of a note is read per call", "characters; 0 turns the cap off")
+    cap_var = tk.IntVar(value=cfg.read_cap_chars)
+    ttk.Spinbox(frm, from_=0, to=200000, increment=2000, textvariable=cap_var, width=8).grid(row=row, column=1, sticky="w", **pad)
+    row += 1
+    instr_var = tk.BooleanVar(value=cfg.write_vault_instructions)
+    ttk.Checkbutton(frm, text="Keep a CLAUDE.md in the vault so Claude Code knows the layout", variable=instr_var).grid(row=row, column=0, columnspan=3, sticky="w", **pad)
+    row += 1
+
     # reMarkable folder
     label("Tablet folder holding the course folders", "leave empty if course folders are at the tablet's top level")
     rm_var = tk.StringVar(value=cfg.remarkable_folder or "")
@@ -157,6 +165,8 @@ def open_settings(cfg: cfgmod.Config) -> None:
             cfg.render_height_px = max(600, int(height_var.get()))
             cfg.transcribe_model = tmodel_var.get().strip() or "sonnet"
             cfg.exam_model = emodel_var.get().strip() or "opus"
+            cfg.read_cap_chars = max(0, int(cap_var.get()))
+            cfg.write_vault_instructions = bool(instr_var.get())
             cfg.muted_courses = [code for code, v in mute_vars.items() if v.get()]
             cfgmod.save(cfg)
             if feed_var.get().strip():

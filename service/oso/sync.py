@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from . import alerts, convert, dashboard, db, drive, handwriting, index, merge, secrets, today
+from . import alerts, convert, dashboard, db, drive, filing, handwriting, index, merge, secrets, today
 from .config import Config
 from .connectors import Connector
 from .connectors.canvas_api import CanvasApi
@@ -52,6 +52,7 @@ def run(cfg: Config, now: datetime | None = None) -> dict[str, object]:
             log.info("%s: %s", connector.name, counts)
 
         results["alerts"] = _safe(lambda: alerts.write_inbox(conn, cfg, now), 0)
+        results["filed"] = _safe(lambda: filing.file_inbox(cfg), 0)
         results["drive_mirrored"] = _safe(lambda: drive.mirror(cfg), 0)
         results["converted"] = len(_safe(lambda: convert.convert_vault(cfg), []))
         results["remarkable"] = _pull_tablet(conn, cfg)

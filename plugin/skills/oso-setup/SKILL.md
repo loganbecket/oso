@@ -49,8 +49,22 @@ late_policy: |
 | Exam | Date | Covers |
 | --- | --- | --- |
 
-## Notes
+## Readings
+```dataview
+TABLE clipped AS "Clipped", source AS "Source"
+FROM "Courses/<folder>/Readings"
+SORT clipped DESC
 ```
+
+## Notes
+```dataview
+LIST
+FROM "Courses/<folder>/Notes"
+SORT file.mtime DESC
+```
+```
+
+(The two `dataview` blocks render as live lists if the student has the Dataview plugin; otherwise they show as code and do no harm.)
 
 ## Rules
 

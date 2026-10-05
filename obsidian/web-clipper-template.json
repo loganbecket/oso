@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "0.1.0",
+  "name": "Oso",
+  "behavior": "create",
+  "noteNameFormat": "{{title}}",
+  "path": "Inbox",
+  "noteContentFormat": "{{content}}",
+  "properties": [
+    { "name": "type", "value": "reading", "type": "text" },
+    { "name": "course", "value": "", "type": "text" },
+    { "name": "title", "value": "{{title}}", "type": "text" },
+    { "name": "source", "value": "{{url}}", "type": "text" },
+    { "name": "author", "value": "{{author}}", "type": "text" },
+    { "name": "clipped", "value": "{{date}}", "type": "date" }
+  ],
+  "triggers": []
+}

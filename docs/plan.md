@@ -9,7 +9,7 @@ Mostly installing and signing in. Should take a weekend.
 - [ ] Claude Pro subscription; review and set the data-use setting
 - [ ] Claude desktop app with Cowork on Windows; Claude app on the phone
 - [ ] Claude Code installed; this repo cloned
-- [ ] Obsidian installed with the Web Clipper; clipper template that files by course and keeps source URL and date
+- [x] Obsidian with the Web Clipper, an Oso clipper template that keeps source and date, filing into the course on sync, and the Spaced Repetition plugin for flashcards
 - [ ] Google Drive for Desktop; vault folder inside it
 - [ ] Google Drive, Gmail, and Calendar connectors signed in; one dedicated "Oso" calendar created
 - [ ] `vault-template/` copied in: one folder per course (Lectures, Homework, Readings, Notes, Exams), `Inbox/`, `Course.md` template

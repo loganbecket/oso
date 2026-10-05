@@ -53,3 +53,17 @@ def test_drive_mirror_copies_new_files_only(tmp_path: Path):
     assert (cfg.vault / "Courses" / "Physics" / "Drive" / "Lecture 1.pdf").exists()
     assert not (cfg.vault / "Courses" / "Physics" / "Drive" / "Doc.gdoc").exists()
     assert drive.mirror(cfg) == 0
+
+
+def test_filing_moves_clips_with_a_course(tmp_path: Path):
+    from oso import filing
+
+    cfg = Config(vault=tmp_path / "vault", courses=[Course("PHYS-110", "Physics", "Physics")])
+    inbox = cfg.vault / "Inbox"
+    inbox.mkdir(parents=True)
+    (inbox / "Orbital mechanics.md").write_text("---\ntype: reading\ncourse: physics\nsource: https://x\n---\n\nbody\n")
+    (inbox / "Unfiled.md").write_text("---\ntype: reading\ncourse: \n---\n\nbody\n")
+    assert filing.file_inbox(cfg) == 1
+    moved = cfg.vault / "Courses" / "Physics" / "Readings" / "Orbital mechanics.md"
+    assert moved.exists() and "course: PHYS-110" in moved.read_text()
+    assert (inbox / "Unfiled.md").exists()

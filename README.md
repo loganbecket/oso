@@ -40,9 +40,24 @@ Your vault lives in a folder that Google Drive keeps in sync, so your phone and 
 
 1. Download Obsidian from [obsidian.md](https://obsidian.md) and install it. It is free and runs on all three platforms.
 2. Open Obsidian and choose **Create new vault**. Name it `Vault` (or anything you like) and, for the location, pick a folder **inside your Drive folder** from step 1.4 (on Linux, the folder you chose for rclone). This is how your phone and Claude see your notes.
-3. Install the Obsidian Web Clipper in your browser from [obsidian.md/clipper](https://obsidian.md/clipper). It is the button you press to save a web page or paper into your notes. When it asks for a vault, pick the one you just made.
-4. Optional, for flashcards: in Obsidian, open Settings, then **Community plugins**, turn them on, browse, search for **Spaced Repetition**, install it, and enable it.
-5. Optional, on your phone: install the Obsidian app and open the same vault from Google Drive.
+3. Turn on community plugins: open **Settings**, then **Community plugins**, and click **Turn on community plugins**.
+
+**Web Clipper** (saving web pages and papers into your vault):
+
+1. Install the Obsidian Web Clipper in your browser from [obsidian.md/clipper](https://obsidian.md/clipper). When it asks for a vault, pick the one you just made.
+2. Give it Oso's template so clips land in the right place with the right properties: click the clipper's icon, open its **Settings** (the gear), go to **Templates**, choose **Import**, and pick the file `oso/obsidian/web-clipper-template.json` from the folder you cloned in step 1.7. If import is not offered, make a new template named `Oso` by hand: note location `Inbox`, note name `{{title}}`, and properties `type` = `reading`, `course` (empty), `source` = `{{url}}`, `author` = `{{author}}`, `clipped` = `{{date}}`.
+3. To clip a page: click the clipper icon, pick the **Oso** template, type the course in the `course` box (its name, code, or folder, for example `Physics`), and save. The note goes to `Inbox`; on the next sync Oso moves it into that course's `Readings` folder. Leave `course` empty if it belongs to no class and it stays in `Inbox`.
+
+**Spaced Repetition** (flashcards):
+
+1. In **Settings**, **Community plugins**, click **Browse**, search for **Spaced Repetition**, click **Install**, then **Enable**.
+2. Oso's flashcard skill writes cards into `Courses/<course>/Notes/` tagged for this plugin. To review, open the command palette (Ctrl+P, or Cmd+P on a Mac), run **Spaced Repetition: Review flashcards**, and rate each card. The plugin schedules the next time you see it.
+3. On your phone, the Obsidian app with the same plugin reviews the same cards.
+
+**Optional but useful:**
+
+- **Dataview** (community plugin): lets a note show a live list of other notes, for example every reading for a course or every page Oso flagged as low confidence. Install and enable it the same way; the course page Oso creates includes a query that uses it.
+- On your phone: install the Obsidian app and open the same vault from Google Drive.
 
 ### 1.6 Claude Code
 
@@ -179,7 +194,7 @@ The rule is simple: **a folder on the tablet with the same name as a course fold
 ## Part 5: Everyday use
 
 - **Every morning** the briefing is in the Claude app on your phone: due today, due this week, what changed, days until each exam, and what to focus on.
-- **Reading online**: click the Web Clipper to save a page or paper into your vault. Pick the course folder when it asks.
+- **Reading online**: click the Web Clipper, choose the Oso template, type the course, save. The note is filed into that course's Readings folder on the next sync.
 - **Course files**: anything your professor posts to Canvas (with a Canvas token, see below) or to a shared Google Drive folder is copied into the course folder and turned into readable text.
 - **Studying**: open Cowork on your vault and ask. Examples:
   - "Explain the chain rule from my notes."

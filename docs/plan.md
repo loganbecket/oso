@@ -48,12 +48,12 @@ Mostly installing and signing in. Should take a weekend.
 
 ## Phase 3: alerts and grades
 
-- [ ] Hourly diff against the last snapshot; rule-based urgent versus routine classification
-- [ ] Urgent changes written as events with reminders to the Oso calendar, and noted in `Inbox/`
-- [ ] Quiet hours and per-course mute
-- [ ] Grade tracking from Canvas or manual entry
-- [ ] What-if calculator skill
-- [ ] Plan skill: study blocks on the calendar working back from exam dates
+- [x] Hourly diff against the last snapshot; rule-based urgent versus routine classification
+- [x] Urgent changes written as events with reminders to the Oso calendar, and noted in `Inbox/`
+- [x] Quiet hours and per-course mute
+- [x] Grade tracking from Canvas or manual entry
+- [x] What-if calculator skill
+- [x] Plan skill: study blocks on the calendar working back from exam dates
 
 **Gate:** a moved due date appears on the calendar at the next poll, and the what-if number is right.
 

@@ -37,6 +37,8 @@ class Config:
     vault: Path
     timezone: str = "America/New_York"
     courses: list[Course] = field(default_factory=list)
+    quiet_hours: str | None = None  # "22:00-07:00": alerts wait until the end of the window
+    muted_courses: list[str] = field(default_factory=list)
 
     @property
     def tz(self) -> ZoneInfo:
@@ -73,7 +75,13 @@ def load(path: Path | None = None) -> Config:
         Course(code=c["code"], name=c.get("name", c["code"]), folder=c.get("folder", c.get("name", c["code"])))
         for c in raw.get("courses", [])
     ]
-    return Config(vault=vault, timezone=raw.get("timezone", "America/New_York"), courses=courses)
+    return Config(
+        vault=vault,
+        timezone=raw.get("timezone", "America/New_York"),
+        courses=courses,
+        quiet_hours=raw.get("quiet_hours") or None,
+        muted_courses=[str(c) for c in raw.get("muted_courses", [])],
+    )
 
 
 def save(cfg: Config, path: Path | None = None) -> Path:
@@ -83,6 +91,8 @@ def save(cfg: Config, path: Path | None = None) -> Path:
         "# Oso configuration. Secrets are not stored here.",
         f'vault = "{_toml_str(str(cfg.vault))}"',
         f'timezone = "{cfg.timezone}"',
+        f'quiet_hours = "{cfg.quiet_hours}"' if cfg.quiet_hours else '# quiet_hours = "22:00-07:00"',
+        "muted_courses = [" + ", ".join(f'"{_toml_str(c)}"' for c in cfg.muted_courses) + "]",
         "",
     ]
     for c in cfg.courses:

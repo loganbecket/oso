@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from . import convert, db, handwriting, index, merge, secrets, today
+from . import alerts, convert, db, handwriting, index, merge, secrets, today
 from .config import Config
 from .connectors import Connector
 from .connectors.canvas_api import CanvasApi
@@ -50,6 +50,7 @@ def run(cfg: Config, now: datetime | None = None) -> dict[str, object]:
             results[connector.name] = counts
             log.info("%s: %s", connector.name, counts)
 
+        results["alerts"] = _safe(lambda: alerts.write_inbox(conn, cfg, now), 0)
         results["converted"] = len(_safe(lambda: convert.convert_vault(cfg), []))
         results["handwriting_queued"] = _safe(lambda: handwriting.queue_new(conn, cfg), 0)
         results["index"] = _safe(lambda: index.rebuild(conn, cfg), {})

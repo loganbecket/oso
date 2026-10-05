@@ -204,3 +204,52 @@ def mark_transcribed(page_path: str, note_path: str, confidence: float) -> dict:
 def vault_path() -> str:
     """The absolute path of the Obsidian vault on this machine."""
     return str(_cfg().vault)
+
+
+# ---- alerts and grades -------------------------------------------------------------------------
+
+
+@mcp.tool()
+def pending_alerts() -> list[dict]:
+    """Urgent changes not yet delivered: moved due dates, rescheduled exams, new items due soon. Each has a message, the item's due_at, and deliver_after (set during quiet hours)."""
+    from . import alerts
+
+    cfg = _cfg()
+    with db.connect() as conn:
+        return alerts.pending(conn, cfg, datetime.now(cfg.tz))
+
+
+@mcp.tool()
+def mark_alert_reported(alert_id: int) -> dict:
+    """Record that an alert reached the student (for example, a calendar event was created for it)."""
+    from . import alerts
+
+    with db.connect() as conn:
+        alerts.mark_reported(conn, alert_id)
+    return {"alert_id": alert_id, "reported": True}
+
+
+@mcp.tool()
+def grade_summary(course: str) -> dict:
+    """Current standing in a course: percent so far, weight graded, weight remaining, and each category's score."""
+    from . import grades
+
+    with db.connect() as conn:
+        return grades.summary(conn, course)
+
+
+@mcp.tool()
+def what_if(course: str, target_percent: float) -> dict:
+    """The average needed on everything still ungraded to finish the course at target_percent."""
+    from . import grades
+
+    with db.connect() as conn:
+        return grades.what_if(conn, course, target_percent)
+
+
+@mcp.tool()
+def set_weight(item_id: int, weight: float | None) -> dict:
+    """Set the percentage of the course grade an item's category is worth (the student's override)."""
+    with db.connect() as conn:
+        conn.execute("UPDATE items SET user_weight = ? WHERE id = ?", (weight, item_id))
+    return {"id": item_id, "weight": weight}

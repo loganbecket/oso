@@ -24,6 +24,7 @@ echo "In Canvas, open Calendar, click 'Calendar Feed', and copy the address."
 read -r -p "Paste the Canvas Calendar Feed URL (or press Enter to skip): " FEED
 oso init --vault "$VAULT" --timezone "$TZ_NAME" --canvas-feed-url "${FEED:-}"
 
+oso set-repo "$REPO"
 oso install-task
 
 if [ "$(uname -s)" = "Linux" ] && command -v rclone >/dev/null 2>&1; then

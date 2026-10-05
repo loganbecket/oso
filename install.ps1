@@ -33,6 +33,7 @@ if ($feed) {
     oso init --vault $Vault --timezone $Timezone --canvas-feed-url ""
 }
 
+oso set-repo $repo
 oso install-task
 oso sync
 oso doctor --fix

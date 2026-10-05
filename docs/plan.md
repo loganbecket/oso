@@ -70,6 +70,7 @@ Mostly installing and signing in. Should take a weekend.
 - [x] `Dashboard.md`: deadlines, connector health, recent changes
 - [x] Nudge for items due within 24 hours not marked started
 - [x] Self-service health check and repair skill
+- [x] `oso update`: pull and reinstall in one step; daily check that shows in the briefing and the doctor
 - [x] Settings window (`oso settings`): check interval, urgency window, quiet hours, mutes, tablet folder, Canvas feed and token
 - [ ] Browser automation for publisher sites with no feed
 - [x] Installer good enough that another student can set Oso up from this repo

@@ -82,6 +82,16 @@ def run(fix: bool = False) -> list[tuple[str, str]]:
         unit = Path.home() / ".config" / "systemd" / "user" / "oso-sync.timer"
         out.append(("ok", "systemd timer installed") if unit.exists() else ("warn", "Timer not installed. Run 'oso install-task'."))
 
+    from . import update
+
+    st = update.status(cfg, fetch=True)
+    if not st.get("known"):
+        out.append(("warn", st["message"]))
+    elif st.get("available"):
+        out.append(("warn", st["message"]))
+    else:
+        out.append(("ok", st["message"]))
+
     if not shutil.which("oso-mcp"):
         out.append(("warn", "The 'oso-mcp' command is not on PATH, so Cowork and Claude Code cannot reach Oso's tools. Run the installer again."))
     return out

@@ -59,6 +59,7 @@ def render(conn: sqlite3.Connection, cfg: Config, now: datetime) -> str:
 
     lines += _changes(conn, cfg, now)
     lines += _handwriting(conn)
+    lines += _update_note(conn)
     lines += _health(conn, now, timedelta(hours=cfg.stale_hours))
     return "\n".join(lines) + "\n"
 
@@ -147,6 +148,16 @@ def _fmt(iso: str | None) -> str:
         return datetime.fromisoformat(iso).strftime("%a %b %d")
     except ValueError:
         return iso
+
+
+def _update_note(conn: sqlite3.Connection) -> list[str]:
+    try:
+        row = conn.execute("SELECT value FROM meta WHERE key = 'update_message'").fetchone()
+    except sqlite3.OperationalError:
+        return []
+    if not row or not row["value"]:
+        return []
+    return ["## Oso", f"- {row['value']}", ""]
 
 
 def _handwriting(conn: sqlite3.Connection) -> list[str]:

@@ -40,6 +40,7 @@ class Config:
     courses: list[Course] = field(default_factory=list)
     quiet_hours: str | None = None  # "22:00-07:00": alerts wait until the end of the window
     muted_courses: list[str] = field(default_factory=list)
+    remarkable_folder: str | None = None  # only pull notebooks under this folder on the tablet; None = all
 
     @property
     def tz(self) -> ZoneInfo:
@@ -83,6 +84,7 @@ def load(path: Path | None = None) -> Config:
         courses=courses,
         quiet_hours=raw.get("quiet_hours") or None,
         muted_courses=[str(c) for c in raw.get("muted_courses", [])],
+        remarkable_folder=raw.get("remarkable_folder") or None,
     )
 
 
@@ -95,6 +97,7 @@ def save(cfg: Config, path: Path | None = None) -> Path:
         f'timezone = "{cfg.timezone}"',
         f'quiet_hours = "{cfg.quiet_hours}"' if cfg.quiet_hours else '# quiet_hours = "22:00-07:00"',
         "muted_courses = [" + ", ".join(f'"{_toml_str(c)}"' for c in cfg.muted_courses) + "]",
+        f'remarkable_folder = "{_toml_str(cfg.remarkable_folder)}"' if cfg.remarkable_folder else '# remarkable_folder = "School"',
         "",
     ]
     for c in cfg.courses:

@@ -1,0 +1,16 @@
+{
+  "name": "oso",
+  "owner": {
+    "name": "Logan Becket"
+  },
+  "metadata": {
+    "description": "Oso study assistant plugin"
+  },
+  "plugins": [
+    {
+      "name": "oso",
+      "source": "./plugin",
+      "description": "Study assistant: semester setup, deadlines, the morning briefing, and tutoring from your own vault."
+    }
+  ]
+}

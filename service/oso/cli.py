@@ -33,6 +33,8 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("health", help="show when each source last synced")
     s = sub.add_parser("doctor", help="check the installation and explain anything wrong")
     s.add_argument("--fix", action="store_true", help="create missing vault folders")
+    s = sub.add_parser("set-remarkable-folder", help="only pull tablet notebooks from this folder (blank to pull all)")
+    s.add_argument("folder", nargs="?", default="")
     s = sub.add_parser("set-drive-folder", help="mirror a Google Drive folder (synced by Drive for Desktop) into a course")
     s.add_argument("code", help="course code")
     s.add_argument("path", help="local path of the Drive folder")
@@ -115,6 +117,12 @@ def _dispatch(args: argparse.Namespace) -> int:
         results = doctor.run(fix=args.fix)
         print(doctor.format_report(results))
         return 1 if any(s == "fail" for s, _ in results) else 0
+
+    if args.cmd == "set-remarkable-folder":
+        cfg.remarkable_folder = args.folder.strip() or None
+        cfgmod.save(cfg)
+        print(f"Pulling notebooks from the tablet folder '{cfg.remarkable_folder}'." if cfg.remarkable_folder else "Pulling every notebook from the tablet.")
+        return 0
 
     if args.cmd == "set-drive-folder":
         c = cfg.course_for(args.code)

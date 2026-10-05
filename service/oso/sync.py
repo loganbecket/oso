@@ -10,6 +10,7 @@ from .config import Config
 from .connectors import Connector
 from .connectors.canvas_api import CanvasApi
 from .connectors.canvas_feed import CanvasFeed
+from .connectors.remarkable_usb import NotConnected, RemarkableUsb
 
 log = logging.getLogger("oso")
 
@@ -53,11 +54,28 @@ def run(cfg: Config, now: datetime | None = None) -> dict[str, object]:
         results["alerts"] = _safe(lambda: alerts.write_inbox(conn, cfg, now), 0)
         results["drive_mirrored"] = _safe(lambda: drive.mirror(cfg), 0)
         results["converted"] = len(_safe(lambda: convert.convert_vault(cfg), []))
+        results["remarkable"] = _pull_tablet(conn, cfg)
         results["handwriting_queued"] = _safe(lambda: handwriting.queue_new(conn, cfg), 0)
         results["index"] = _safe(lambda: index.rebuild(conn, cfg), {})
         today.write(conn, cfg, now)
         _safe(lambda: dashboard.write(conn, cfg, now), None)
     return results
+
+
+def _pull_tablet(conn, cfg: Config) -> str | int:
+    """Pull notebooks over USB if the tablet is plugged in. Not being plugged in is normal, not a failure."""
+    tablet = RemarkableUsb(cfg)
+    run_id = db.record_sync(conn, tablet.name)
+    try:
+        n = tablet.pull(conn)
+    except NotConnected:
+        db.finish_sync(conn, run_id, ok=True, error="not connected", items_seen=0)
+        return "not connected"
+    except Exception as e:  # noqa: BLE001
+        db.finish_sync(conn, run_id, ok=False, error=plain_error(e))
+        return plain_error(e)
+    db.finish_sync(conn, run_id, ok=True, items_seen=n)
+    return n
 
 
 def _apply_grades(conn, connector: CanvasApi) -> int:

@@ -61,8 +61,11 @@ def queue_new(conn: sqlite3.Connection, cfg: Config, scale: float = 2.0) -> int:
 
 def _queue_pdf(conn: sqlite3.Connection, cfg: Config, src: Path, pages_dir: Path, scale: float) -> int:
     notebook = src.stem
-    if conn.execute("SELECT 1 FROM pages WHERE source_file = ? LIMIT 1", (_rel(cfg, src),)).fetchone():
-        return 0
+    known = {r["page"] for r in conn.execute("SELECT page FROM pages WHERE source_file = ?", (_rel(cfg, src),))}
+    if known:
+        marker = pages_dir / notebook / ".mtime"
+        if marker.exists() and float(marker.read_text() or 0) >= src.stat().st_mtime:
+            return 0
     try:
         import pypdfium2 as pdfium
 
@@ -74,14 +77,16 @@ def _queue_pdf(conn: sqlite3.Connection, cfg: Config, src: Path, pages_dir: Path
     out_dir.mkdir(parents=True, exist_ok=True)
     count = 0
     for i in range(len(doc)):
+        if i + 1 in known:
+            continue  # pages already transcribed; a notebook only grows at the end
         out = out_dir / f"p{i + 1:03d}.png"
-        if not out.exists():
-            doc[i].render(scale=scale).to_pil().save(out)
+        doc[i].render(scale=scale).to_pil().save(out)
         conn.execute(
             "INSERT OR IGNORE INTO pages (path, notebook, page, source_file, queued_at) VALUES (?, ?, ?, ?, ?)",
             (_rel(cfg, out), notebook, i + 1, _rel(cfg, src), now_iso()),
         )
         count += 1
+    (out_dir / ".mtime").write_text(str(src.stat().st_mtime))
     return count
 
 

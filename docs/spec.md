@@ -38,7 +38,7 @@ The student drops each syllabus into the vault and runs the setup skill once per
 
 ### Capturing what the student reads and writes
 
-Pages written on the reMarkable are pulled from its cloud, transcribed to text with equations preserved, and filed under the right course with the original page image linked. Articles and papers read in the browser go into the vault with one click through the Obsidian Web Clipper, tagged with course and source. Files posted in Canvas or Google Drive are mirrored into the course folder; Word, PowerPoint, Excel, and PDF files get a readable text version beside the original. Every note carries course, topic, and type in its front matter. Search is full-text to begin with; embeddings only if that proves insufficient.
+Pages written on the reMarkable are pulled over USB whenever the tablet is plugged in, transcribed to text with equations preserved, and filed under the right course with the original page image linked. Articles and papers read in the browser go into the vault with one click through the Obsidian Web Clipper, tagged with course and source. Files posted in Canvas or Google Drive are mirrored into the course folder; Word, PowerPoint, Excel, and PDF files get a readable text version beside the original. Every note carries course, topic, and type in its front matter. Search is full-text to begin with; embeddings only if that proves insufficient.
 
 ### Knowing what is due
 
@@ -74,7 +74,7 @@ The vault is the center. The service fills it and keeps the SQLite facts file be
 | Facts | One SQLite file |
 | Search | SQLite FTS5 over the vault; sqlite-vec with local embeddings only if needed |
 | Canvas | Calendar feed; REST API with a token where allowed |
-| reMarkable | Cloud API client, pages rendered to PNG, transcribed by a Claude Code run on the laptop; local vision model as fallback if usage limits bind |
+| reMarkable | Built-in USB web interface: notebooks downloaded as PDFs when plugged in, pages rendered to PNG, transcribed by a Claude Code run on the laptop |
 | Office and PDF | python-docx, openpyxl, python-pptx, pypdf to Markdown |
 | Google | Built-in Drive, Gmail, and Calendar connectors; one dedicated calendar is the only write |
 | Browser | Claude in Chrome |
@@ -88,7 +88,7 @@ Course content reaches Anthropic only when the student asks Cowork or Claude Cod
 
 - Does the school allow student-generated Canvas access tokens?
 - Which publisher or lab sites does each course use, and do they offer feeds or email alerts?
-- reMarkable Paper Pro or reMarkable 2, and is the Connect subscription acceptable?
+- reMarkable Paper Pro or reMarkable 2? Both have the USB web interface.
 - Vault sync: Google Drive for Desktop or Obsidian Sync?
 - Pro or Max? Decide after Phase 1 usage is measured.
 - Chrome or another browser?

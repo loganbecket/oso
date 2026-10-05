@@ -175,6 +175,9 @@ def _health(conn: sqlite3.Connection, now: datetime) -> list[str]:
         lines.append("- No sources have been synced yet. Run 'oso init' to add the Canvas calendar feed.")
     for r in rows:
         name = _friendly(r["connector"])
+        if r["connector"] == "remarkable_usb":
+            lines.append(_tablet_line(conn, now))
+            continue
         last_ok = datetime.fromisoformat(r["last_success"]) if r["last_success"] else None
         if last_ok is None:
             lines.append(f"- {name} has never synced successfully. Last error: {r['last_error'] or 'unknown'}.")
@@ -189,5 +192,17 @@ def _health(conn: sqlite3.Connection, now: datetime) -> list[str]:
     return lines
 
 
+def _tablet_line(conn: sqlite3.Connection, now: datetime) -> str:
+    from .connectors.remarkable_usb import last_pull
+
+    t = last_pull(conn)
+    if t is None:
+        return "- reMarkable has not been pulled yet. Plug the tablet in by USB with the USB web interface turned on."
+    days = (now.astimezone(t.tzinfo) - t).days
+    if days >= 3:
+        return f"- reMarkable was last pulled {days} days ago. Plug it in to bring new notes over."
+    return "- reMarkable notes are up to date."
+
+
 def _friendly(connector: str) -> str:
-    return {"canvas_feed": "Canvas calendar feed", "canvas_api": "Canvas (token)"}.get(connector, connector)
+    return {"canvas_feed": "Canvas calendar feed", "canvas_api": "Canvas (token)", "remarkable_usb": "reMarkable"}.get(connector, connector)

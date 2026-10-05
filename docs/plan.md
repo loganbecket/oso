@@ -35,7 +35,7 @@ Mostly installing and signing in. Should take a weekend.
 
 ## Phase 2: notes and tutor
 
-- [x] Tablet pages: the student sends a notebook to Google Drive into `Inbox/Handwriting`; the service renders each PDF page to PNG and queues it (direct reMarkable cloud pull is a later item)
+- [x] Tablet pages: pulled over USB into `Inbox/Handwriting` as PDFs; the service renders each page to PNG and queues it
 - [x] Transcription run in Claude Code: page image to Markdown with LaTeX, filed by course, image linked, confidence recorded
 - [x] Canvas Files and Modules mirrored into course folders (feed-based where possible, token if allowed)
 - [x] Office and PDF to Markdown conversion beside the original
@@ -60,7 +60,7 @@ Mostly installing and signing in. Should take a weekend.
 ## Phase 4: polish and handoff
 
 - [x] Canvas API token connector where the school allows it: announcements, grades, files
-- [ ] Direct reMarkable cloud pull (rmapi or equivalent) so the student does not have to send notebooks by hand
+- [x] Pull notebooks straight off the reMarkable over USB (its built-in USB web interface); no cloud account needed
 - [x] Google Drive course folder mirroring and conversion
 - [x] Check skill: review the student's attempt, teach the method before the answer
 - [x] Weak-area tracking in the vault; practice weighted toward it

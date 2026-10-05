@@ -1,8 +1,14 @@
 # Oso
 
-Oso is a study assistant for college students. It keeps track of everything that is due across all your classes, sends you a short briefing on your phone every morning, warns you when a due date moves, and helps you study from your own notes: it explains topics, builds study guides and practice tests, and checks your work, always pointing back to the note it got the answer from.
+Oso is a study assistant for anyone taking courses. It tracks every deadline, exam, and grade weight across your classes, sends a short briefing to your phone each morning, and flags changes like a moved due date. When you study, it works from your own notes and course materials: it explains topics, writes study guides and practice tests, and checks your work, citing the note behind every answer.
 
-It is built from three things you already have or can get: **Obsidian** (a free notes app) holds everything you read and write; **Claude** (on a Pro subscription) supplies the intelligence; and a small program on your computer, the **Oso service**, does the plumbing: pulling Canvas and your reMarkable tablet, keeping the list of deadlines, and noticing changes. Nothing runs on a server anywhere. Nobody else can see your notes. You install it once and it is yours.
+Oso combines three parts:
+
+- **Obsidian**, a free notes app, holds everything you read and write.
+- **Claude**, on a Pro subscription, does the reasoning.
+- **The Oso service**, a small program on your computer, pulls in Canvas and your reMarkable tablet, keeps the deadline list, and watches for changes.
+
+There is no Oso server. Your notes stay on your computer and in your own Google Drive, and reach Claude only when you ask it something.
 
 Oso runs on Windows, macOS, and Linux. Installation instructions follow. Setup takes about an hour, most of it installing and signing in to apps. Do the sections in order; where a step differs by platform, the differences are listed.
 

@@ -74,12 +74,16 @@ def run(fix: bool = False) -> list[tuple[str, str]]:
                 out.append(("ok", "Scheduled task 'Oso Sync' is installed"))
             else:
                 out.append(("warn", "Scheduled task is not installed. Run 'oso install-task'."))
+    elif sys.platform == "darwin":
+        from .install_macos import installed
+
+        out.append(("ok", "Launch agent installed") if installed() else ("warn", "Launch agent not installed. Run 'oso install-task'."))
     else:
         unit = Path.home() / ".config" / "systemd" / "user" / "oso-sync.timer"
         out.append(("ok", "systemd timer installed") if unit.exists() else ("warn", "Timer not installed. Run 'oso install-task'."))
 
     if not shutil.which("oso-mcp"):
-        out.append(("warn", "The 'oso-mcp' command is not on PATH, so Cowork and Claude Code cannot reach Oso's tools. Reinstall with 'uv tool install'."))
+        out.append(("warn", "The 'oso-mcp' command is not on PATH, so Cowork and Claude Code cannot reach Oso's tools. Run the installer again."))
     return out
 
 

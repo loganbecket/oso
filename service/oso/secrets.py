@@ -1,4 +1,4 @@
-"""Secrets live in the operating system's credential store (Windows Credential Manager on Windows)."""
+"""Secrets live in the operating system's credential store: Windows Credential Manager, the macOS Keychain, or the Linux Secret Service."""
 
 from __future__ import annotations
 

@@ -8,7 +8,7 @@ It is assembled, not built from scratch:
 
 - **Obsidian** holds everything the student reads and writes, as Markdown files in a vault.
 - **Claude** on a Pro subscription supplies the intelligence. The student uses Cowork on desktop and phone. Claude Code is used for installation and for jobs that must run locally against the vault.
-- **A Python service** on the student's Windows laptop does the plumbing: pulls Canvas and the reMarkable tablet, converts files, keeps the deadline and grade database, notices changes, and writes a daily facts file into the vault.
+- **A Python service** on the student's computer (Windows, macOS, or Linux) does the plumbing: pulls Canvas and the reMarkable tablet, converts files, keeps the deadline and grade database, notices changes, and writes a daily facts file into the vault.
 
 There is no API account, no custom harness, no server, and nobody administering it. The student installs Oso once from this repo and owns it.
 
@@ -68,9 +68,9 @@ The vault is the center. The service fills it and keeps the SQLite facts file be
 | --- | --- |
 | Front door | Claude Cowork on desktop, web, and mobile |
 | Installation and local runs | Claude Code |
-| Notes | Obsidian with the Web Clipper; vault in a Google Drive for Desktop folder |
+| Notes | Obsidian with the Web Clipper; vault in a folder synced to Google Drive (Drive for Desktop on Windows and macOS, rclone on Linux) |
 | Skills and tools | One Claude plugin installed in Cowork and Claude Code |
-| Service | Python 3.12, Windows scheduled task with wake timers and catch-up on wake |
+| Service | Python 3.12; hourly on Windows Task Scheduler, a macOS launch agent, or a Linux systemd timer, with catch-up after sleep |
 | Facts | One SQLite file |
 | Search | SQLite FTS5 over the vault; sqlite-vec with local embeddings only if needed |
 | Canvas | Calendar feed; REST API with a token where allowed |
@@ -78,7 +78,7 @@ The vault is the center. The service fills it and keeps the SQLite facts file be
 | Office and PDF | python-docx, openpyxl, python-pptx, pypdf to Markdown |
 | Google | Built-in Drive, Gmail, and Calendar connectors; one dedicated calendar is the only write |
 | Browser | Claude in Chrome |
-| Secrets | Windows Credential Manager |
+| Secrets | The operating system's credential store (Windows Credential Manager, macOS Keychain, Linux Secret Service) |
 
 ## Privacy and integrity
 

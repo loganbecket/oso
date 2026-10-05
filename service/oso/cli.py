@@ -38,7 +38,7 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("set-drive-folder", help="mirror a Google Drive folder (synced by Drive for Desktop) into a course")
     s.add_argument("code", help="course code")
     s.add_argument("path", help="local path of the Drive folder")
-    s = sub.add_parser("install-task", help="run sync every hour (Windows scheduled task or Linux systemd timer)")
+    s = sub.add_parser("install-task", help="run sync every hour (Windows scheduled task, macOS launch agent, or Linux systemd timer)")
     s.add_argument("--every", type=int, default=60, help="minutes between runs")
 
     args = p.parse_args(argv)
@@ -144,6 +144,10 @@ def _dispatch(args: argparse.Namespace) -> int:
             from .install_windows import install_task
 
             print(install_task(every_minutes=args.every))
+        elif sys.platform == "darwin":
+            from .install_macos import install_agent
+
+            print(install_agent(every_minutes=args.every))
         else:
             from .install_linux import install_timer
 

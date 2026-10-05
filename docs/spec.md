@@ -95,3 +95,31 @@ Course content reaches Anthropic only when the student asks Cowork or Claude Cod
 - Each course's AI policy.
 - Study blocks written to the calendar automatically, or only suggested?
 - Public or private repository?
+
+## Success metrics
+
+- Zero missed deadlines attributable to information Oso had.
+- The briefing is on the phone by the set time on at least 95 percent of mornings.
+- Urgent alerts land within one polling interval of the change at the source, and fewer than one false-urgent alert per week after tuning.
+- Handwritten pages are indexed within 12 hours of being written, with fewer than one in ten flagged for review.
+- Tutor answers cite a correct source passage in the large majority of spot checks.
+- Pro usage limits are hit no more than once a month; if more, upgrade.
+- No connector is silently stale for more than 24 hours.
+- The student opens the briefing most days and asks Oso something most study sessions.
+- Nobody but the student has touched it since installation.
+
+## Risks and mitigations
+
+| Risk | Mitigation |
+| --- | --- |
+| Pro usage limits bind during exam weeks | Measure in Phase 1; move transcription to a local vision model; upgrade to Max |
+| The cloud briefing task cannot reach the laptop | The service writes the day's facts into the vault, Drive syncs it, the task reads it there; a local Claude Code run is the fallback |
+| Vault sync conflicts between Drive and Obsidian | The service writes only to Inbox and generated files; Obsidian Sync is the fallback if Drive misbehaves |
+| Four apps feel like tool sprawl | Cowork is the only place to ask and Obsidian the only place to write; the service, connectors, and plugin are invisible |
+| Handwriting transcription misreads equations | Page image linked from every transcript, confidence shown, corrections made in place; test on real handwriting in Phase 2 |
+| School disables Canvas tokens | The calendar feed is the primary path and cannot be blocked; the token only adds grades and files |
+| Subscription terms change | Oso never calls a model itself; all model use is inside Claude products. Re-check the terms each semester |
+| The tutor is confidently wrong on technical material | Citations required, decline on empty retrieval, and a small per-course set of solved problems to spot-check against |
+| Academic-integrity concerns | Per-course AI policy captured and displayed; tutor teaches and checks rather than answers; nothing is ever submitted |
+| It breaks mid-semester with nobody maintaining it | Problems appear in the briefing in plain language; a self-service health check repairs the common failures; the fix for anything else is in the repo |
+| Scope creep | Ship Phase 1 and use it for two weeks before starting Phase 2 |

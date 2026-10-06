@@ -22,7 +22,7 @@ This plan makes every book he owns a first-class, page-cited source in his vault
 
 ## Phase 1: Books as structured, page-cited sources
 
-**Status:** built and tested; unreleased. Not yet tried on one of his real books.
+**Status:** released in v0.3.0. Not yet tried on one of his real books.
 
 - A `Books` folder in each course. Anything dropped there is treated as a book (anything elsewhere stays an ordinary course file).
 - Each book becomes a folder of notes, one per chapter (and section, where the book has them), taken from the book's own table of contents or headings. Every passage keeps its printed page number.
@@ -37,7 +37,7 @@ This plan makes every book he owns a first-class, page-cited source in his vault
 
 ## Phase 2: Scanned books and pages
 
-**Status:** built and tested; unreleased. Not yet tried on one of his real books.
+**Status:** released in v0.3.0. Not yet tried on one of his real books.
 
 - Scans, photos, and image-only PDFs in `Books` are read with the operating system's built-in text recognition, page by page, on the laptop. No Claude usage, nothing to install on Windows or macOS.
 - Each page's image is kept beside its text, so Claude can look at the real page when a question touches an equation, table, or figure that text recognition handles poorly.
@@ -51,7 +51,7 @@ This plan makes every book he owns a first-class, page-cited source in his vault
 
 ## Phase 3: Books he reads in a publisher's app or website
 
-**Status:** built and tested; unreleased. Not yet tried on one of his real books.
+**Status:** released in v0.3.0. Not yet tried on one of his real books.
 
 - Instructions in the README and the setup command for each common case: printing chapters to PDF, exporting highlights and notes, clipping pages with the Obsidian Web Clipper into the book's folder, and screenshots of pages he has open, which go through the same text recognition as scans.
 - Clipped and printed pages carry their page numbers where the reader shows them, and file into the right book and chapter on sync, like clippings do today.
@@ -62,7 +62,7 @@ This plan makes every book he owns a first-class, page-cited source in his vault
 
 ## Phase 4: Tutoring that stands on the book
 
-**Status:** built and tested; unreleased. Not yet tried on one of his real books.
+**Status:** released in v0.3.0. Not yet tried on one of his real books.
 
 - Explain, study guide, quiz, summarize, check, and flashcards search the book first and his notes second, and cite both. "Not in your notes or your book:" marks general knowledge.
 - When his notes contradict the book (a wrong formula, a sign error, a definition that is off), Claude says so plainly, shows both, and goes with the book.
@@ -76,7 +76,7 @@ This plan makes every book he owns a first-class, page-cited source in his vault
 
 ## Phase 6: Hard pages read automatically
 
-**Status:** built and tested; unreleased.
+**Status:** released in v0.3.0.
 
 Nothing he imports should need him to say how to read it. Notes, scans, book pages, handouts, and photos mix printed text, handwriting, equations, tables, diagrams, and drawings; every page gets read properly without a command.
 
@@ -91,7 +91,7 @@ Nothing he imports should need him to say how to read it. Notes, scans, book pag
 
 ## Phase 5: Wrap-up
 
-**Status:** built and tested; unreleased. Not yet tried on one of his real books.
+**Status:** released in v0.3.0. Not yet tried on one of his real books.
 
 - README: where to put books, how scans and reader apps work, what Oso does with the text.
 - Settings window: book processing progress, and re-processing a book (also `oso books` and `oso books --reprocess`).

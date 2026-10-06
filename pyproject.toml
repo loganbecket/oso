@@ -25,6 +25,7 @@ dependencies = [
     "winrt-Windows.Storage>=2.0; sys_platform == 'win32'",
     "winrt-Windows.Storage.Streams>=2.0; sys_platform == 'win32'",
     "winrt-Windows.Foundation>=2.0; sys_platform == 'win32'",
+    "winrt-Windows.Foundation.Collections>=2.0; sys_platform == 'win32'",
     "winrt-Windows.Globalization>=2.0; sys_platform == 'win32'",
     "pyobjc-framework-Vision>=10.0; sys_platform == 'darwin'",
     "pyobjc-framework-Quartz>=10.0; sys_platform == 'darwin'",

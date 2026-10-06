@@ -217,12 +217,28 @@ def health() -> list[dict]:
 
 @mcp.tool()
 def start_quiz(course: str, questions: list[dict], requested: str | None = None, sources: list[str] | None = None,
-               retake_of: int | None = None) -> dict:
-    """Record a quiz when you show it. questions: [{number, topic, theme, type: multiple_choice|short_answer|worked_problem|conceptual, difficulty: easy|medium|hard, question, source}]. Returns quiz_id."""
+               retake_of: int | None = None, window: bool = True) -> dict:
+    """Record a quiz and open it in the quiz window on the student's computer. questions: [{number, topic, theme, type: multiple_choice|short_answer|worked_problem|conceptual, difficulty: easy|medium|hard, question, source, choices (multiple choice), answer (key letter)}]. Returns quiz_id."""
+    from . import profile, quizwin
+
+    with db.connect() as conn:
+        quiz_id = profile.start_quiz(conn, _cfg(), course, questions, requested, sources, retake_of, window=window)
+    if not window:
+        return {"quiz_id": quiz_id}
+    try:
+        quizwin.launch(quiz_id)
+    except Exception:  # noqa: BLE001
+        return {"quiz_id": quiz_id, "window": "could not open; ask the student to run: oso quiz " + str(quiz_id)}
+    return {"quiz_id": quiz_id, "window": "opened"}
+
+
+@mcp.tool()
+def quiz_responses(quiz_id: int) -> dict:
+    """A window quiz's answers for grading: typed responses, timing, multiple choice already graded, and written-work page images to match by their corner labels."""
     from . import profile
 
     with db.connect() as conn:
-        return {"quiz_id": profile.start_quiz(conn, _cfg(), course, questions, requested, sources, retake_of)}
+        return profile.grading_view(conn, _cfg(), quiz_id)
 
 
 @mcp.tool()

@@ -23,6 +23,8 @@ There is no Oso server. Your notes stay on your computer and in your own Google 
 
 **Asking Claude.** Start your chats inside the Cowork project that has your vault attached (step 3.4). Ask in plain words: "What's due this week?", "Summarize Tuesday's physics notes in three sentences", "Quiz me on chapter 4", "Explain the chain rule from my notes." Answers come back in the chat at the length you ask for. Claude saves a file only when you ask, except flashcards, which have to live in the vault for Obsidian to review them.
 
+**Quizzes and practice tests.** Ask Claude to quiz you, and the quiz opens in an Oso window on your computer: one question at a time, timed, with the answers hidden until you submit. Multiple choice is graded on the spot. For worked problems, write each answer on paper or the reMarkable on a page labeled with the question number in the top corner, and add the pages when the window asks (pull them from the plugged-in tablet, or pick a scan or photo). Then tell Claude you're done, and it grades the rest. `oso quiz` reopens a quiz you closed before submitting.
+
 **Adding a course.** Clip the syllabus with the Web Clipper, then type `/create-course <course name>` in a chat. Claude shows every date, exam, and grade weight it found; nothing is saved until you confirm. It then creates the course folder and files the syllabus inside it.
 
 **Adding notes and files.** Scan paper notes into that course's `Handwriting` folder, then run `oso transcribe` in your command window to turn them into searchable notes in the course's `Notes` folder. Drop any other course document into the course folder; Oso makes a text copy on its next check. Scans saved anywhere outside a course folder are ignored.
@@ -308,6 +310,8 @@ oso install-task          schedule the sync (every 15 minutes by default)
 oso update                install the newest Oso on your update channel
 oso update --version V    install an exact earlier version
 oso reset-skills [NAME]   put back Oso's version of its commands (all, or the ones named)
+oso quiz [N]              reopen a quiz window (the latest one not yet submitted)
+oso profile --raw         show every recorded quiz, question by question
 oso fresh-start           start over as if newly installed, keeping your settings (deletes the vault's contents)
 oso connect-calendar      let Oso put urgent changes on its own Google calendar
 oso disconnect-calendar   stop that and forget the access

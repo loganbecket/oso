@@ -28,7 +28,7 @@ log = logging.getLogger("oso.search")
 MODEL = "BAAI/bge-small-en-v1.5"
 DIM = 384
 ROOTS = ("Courses", "Clippings")
-SKIP_PARTS = {"pages", "Handwriting", ".obsidian", ".trash"}
+SKIP_PARTS = {"pages", "Handwriting", "Quizzes", ".obsidian", ".trash"}
 CHUNK_CHARS = 1500
 
 SCHEMA = """

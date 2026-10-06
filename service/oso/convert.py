@@ -35,7 +35,7 @@ GOOGLE = {".gdoc": "document", ".gsheet": "spreadsheets", ".gslides": "presentat
 CONVERTIBLE = MARKITDOWN | OPENDOCUMENT | LEGACY | set(GOOGLE)
 
 _LO_TARGET = {".odt": "docx", ".doc": "docx", ".rtf": "docx", ".ods": "xlsx", ".odp": "pptx", ".ppt": "pptx"}
-SKIP_FOLDERS = {"Handwriting", "pages", ".obsidian", ".trash"}
+SKIP_FOLDERS = {"Handwriting", "Quizzes", "pages", ".obsidian", ".trash"}
 
 
 def convert_vault(cfg: Config) -> list[Path]:

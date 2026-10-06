@@ -60,7 +60,9 @@ The foundation. Every quiz Oso gives is recorded in detail.
 - Tests cover recording, retakes, partial results, and a quiz abandoned halfway (handed out, never answered).
 - A real quiz in Cowork produces correct rows (checked with a small `oso profile --raw` dump).
 
-## Phase 1b: Quiz window (planned, not yet approved to build)
+## Phase 1b: Quiz window
+
+**Status:** built and tested (including the window itself on a virtual display); not yet tried by the student. Unreleased.
 
 A formal way to take quizzes outside the chat, so timing is exact and answers stay hidden until he submits.
 

@@ -30,9 +30,16 @@ jobs:
         run: choco install libreoffice-fresh -y --no-progress
 
       - name: Run tests
+        if: runner.os != 'Linux'
         env:
           OSO_REAL_SEARCH_MODEL: "1"
-        run: uv run --python 3.12 --extra dev pytest -q
+        run: uv run --python 3.12 --extra dev pytest -q -rs
+
+      - name: Run tests (Linux, with a virtual display for the quiz window)
+        if: runner.os == 'Linux'
+        env:
+          OSO_REAL_SEARCH_MODEL: "1"
+        run: xvfb-run -a uv run --python 3.12 --extra dev pytest -q -rs
 
       - name: Install the way students do and start it
         run: uvx --python 3.12 --from . oso --help

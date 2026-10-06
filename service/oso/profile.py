@@ -1,9 +1,14 @@
 """The learner profile: what the student has shown he knows, from his test results.
 
 Phase 1 of docs/learner-profile-plan.md: every quiz Oso gives is recorded in detail. The quiz skill
-calls `start_quiz` when it shows the questions, `record_answers` each time the student answers (once,
+calls `start_quiz` when it writes the questions, `record_answers` each time answers are graded (once,
 or again after a hint or a retry), and `finish_quiz` after grading. A quiz that was handed out and never
 answered stays recorded as abandoned.
+
+Phase 1b: quizzes are taken in the quiz window (`quizwin.py`) rather than in the chat. The window times
+each question, counts changed answers, grades multiple choice against the key Claude supplied (which is
+never shown to the student), saves typed answers, and attaches written work (tablet pages or scans).
+Claude then grades the rest from `grading_view`.
 
 All numbers here are computed in plain Python; Claude supplies only the judgments it has to make while
 writing and grading (each question's topic, theme, type, and difficulty; each answer's result and kind
@@ -38,6 +43,20 @@ CREATE TABLE IF NOT EXISTS quizzes (
     question_count INTEGER NOT NULL,
     score          REAL                    -- percent, set when finished
 );
+CREATE TABLE IF NOT EXISTS quiz_responses (
+    question_id     INTEGER PRIMARY KEY REFERENCES quiz_questions(id),
+    response        TEXT,                  -- the choice letter or typed answer; NULL if left blank
+    seconds         REAL NOT NULL,         -- time the question was on screen
+    changes         INTEGER NOT NULL,      -- times the answer changed after first being given
+    first_answer_at TEXT                   -- when an answer was first given
+);
+CREATE TABLE IF NOT EXISTS quiz_work (
+    id       INTEGER PRIMARY KEY,
+    quiz_id  INTEGER NOT NULL REFERENCES quizzes(id),
+    page     TEXT NOT NULL,                -- vault path of one page image
+    origin   TEXT NOT NULL,                -- 'tablet' or 'file'
+    added_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS quiz_questions (
     id          INTEGER PRIMARY KEY,
     quiz_id     INTEGER NOT NULL REFERENCES quizzes(id),
@@ -66,8 +85,19 @@ class ProfileError(ValueError):
     """A plain-sentence problem with what a skill tried to record."""
 
 
+COLUMNS = {
+    "quizzes": {"mode": "TEXT NOT NULL DEFAULT 'chat'"},
+    "quiz_questions": {"choices": "TEXT", "answer_key": "TEXT"},
+}
+
+
 def ensure(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA)
+    for table, cols in COLUMNS.items():
+        have = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+        for name, decl in cols.items():
+            if name not in have:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
 
 
 def _now() -> str:
@@ -82,9 +112,11 @@ def _pick(value, allowed: tuple[str, ...], what: str) -> str:
 
 
 def start_quiz(conn: sqlite3.Connection, cfg: Config, course: str, questions: list[dict], requested: str | None = None,
-               sources: list[str] | None = None, retake_of: int | None = None, now: str | None = None) -> int:
-    """Record a quiz as it is handed out. Each question: number, topic, theme, type, difficulty, and
-    optionally the question text and its source note. Returns the quiz id."""
+               sources: list[str] | None = None, retake_of: int | None = None, now: str | None = None,
+               window: bool = False) -> int:
+    """Record a quiz as it is handed out. Each question: number, topic, theme, type, difficulty, the
+    question text, and its source note; multiple choice also has `choices` (list) and `answer` (the key:
+    a letter, or the exact choice text). Returns the quiz id."""
     ensure(conn)
     c = cfg.course_for(course)
     if c is None:
@@ -102,27 +134,53 @@ def start_quiz(conn: sqlite3.Connection, cfg: Config, course: str, questions: li
         topic = str(q.get("topic") or "").strip()
         if not topic:
             raise ProfileError(f"Question {n} needs a topic.")
+        qtype = _pick(q.get("type") or q.get("qtype"), QUESTION_TYPES, f"Question {n}'s type")
+        choices, key = None, None
+        if qtype == "multiple_choice":
+            opts = [str(c).strip() for c in (q.get("choices") or []) if str(c).strip()]
+            if window and len(opts) < 2:
+                raise ProfileError(f"Question {n} is multiple choice and needs at least two choices.")
+            if opts:
+                key = _key_letter(q.get("answer"), opts, n) if (window or q.get("answer") is not None) else None
+                choices = json.dumps(opts)
+        if window and not str(q.get("question") or "").strip():
+            raise ProfileError(f"Question {n} needs its text for the quiz window.")
         rows.append((n, topic, (str(q.get("theme")).strip() or None) if q.get("theme") else None,
-                     _pick(q.get("type") or q.get("qtype"), QUESTION_TYPES, f"Question {n}'s type"),
-                     _pick(q.get("difficulty"), DIFFICULTIES, f"Question {n}'s difficulty"),
-                     q.get("question"), q.get("source")))
+                     qtype, _pick(q.get("difficulty"), DIFFICULTIES, f"Question {n}'s difficulty"),
+                     q.get("question"), q.get("source"), choices, key))
     topics = list(dict.fromkeys(r[1] for r in rows))
     cur = conn.execute(
-        """INSERT INTO quizzes (course, topics, sources, requested, retake_of, handed_out_at, question_count)
-           VALUES (?, ?, ?, ?, ?, ?, ?)""",
-        (c.code, json.dumps(topics), json.dumps(sources or []), requested, retake_of, now or _now(), len(rows)),
+        """INSERT INTO quizzes (course, topics, sources, requested, retake_of, handed_out_at, question_count, mode)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+        (c.code, json.dumps(topics), json.dumps(sources or []), requested, retake_of, now or _now(), len(rows),
+         "window" if window else "chat"),
     )
     quiz_id = cur.lastrowid
     conn.executemany(
-        "INSERT INTO quiz_questions (quiz_id, number, topic, theme, qtype, difficulty, question, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        """INSERT INTO quiz_questions (quiz_id, number, topic, theme, qtype, difficulty, question, source, choices, answer_key)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         [(quiz_id, *r) for r in rows],
     )
     return quiz_id
 
 
-def record_answers(conn: sqlite3.Connection, quiz_id: int, answers: list[dict], now: str | None = None) -> dict:
+def _key_letter(answer, opts: list[str], n: int) -> str:
+    """The key as a letter (A, B, ...), given a letter or the exact text of the right choice."""
+    a = str(answer or "").strip()
+    letters = [chr(ord("A") + i) for i in range(len(opts))]
+    if a.upper().rstrip(").") in letters:
+        return a.upper().rstrip(").")
+    for letter, opt in zip(letters, opts):
+        if a.lower() == opt.lower():
+            return letter
+    raise ProfileError(f"Question {n}'s answer must be one of its choices (a letter like A, or the choice's text).")
+
+
+def record_answers(conn: sqlite3.Connection, quiz_id: int, answers: list[dict], now: str | None = None,
+                   auto: bool = False) -> dict:
     """Record graded answers. Each: number, result, and for anything not fully right the mistake kind;
-    optionally hint (bool). Answering the same question again counts as another attempt."""
+    optionally hint (bool). Answering the same question again counts as another attempt. `auto` is the
+    quiz window grading multiple choice, which cannot tell what kind of mistake a wrong pick was."""
     ensure(conn)
     quiz = conn.execute("SELECT * FROM quizzes WHERE id = ?", (quiz_id,)).fetchone()
     if quiz is None:
@@ -137,7 +195,7 @@ def record_answers(conn: sqlite3.Connection, quiz_id: int, answers: list[dict], 
             raise ProfileError(f"Quiz {quiz_id} has no question {n}.")
         result = _pick(a.get("result"), RESULTS, f"Question {n}'s result")
         mistake = None
-        if result in ("partly_right", "wrong"):
+        if result in ("partly_right", "wrong") and not (auto and not a.get("mistake")):
             mistake = _pick(a.get("mistake"), MISTAKES, f"Question {n}'s mistake")
         hint = 1 if a.get("hint") else 0
         prior = conn.execute("SELECT attempts, hint, first_answered_at FROM quiz_answers WHERE question_id = ?", (q["id"],)).fetchone()
@@ -154,6 +212,82 @@ def record_answers(conn: sqlite3.Connection, quiz_id: int, answers: list[dict], 
     if not quiz["submitted_at"]:
         conn.execute("UPDATE quizzes SET submitted_at = ? WHERE id = ?", (when, quiz_id))
     return _progress(conn, quiz_id)
+
+
+def window_submit(conn: sqlite3.Connection, quiz_id: int, responses: dict[int, dict], now: str | None = None) -> dict:
+    """Save what the student entered in the quiz window and grade the multiple choice against the key.
+    responses: {number: {"response", "seconds", "changes", "first_answer_at"}}."""
+    ensure(conn)
+    quiz = conn.execute("SELECT * FROM quizzes WHERE id = ?", (quiz_id,)).fetchone()
+    if quiz is None:
+        raise ProfileError(f"There is no quiz {quiz_id}.")
+    when = now or _now()
+    graded = []
+    for q in conn.execute("SELECT * FROM quiz_questions WHERE quiz_id = ? ORDER BY number", (quiz_id,)).fetchall():
+        r = responses.get(q["number"]) or {}
+        response = (str(r.get("response")).strip() or None) if r.get("response") is not None else None
+        conn.execute(
+            """INSERT INTO quiz_responses (question_id, response, seconds, changes, first_answer_at) VALUES (?, ?, ?, ?, ?)
+               ON CONFLICT(question_id) DO UPDATE SET response = excluded.response, seconds = excluded.seconds,
+                 changes = excluded.changes, first_answer_at = excluded.first_answer_at""",
+            (q["id"], response, round(float(r.get("seconds") or 0), 1), int(r.get("changes") or 0), r.get("first_answer_at")),
+        )
+        if q["qtype"] == "multiple_choice" and q["answer_key"]:
+            if response is None:
+                graded.append({"number": q["number"], "result": "skipped"})
+            else:
+                graded.append({"number": q["number"], "result": "right" if response.upper() == q["answer_key"] else "wrong"})
+    if graded:
+        record_answers(conn, quiz_id, graded, now=when, auto=True)
+    conn.execute("UPDATE quizzes SET submitted_at = ? WHERE id = ?", (when, quiz_id))
+    return _progress(conn, quiz_id)
+
+
+def add_work(conn: sqlite3.Connection, quiz_id: int, pages: list[str], origin: str, now: str | None = None) -> int:
+    """Attach page images of written work (vault paths) to a quiz."""
+    ensure(conn)
+    if origin not in ("tablet", "file"):
+        raise ProfileError("Written work comes from the tablet or a file.")
+    conn.executemany("INSERT INTO quiz_work (quiz_id, page, origin, added_at) VALUES (?, ?, ?, ?)",
+                     [(quiz_id, p, origin, now or _now()) for p in pages])
+    return len(pages)
+
+
+def grading_view(conn: sqlite3.Connection, cfg: Config, quiz_id: int) -> dict:
+    """Everything Claude needs to grade a window quiz: each question with the student's response and
+    timing, multiple choice already graded, and the pages of written work to match by their corner labels."""
+    ensure(conn)
+    quiz = conn.execute("SELECT * FROM quizzes WHERE id = ?", (quiz_id,)).fetchone()
+    if quiz is None:
+        raise ProfileError(f"There is no quiz {quiz_id}.")
+    if not quiz["submitted_at"]:
+        return {"quiz_id": quiz_id, "status": "handed_out", "note": "The student has not submitted this quiz yet."}
+    rows = conn.execute(
+        """SELECT q.number, q.topic, q.theme, q.qtype, q.question, q.choices, q.answer_key,
+                  r.response, r.seconds, r.changes, a.result
+           FROM quiz_questions q LEFT JOIN quiz_responses r ON r.question_id = q.id
+           LEFT JOIN quiz_answers a ON a.question_id = q.id
+           WHERE q.quiz_id = ? ORDER BY q.number""",
+        (quiz_id,),
+    ).fetchall()
+    questions = []
+    for r in rows:
+        item = {"number": r["number"], "topic": r["topic"], "theme": r["theme"], "type": r["qtype"], "question": r["question"],
+                "response": r["response"], "seconds": r["seconds"], "changes": r["changes"]}
+        if r["choices"]:
+            item["choices"] = json.loads(r["choices"])
+        if r["qtype"] == "multiple_choice" and r["answer_key"]:
+            item["graded_by_window"] = r["result"]
+            item["correct_choice"] = r["answer_key"]
+        questions.append(item)
+    work = [w["page"] for w in conn.execute("SELECT page FROM quiz_work WHERE quiz_id = ? ORDER BY id", (quiz_id,))]
+    return {
+        "quiz_id": quiz_id,
+        "status": status(quiz),
+        "minutes": minutes(quiz, conn),
+        "questions": questions,
+        "written_work": [{"path": p, "full_path": str(cfg.vault / p)} for p in work],
+    }
 
 
 def finish_quiz(conn: sqlite3.Connection, quiz_id: int, now: str | None = None) -> dict:
@@ -196,7 +330,7 @@ def summary(conn: sqlite3.Connection, quiz_id: int) -> dict:
         "course": quiz["course"],
         "status": status(quiz),
         "score": quiz["score"] if quiz["finished_at"] else _progress(conn, quiz_id)["score"],
-        "minutes": minutes(quiz),
+        "minutes": minutes(quiz, conn),
         "retake_of": quiz["retake_of"],
         "questions": [dict(r) for r in rows],
     }
@@ -208,10 +342,18 @@ def status(quiz) -> str:
     return "in_progress" if quiz["submitted_at"] else "handed_out"
 
 
-def minutes(quiz) -> float | None:
-    """Handout to first answer, in minutes. Includes any breaks: a chat has no stopwatch."""
+def minutes(quiz, conn: sqlite3.Connection | None = None) -> float | None:
+    """Completion time in minutes. In the quiz window it is the measured time on the questions; in a chat
+    it is handout to first answer, which includes any breaks."""
     if not quiz["submitted_at"]:
         return None
+    if conn is not None and quiz["mode"] == "window":
+        total = conn.execute(
+            "SELECT SUM(r.seconds) FROM quiz_responses r JOIN quiz_questions q ON q.id = r.question_id WHERE q.quiz_id = ?",
+            (quiz["id"],),
+        ).fetchone()[0]
+        if total is not None:
+            return round(total / 60, 1)
     gap = datetime.fromisoformat(quiz["submitted_at"]) - datetime.fromisoformat(quiz["handed_out_at"])
     return round(gap.total_seconds() / 60, 1)
 
@@ -228,7 +370,7 @@ def recent_quizzes(conn: sqlite3.Connection, course: str | None = None, limit: i
     for q in conn.execute(sql, params).fetchall():
         out.append({
             "quiz_id": q["id"], "course": q["course"], "topics": json.loads(q["topics"]), "requested": q["requested"],
-            "handed_out_at": q["handed_out_at"], "status": status(q), "score": q["score"], "minutes": minutes(q),
+            "handed_out_at": q["handed_out_at"], "status": status(q), "score": q["score"], "minutes": minutes(q, conn),
             "questions": q["question_count"], "retake_of": q["retake_of"],
         })
     return out

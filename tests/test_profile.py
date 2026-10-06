@@ -78,3 +78,67 @@ def test_plain_errors(env):
         profile.record_answers(conn, qid, [{"number": 1, "result": "wrong"}])
     with pytest.raises(profile.ProfileError, match="no question 7"):
         profile.record_answers(conn, qid, [{"number": 7, "result": "right"}])
+
+
+WINDOW_QS = [
+    {"number": 1, "topic": "Kinematics", "type": "multiple_choice", "difficulty": "easy", "question": "Units of acceleration?",
+     "choices": ["m/s", "m/s^2", "N"], "answer": "B"},
+    {"number": 2, "topic": "Kinematics", "type": "multiple_choice", "difficulty": "easy", "question": "g on Earth?",
+     "choices": ["9.8 m/s^2", "1 m/s^2"], "answer": "9.8 m/s^2"},
+    {"number": 3, "topic": "Forces", "type": "short_answer", "difficulty": "medium", "question": "State Newton's second law."},
+    {"number": 4, "topic": "Forces", "type": "worked_problem", "difficulty": "hard", "question": "A 2 kg block..."},
+]
+
+
+def test_window_quiz_grades_choices_and_hands_the_rest_to_claude(env, tmp_path: Path):
+    from oso import quizwin
+
+    conn, cfg = env
+    qid = profile.start_quiz(conn, cfg, "PHYS-110", WINDOW_QS, window=True, now="2026-10-06T14:00:00+00:00")
+    quiz, qs = quizwin.load_questions(conn, qid)
+    assert qs[1]["choices"] == ["9.8 m/s^2", "1 m/s^2"] and "answer" not in qs[0]  # the window never gets the key
+
+    t = [0.0]
+    s = quizwin.QuizSession(qs, clock=lambda: t[0], wall=lambda: "2026-10-06T14:00:30+00:00")
+    t[0] = 30; s.answer("A"); s.answer("B")          # changed once
+    t[0] = 40; s.go(1); t[0] = 55; s.answer("B")      # wrong
+    t[0] = 60; s.go(2); t[0] = 120; s.answer("F = ma")
+    t[0] = 130; s.go(0); t[0] = 135                   # went back to look
+    assert s.unanswered() == [4]
+    responses = s.responses()
+    assert responses[1]["seconds"] == 45 and responses[1]["changes"] == 1 and responses[2]["seconds"] == 20 and responses[3]["seconds"] == 70
+    assert responses[3]["response"] == "F = ma" and responses[4]["response"] is None
+
+    p = profile.window_submit(conn, qid, responses, now="2026-10-06T14:02:20+00:00")
+    assert p["answered"] == 2 and p["score"] == 25.0  # only the multiple choice is graded so far
+
+    pdf = tmp_path / "scan.pdf"
+    from PIL import Image
+    Image.new("L", (600, 800), 255).save(pdf, save_all=True, append_images=[Image.new("L", (600, 800), 255)])
+    photo = tmp_path / "q4.jpg"
+    Image.new("RGB", (400, 300), "white").save(photo)
+    assert quizwin.import_work(conn, cfg, quiz, [pdf, photo], "file") == 3
+    view = profile.grading_view(conn, cfg, qid)
+    assert view["minutes"] == round(135 / 60, 1)
+    q = {x["number"]: x for x in view["questions"]}
+    assert q[1]["graded_by_window"] == "right" and q[2]["graded_by_window"] == "wrong" and q[2]["correct_choice"] == "A"
+    assert q[3]["response"] == "F = ma" and "graded_by_window" not in q[3]
+    pages = [w["path"] for w in view["written_work"]]
+    assert pages == [f"Courses/2026 Fall/Physics/Quizzes/Quiz {qid}/pages/page 0{i}.{ext}" for i, ext in ((1, "png"), (2, "png"), (3, "jpg"))]
+    assert all((cfg.vault / p).exists() for p in pages)
+
+    profile.record_answers(conn, qid, [{"number": 3, "result": "right"}, {"number": 4, "result": "partly_right", "mistake": "calculation_slip"}])
+    s2 = profile.finish_quiz(conn, qid)
+    assert s2["score"] == 62.5 and s2["minutes"] == round(135 / 60, 1)
+
+
+def test_window_quiz_needs_text_and_valid_keys(env):
+    conn, cfg = env
+    with pytest.raises(profile.ProfileError, match="needs its text"):
+        profile.start_quiz(conn, cfg, "PHYS-110", [{"topic": "x", "type": "short_answer", "difficulty": "easy"}], window=True)
+    with pytest.raises(profile.ProfileError, match="at least two choices"):
+        profile.start_quiz(conn, cfg, "PHYS-110", [{"topic": "x", "type": "multiple_choice", "difficulty": "easy", "question": "?", "choices": ["a"], "answer": "A"}], window=True)
+    with pytest.raises(profile.ProfileError, match="must be one of its choices"):
+        profile.start_quiz(conn, cfg, "PHYS-110", [{"topic": "x", "type": "multiple_choice", "difficulty": "easy", "question": "?", "choices": ["a", "b"], "answer": "D"}], window=True)
+    view = profile.grading_view(conn, cfg, profile.start_quiz(conn, cfg, "PHYS-110", WINDOW_QS[2:3], window=True))
+    assert view["status"] == "handed_out"

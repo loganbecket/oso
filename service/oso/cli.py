@@ -45,6 +45,8 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("update", help="install the newest Oso on your update channel (set in oso settings; stable by default)")
     s.add_argument("--version", help="install this exact version (e.g. v0.1.0) or commit, for rolling back")
     s.add_argument("--installed", help=argparse.SUPPRESS)  # set by the installers after they install
+    s = sub.add_parser("quiz", help="open the quiz window again for a quiz Claude gave you")
+    s.add_argument("quiz_id", nargs="?", type=int, help="the quiz number (default: the latest one not yet submitted)")
     s = sub.add_parser("profile", help="show what the learner profile has recorded")
     s.add_argument("--raw", action="store_true", help="every recent quiz with each question and answer")
     sub.add_parser("fresh-start", help="delete everything in the vault and Oso's records and start fresh, keeping your settings")
@@ -190,6 +192,20 @@ def _dispatch(args: argparse.Namespace) -> int:
 
         gcal.disconnect()
         print("Disconnected. Oso will no longer write to Google Calendar. The Oso calendar itself is left as is.")
+        return 0
+
+    if args.cmd == "quiz":
+        from . import profile, quizwin
+
+        quiz_id = args.quiz_id
+        if quiz_id is None:
+            with db.connect() as conn:
+                waiting = [q for q in profile.recent_quizzes(conn, limit=20) if q["status"] == "handed_out"]
+            if not waiting:
+                print("There is no quiz waiting. Ask Claude for one in the chat.")
+                return 0
+            quiz_id = waiting[0]["quiz_id"]
+        quizwin.run(quiz_id)
         return 0
 
     if args.cmd == "profile":

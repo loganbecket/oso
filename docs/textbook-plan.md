@@ -16,7 +16,7 @@ This plan makes every book he owns a first-class, page-cited source in his vault
 
 - **His books, his vault, his use.** Book text lives only inside his own vault (and so his own Drive and NAS backup). It is never sent anywhere else, shared, or published. Claude reads passages only to answer his own questions.
 - **Every format he can open.** DRM-free PDFs and EPUBs, scans and phone photos of pages, pages printed to PDF from a reader app, and pages clipped from a web reader he is signed into.
-- **No Claude spend on bulk reading.** Text is pulled from a book on the laptop: directly from digital files, and with the operating system's own built-in text recognition for scans (Windows and macOS both include one). Claude looks at a page image only when he is asking about that page, which is where equations and diagrams matter.
+- **No Claude spend on bulk reading.** Text is pulled from a book on the laptop: directly from digital files, and with the operating system's own built-in text recognition for scans (Windows and macOS both include one). Pages with handwriting, equations, tables, or drawings are read by Claude automatically in the background, within a daily limit (Phase 6).
 - **The book is the authority.** When the book and his notes disagree, tutoring says so and goes with the book, citing both.
 - **Done once, in the background.** A book is processed once when it appears and never again unless the file changes. Progress shows in `oso doctor` and the dashboard.
 
@@ -41,7 +41,7 @@ This plan makes every book he owns a first-class, page-cited source in his vault
 
 - Scans, photos, and image-only PDFs in `Books` are read with the operating system's built-in text recognition, page by page, on the laptop. No Claude usage, nothing to install on Windows or macOS.
 - Each page's image is kept beside its text, so Claude can look at the real page when a question touches an equation, table, or figure that text recognition handles poorly.
-- Pages that come out poorly (low confidence, mostly equations) are marked, and the index lists them. Claude reads such a page from its image the first time he asks about it, and that reading is saved so it is never paid for twice.
+- Pages that come out poorly (mostly equations, tables, or figures) are marked, and the index lists them until Claude has read them from their images in the background (Phase 6); that reading is saved so it is never paid for twice.
 - A scan of a chapter at a time is fine: pages added later join the same book in page order.
 - Handouts and worksheets that are scans get the same treatment outside `Books`, replacing today's "no text layer found" note.
 
@@ -73,6 +73,21 @@ This plan makes every book he owns a first-class, page-cited source in his vault
 **Done when**
 - Tests cover the search order and citations, and the check-my-notes output on a note with a planted error.
 - On a real question, the answer cites a book page and, where they differ, his note.
+
+## Phase 6: Hard pages read automatically
+
+**Status:** built and tested; unreleased.
+
+Nothing he imports should need him to say how to read it. Notes, scans, book pages, handouts, and photos mix printed text, handwriting, equations, tables, diagrams, and drawings; every page gets read properly without a command.
+
+- **Sorting.** Printed text that the computer's own text recognition reads cleanly stays on the laptop at no cost. Pages with handwriting, equations, tables, diagrams, or drawings (the ones recognition reads poorly, and every handwritten page) go to Claude.
+- **Claude reads them in the background**, through Claude Code on the laptop, one page per call: text word for word, equations in LaTeX, tables as tables, and each diagram or drawing described. The reading replaces the poor text in the book chapter, handout, or note, with the page image still linked.
+- **Handwriting too.** Handwritten pages are transcribed automatically; `oso transcribe` remains for doing it right away.
+- **No limit by default.** Oso reads everything waiting, most urgent first: his own handwritten notes, then pages from courses with the nearest exam, then the rest. A daily page limit in settings (off by default) is there if it uses too much of his plan. Each check stops starting new pages after a few minutes so it stays inside the time Windows allows a background check; the rest continue on the next check.
+- **Visible.** `Today.md`, `oso doctor`, and `oso books` say how many pages are waiting.
+
+**Done when**
+- Tests cover sorting, the optional daily limit, the time limit per check, the priority order, and each kind of page being replaced in place.
 
 ## Phase 5: Wrap-up
 

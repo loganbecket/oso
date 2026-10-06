@@ -1,6 +1,6 @@
 # Transcribe handwritten pages
 
-Pages the student wrote on the tablet (or scanned from paper) are waiting as images. Turn each notebook into one Markdown note.
+Pages the student wrote on the tablet (or scanned from paper) are waiting as images. Oso transcribes them automatically in the background on each check; use this when the student wants them done right now. Turn each notebook into one Markdown note.
 
 ## Preferred: the command
 

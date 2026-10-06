@@ -13,8 +13,8 @@ can cite "ch. 4, p. 131".
 
 Text comes from the file itself for digital books, and from the operating system's own text recognition
 for scans (ocr.py), so bulk reading costs no Claude usage. Pages recognized poorly (mostly equations or
-figures) are flagged; Claude reads such a page from its image the first time he asks about it
-(`book_page`), and saves that reading (`save_page_reading`) so it is never paid for twice.
+figures) are flagged and read by Claude from the page image in the background (reader.py), or on the
+spot when he asks about one (`book_page`, `save_page_reading`); a reading is saved so it is never paid for twice.
 
 Work is resumable and lives in the book's folder (`.oso-pages.json`), not the database, so a big book is
 read a batch of pages per check and `oso fresh-start` does not throw away a finished book.
@@ -348,8 +348,8 @@ def render(cfg: Config, book: dict, state: dict, conn=None) -> list[Path]:
                 if p.get("poor") and not p.get("claude_text"):
                     poor_pages.append(p["label"])
                     if p.get("image"):
-                        parts.append(f"> This page is mostly equations, tables, or figures and was read poorly. "
-                                     f"Ask about it and Claude will read the page itself.\n> ![[{p['image']}]]")
+                        parts.append(f"> This page is mostly equations, tables, or figures. Claude is reading it from the page "
+                                     f"image in the background; until then, the text above is rough.\n> ![[{p['image']}]]")
             body = "\n\n".join(parts)
         pages = f"{labels[0]}–{labels[-1]}" if len(labels) > 1 else (labels[0] if labels else None)
         fm = {"type": "textbook", "course": course, "book": title, "author": author or None, "edition": edition,
@@ -379,8 +379,8 @@ def _write_index(cfg: Config, book: dict, state: dict, index: list, poor_pages: 
     if readings:
         lines += ["## Assigned in the syllabus", ""] + [f"- {r}" for r in readings] + [""]
     if poor_pages:
-        lines += ["## Pages read poorly", "",
-                  "These are mostly equations, tables, or figures. Claude reads each from its image the first time you ask about it: "
+        lines += ["## Pages waiting for Claude", "",
+                  "These are mostly equations, tables, or figures; Claude is reading them from their images in the background: "
                   + ", ".join(f"p. {p}" for p in poor_pages) + ".", ""]
     fm = {"type": "book", "course": book["course"], "title": state.get("title"), "author": state.get("author") or None,
           "edition": state.get("edition"), "source": ", ".join(f.name for f in book["files"]) if book["kind"] != "scan" else "Scans/",

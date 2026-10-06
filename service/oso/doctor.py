@@ -119,6 +119,18 @@ def run(fix: bool = False) -> list[tuple[str, str]]:
         else:
             out.append(("ok", f"{b['book']} is read" + (f" ({b['poor']} pages are mostly equations or figures; Claude reads those when asked)" if b["poor"] else "")))
 
+    from . import reader
+
+    with db.connect() as conn:
+        waiting_pages = len(reader.waiting(cfg, conn, datetime.now(cfg.tz))) + reader.handwriting_waiting(conn)
+    if waiting_pages:
+        if not cfg.auto_read:
+            out.append(("warn", f"{waiting_pages} pages with handwriting, equations, tables, or drawings are waiting; automatic reading is off in oso settings."))
+        elif reader._claude() is None:
+            out.append(("warn", f"{waiting_pages} pages are waiting for Claude, but Claude Code isn't installed. Install it from claude.ai/code."))
+        else:
+            out.append(("ok", f"Claude is reading {waiting_pages} pages with handwriting, equations, tables, or drawings in the background"))
+
     from . import search
 
     si = search.status()

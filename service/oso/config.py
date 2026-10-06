@@ -67,6 +67,8 @@ class Config:
     readiness_days: int = 7  # exams this close get readiness checks in Today.md
     quiz_warning_percent: int = 70  # a last quiz below this on an exam's topics is flagged
     canvas_notify: bool = True  # show a desktop notification when the Canvas sign-in expires
+    auto_read: bool = True  # have Claude read handwriting, equations, tables, and drawings in the background
+    auto_read_per_day: int = 0  # optional daily limit on those pages (0 = no limit)
 
     @property
     def tz(self) -> ZoneInfo:
@@ -137,6 +139,8 @@ def load(path: Path | None = None) -> Config:
         readiness_days=int(raw.get("readiness_days", 7)),
         quiz_warning_percent=int(raw.get("quiz_warning_percent", 70)),
         canvas_notify=bool(raw.get("canvas_notify", True)),
+        auto_read=bool(raw.get("auto_read", True)),
+        auto_read_per_day=int(raw.get("auto_read_per_day", 0)),
     )
 
 
@@ -168,6 +172,8 @@ def save(cfg: Config, path: Path | None = None) -> Path:
         f"readiness_days = {cfg.readiness_days}",
         f"quiz_warning_percent = {cfg.quiz_warning_percent}",
         f"canvas_notify = {'true' if cfg.canvas_notify else 'false'}",
+        f"auto_read = {'true' if cfg.auto_read else 'false'}",
+        f"auto_read_per_day = {cfg.auto_read_per_day}",
         "",
     ]
     for c in cfg.courses:

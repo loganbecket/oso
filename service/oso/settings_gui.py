@@ -131,6 +131,13 @@ def open_settings(cfg: cfgmod.Config) -> None:
     ttk.Spinbox(frm, from_=0, to=100, increment=5, textvariable=warn_var, width=6).grid(row=row, column=1, sticky="w", **pad)
     row += 1
 
+    auto_read_var = tk.BooleanVar(value=cfg.auto_read)
+    ttk.Checkbutton(frm, text="Have Claude read handwriting, equations, tables, and drawings automatically", variable=auto_read_var).grid(row=row, column=0, columnspan=3, sticky="w", **pad)
+    row += 1
+    label("Daily limit on pages Claude reads automatically", "0 means no limit; set one if it uses too much of your Claude plan")
+    read_limit_var = tk.IntVar(value=cfg.auto_read_per_day)
+    ttk.Spinbox(frm, from_=0, to=1000, increment=10, textvariable=read_limit_var, width=6).grid(row=row, column=1, sticky="w", **pad)
+    row += 1
     canvas_notify_var = tk.BooleanVar(value=cfg.canvas_notify)
     ttk.Checkbutton(frm, text="Show a notification when Canvas needs me to sign in again", variable=canvas_notify_var).grid(row=row, column=0, columnspan=3, sticky="w", **pad)
     row += 1
@@ -212,6 +219,8 @@ def open_settings(cfg: cfgmod.Config) -> None:
             cfg.readiness_days = max(1, int(ready_var.get()))
             cfg.quiz_warning_percent = min(100, max(0, int(warn_var.get())))
             cfg.canvas_notify = bool(canvas_notify_var.get())
+            cfg.auto_read = bool(auto_read_var.get())
+            cfg.auto_read_per_day = max(0, int(read_limit_var.get()))
             cfg.muted_courses = [code for code, v in mute_vars.items() if v.get()]
             cfgmod.save(cfg)
             if feed_var.get().strip():

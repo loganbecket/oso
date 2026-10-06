@@ -66,6 +66,7 @@ def render(conn: sqlite3.Connection, cfg: Config, now: datetime) -> str:
     lines += _update_note(conn)
     lines += _skill_note()
     lines += _finished_note(conn, cfg, now)
+    lines += _reading_note(conn, cfg, now)
     lines += _health(conn, now, timedelta(hours=cfg.stale_hours))
     return "\n".join(lines) + "\n"
 
@@ -221,6 +222,25 @@ def _update_note(conn: sqlite3.Connection) -> list[str]:
     if not row or not row["value"]:
         return []
     return ["## Oso", f"- {row['value']}", ""]
+
+
+def _reading_note(conn: sqlite3.Connection, cfg: Config, now: datetime) -> list[str]:
+    from . import reader
+
+    try:
+        n = len(reader.waiting(cfg, conn, now)) + reader.handwriting_waiting(conn)
+    except Exception:  # noqa: BLE001
+        return []
+    if not n:
+        return []
+    pages = f"{n} page{'s' if n != 1 else ''} with handwriting, equations, tables, or drawings"
+    if not cfg.auto_read:
+        line = f"{pages} are waiting for Claude. Turn on automatic reading in oso settings, or run 'oso transcribe'."
+    elif reader._claude() is None:
+        line = f"{pages} are waiting, but Claude Code isn't installed on this computer, so Oso can't have them read. Install it from claude.ai/code."
+    else:
+        line = f"Claude is reading {pages} in the background."
+    return ["## Reading", f"- {line}", ""]
 
 
 def _finished_note(conn: sqlite3.Connection, cfg: Config, now: datetime) -> list[str]:

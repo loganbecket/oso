@@ -106,22 +106,39 @@ def _recognize_scan(path: Path) -> str:
     if not ocr.available():
         return "(This is a scan, and this computer has no text recognizer for it. If it is handwriting, move it to the course's Handwriting folder to have it transcribed.)"
     doc = pdfium.PdfDocument(str(path))
+    # Page images are kept beside the handout, so pages recognized poorly (equations, tables, drawings) can be
+    # read by Claude in the background (reader.py) and stay linked from the note.
+    pages_dir = path.parent / "pages" / path.stem
+    pages_dir.mkdir(parents=True, exist_ok=True)
+    images = []
+    for i in range(len(doc)):
+        image = pages_dir / f"p{i + 1:03d}.png"
+        page = doc[i]
+        page.render(scale=max(1.0, min(4.0, 1800 / (page.get_height() or 1)))).to_pil().save(image)
+        images.append(image)
+    doc.close()
+    try:
+        texts = ocr.read_images(images)
+    except ocr.OcrUnavailable:
+        texts = [""] * len(images)
+    vault = _vault_of(path)
     parts = []
-    with tempfile.TemporaryDirectory() as tmp:
-        images = []
-        for i in range(len(doc)):
-            image = Path(tmp) / f"p{i + 1}.png"
-            page = doc[i]
-            page.render(scale=max(1.0, min(4.0, 1800 / (page.get_height() or 1)))).to_pil().save(image)
-            images.append(image)
-        doc.close()
-        try:
-            texts = ocr.read_images(images)
-        except ocr.OcrUnavailable:
-            texts = [""] * len(images)
-        for i, text in enumerate(texts):
-            parts.append(f"## p. {i + 1}\n\n{text.strip() or '(No text recognized on this page.)'}")
-    return "(Scanned; text recognized by the computer, so check equations against the original.)\n\n" + "\n\n".join(parts)
+    for i, (image, text) in enumerate(zip(images, texts)):
+        text = text.strip()
+        if ocr.poor(text) and vault is not None:
+            rel = image.relative_to(vault).as_posix()
+            parts.append(f'## p. {i + 1}\n\n<!-- oso:needs-reading image="{rel}" -->\n{text or "(Waiting to be read.)"}\n<!-- oso:end -->')
+        else:
+            parts.append(f"## p. {i + 1}\n\n{text or '(No text recognized on this page.)'}")
+    return "(Scanned; read by the computer, with pages of equations, tables, or drawings read by Claude.)\n\n" + "\n\n".join(parts)
+
+
+def _vault_of(path: Path) -> Path | None:
+    """The vault a file sits in: the folder above its Courses or Clippings folder."""
+    for parent in path.parents:
+        if parent.name in ("Courses", "Clippings"):
+            return parent.parent
+    return None
 
 
 def libreoffice() -> str | None:

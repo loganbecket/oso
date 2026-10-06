@@ -162,7 +162,7 @@ def test_scans_recognized_join_later_and_poor_pages(env, monkeypatch):
     books.process(cfg)
     state = books.load_state(books_dir(cfg) / "Mechanics")
     assert [p["label"] for p in state["pages"]] == ["12", "2"] and [p["poor"] for p in state["pages"]] == [False, True]
-    assert "Pages read poorly" in (books_dir(cfg) / "Mechanics" / "Book.md").read_text(encoding="utf-8")
+    assert "Pages waiting for Claude" in (books_dir(cfg) / "Mechanics" / "Book.md").read_text(encoding="utf-8")
     # a later scan joins the end without re-reading the first ones
     books_order.append("c.png")
     Image.new("RGB", (60, 80), "white").save(scans / "c.png")
@@ -174,7 +174,7 @@ def test_scans_recognized_join_later_and_poor_pages(env, monkeypatch):
     books.save_page_reading(cfg, "mechanics", "2", "$x = \\frac{a+b}{2}$")
     assert not books.page(cfg, "Mechanics", "2")["read_poorly"]
     chapter = next((books_dir(cfg) / "Mechanics").glob("01 *.md")).read_text(encoding="utf-8")
-    assert "\\frac{a+b}{2}" in chapter and "was read poorly" not in chapter
+    assert "\\frac{a+b}{2}" in chapter and "Claude is reading it" not in chapter
 
 
 def test_digital_page_image_rendered_on_demand(env):

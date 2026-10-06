@@ -83,14 +83,14 @@ def test_github_unreachable_is_plain(monkeypatch):
     assert update.run(cfg).startswith("Could not reach GitHub")
 
 
-def test_background_install_says_so_and_skips_reschedule(monkeypatch):
+def test_windows_install_says_so_and_skips_reschedule(monkeypatch):
     monkeypatch.setattr(update.requests, "get", fake_github(["v0.2.0"]))
     monkeypatch.setattr(update, "install", lambda url: False)
     monkeypatch.setattr(update, "_reschedule", lambda cfg: (_ for _ in ()).throw(AssertionError("rescheduled")))
     monkeypatch.setattr(update.cfgmod, "save", lambda cfg, path=None: None)
     cfg = Config(vault=Path("/tmp/v"))
     out = update.run(cfg)
-    assert "installing in the background" in out and "restart the Claude app" in out
+    assert "installing in a new window" in out and "restart the Claude app" in out
     assert cfg.installed_version == "v0.2.0"
 
 

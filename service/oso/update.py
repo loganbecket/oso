@@ -10,7 +10,7 @@ commit) installs that exact version, for rolling back.
 Once a day the sync asks GitHub whether something newer exists and says so in Today.md and `oso doctor`.
 
 Windows will not let a running program replace its own files, so there the reinstall is handed to a
-background PowerShell job that stops every Oso process (including the one Claude keeps open) first.
+PowerShell window (visible, closing itself when done) that stops every Oso process (including the one Claude keeps open) first.
 """
 
 from __future__ import annotations
@@ -131,8 +131,8 @@ def run(cfg: Config, channel: str | None = None, version: str | None = None) -> 
     if done:
         lines.append(f"Installed Oso {label}.")
     else:
-        lines.append(f"Oso {label} is installing in the background and will be ready in about a minute. "
-                     "Close any Oso windows, then restart the Claude app so it reconnects.")
+        lines.append(f"Oso {label} is installing in a new window, which closes by itself when it's done. "
+                     "Then restart the Claude app so it reconnects.")
     if t["fallback"]:
         lines.append("No stable release has been tagged yet, so this is the latest version.")
     if done:
@@ -148,12 +148,12 @@ def record(cfg: Config, version: str) -> str:
 
 
 def install(url: str) -> bool:
-    """Reinstall from url. True when done now; False when handed to a background job (Windows)."""
+    """Reinstall from url. True when done now; False when handed to the update window (Windows)."""
     uv = shutil.which("uv")
     if not uv:
         raise UpdateError("uv is not installed; run the Oso installer again")
     if sys.platform == "win32":
-        _install_in_background(uv, url)
+        _install_in_window(uv, url)
         return False
     r = subprocess.run([uv, "tool", "install", "--force", "--python", "3.12", url], capture_output=True, text=True, timeout=900)
     if r.returncode != 0:
@@ -165,24 +165,38 @@ def install(url: str) -> bool:
 # (oso.exe, oso-mcp.exe, and the Python they run from the uv tool folder), then reinstalls, retrying
 # while Windows still holds a file.
 _WIN_SCRIPT = """$ErrorActionPreference = 'Continue'
+$Host.UI.RawUI.WindowTitle = 'Updating Oso'
 $log = '{log}'
+$uv = '{uv}'
+$url = '{url}'
 "Update started $(Get-Date -Format s)" | Out-File -Encoding utf8 $log
+Write-Host 'Updating Oso. This window closes by itself when the update is done.' -ForegroundColor Cyan
 Wait-Process -Id {pid} -Timeout 60 -ErrorAction SilentlyContinue
 for ($i = 1; $i -le 3; $i++) {{
+    Write-Host 'Stopping any running copy of Oso...'
     Get-CimInstance Win32_Process | Where-Object {{
         $_.ProcessId -ne $PID -and ($_.Name -in @('oso.exe', 'oso-mcp.exe') -or $_.CommandLine -match '\\\\tools\\\\oso\\\\')
     }} | ForEach-Object {{ Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }}
     Start-Sleep -Seconds 2
-    & '{uv}' tool install --force --python 3.12 '{url}' *>> $log
-    if ($LASTEXITCODE -eq 0) {{ 'Update finished' | Out-File -Append -Encoding utf8 $log; exit 0 }}
+    Write-Host 'Installing...'
+    cmd /c "`"$uv`" tool install --force --python 3.12 `"$url`" 2>&1" | Tee-Object -FilePath $log -Append
+    if ($LASTEXITCODE -eq 0) {{
+        'Update finished' | Out-File -Append -Encoding utf8 $log
+        Write-Host 'Oso is updated. Restart the Claude app so it reconnects.' -ForegroundColor Green
+        Start-Sleep -Seconds 3
+        exit 0
+    }}
+    Write-Host 'Windows is still holding a file; trying again...' -ForegroundColor Yellow
     Start-Sleep -Seconds 5
 }}
 'Update failed; run the Oso installer again' | Out-File -Append -Encoding utf8 $log
+Write-Host 'The update did not finish. Run the Oso installer lines again (step 2.2 in the guide); your settings are kept.' -ForegroundColor Red
+Read-Host 'Press Enter to close'
 exit 1
 """
 
 
-def _install_in_background(uv: str, url: str) -> None:
+def _install_in_window(uv: str, url: str) -> None:
     def q(text: str) -> str:  # inside a single-quoted PowerShell string
         return str(text).replace("'", "''")
 
@@ -190,14 +204,16 @@ def _install_in_background(uv: str, url: str) -> None:
     log = cfgmod.data_dir() / "update.log"
     script.write_text(_WIN_SCRIPT.format(log=q(log), pid=os.getpid(), uv=q(uv), url=q(url)), encoding="utf-8")
     # Created through WMI so the job outlives this process: the oso.exe launcher kills its children on exit.
-    command = f'powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "{script}"'
+    # ShowWindow 1 makes the window visible, so the student can watch the installer.
+    command = f'powershell -NoProfile -ExecutionPolicy Bypass -File "{script}"'
     r = subprocess.run(
         ["powershell", "-NoProfile", "-Command",
-         f"(Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{{CommandLine='{q(command)}'}}).ReturnValue"],
+         "$su = New-CimInstance -ClassName Win32_ProcessStartup -ClientOnly -Property @{ShowWindow=[uint16]1}; "
+         f"(Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{{CommandLine='{q(command)}'; ProcessStartupInformation=$su}}).ReturnValue"],
         capture_output=True, text=True, timeout=60,
     )
     if r.returncode != 0 or r.stdout.strip() != "0":
-        raise UpdateError("Windows would not start the background update; run the Oso installer again")
+        raise UpdateError("Windows would not open the update window; run the Oso installer again")
 
 
 def _reschedule(cfg: Config) -> str:

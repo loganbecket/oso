@@ -92,7 +92,7 @@ Canvas is your school's course website where assignments and grades are posted. 
 
 ### 2.2 Run the installer
 
-Copy the lines for your platform into the command window from step 1.7, one at a time, pressing Enter after each.
+If the Claude app is open, quit it first (on Windows, also from the system tray). Then copy the lines for your platform into the command window from step 1.7, one at a time, pressing Enter after each.
 
 - **Windows** (PowerShell), two lines:
 
@@ -112,7 +112,7 @@ Copy the lines for your platform into the command window from step 1.7, one at a
 
 The installer:
 
-- installs a small helper called `uv` if you do not have it, then uses it to download and install Oso
+- installs a small helper called `uv` if you do not have it, then uses it to download and install the newest Oso release (on Windows it first stops any copy of Oso that is already running, so running it again is always safe)
 - asks where your vault is (the folder from step 1.5), your time zone (US Eastern unless you type another, such as `America/Chicago`), and the Canvas calendar feed address from step 2.1 (right-click or Cmd-V to paste, then Enter)
 - adds the starting folders to your vault
 - schedules Oso to check for changes every 15 minutes, even when the computer is asleep (Windows Task Scheduler, a macOS launch agent, or a Linux systemd timer)
@@ -222,7 +222,7 @@ The rule is simple: **a folder on the tablet with the same name as a course fold
   - "Make flashcards for the vocabulary in lecture 5."
 - **Grades**: Oso tracks them if your school allows a Canvas token (below). Otherwise tell Claude a grade and it records it.
 - **Something looks wrong**: in Claude Code say *"Run the Oso doctor"*, or in your command window run `oso doctor --fix`.
-- **Updating Oso**: when a newer version exists, the morning briefing and `oso doctor` say so. Run `oso update` in your command window (or click **Update Oso** in `oso settings`); it downloads the new version from GitHub, reinstalls the service, and keeps your notes, deadlines, and settings. By default Oso follows **stable**, meaning only versions marked as releases. To get every change as soon as it is published, set **Updates** to **latest** in `oso settings`. If a new version causes trouble, `oso update --version v0.1.0` (or any earlier release) goes back to it. The plugin half updates on its own if you turn on **Sync automatically** for the Oso marketplace under Customize, Plugins, or click **Check for updates** there.
+- **Updating Oso**: when a newer version exists, the morning briefing and `oso doctor` say so. Run `oso update` in your command window (or click **Update Oso** in `oso settings`); it downloads the new version from GitHub, reinstalls the service, and keeps your notes, deadlines, and settings. On Windows the update finishes in the background about a minute later; close any Oso windows and restart the Claude app once it is done. By default Oso follows **stable**, meaning only versions marked as releases. To get every change as soon as it is published, set **Updates** to **latest** in `oso settings`. If a new version causes trouble, `oso update --version v0.1.1` (or any earlier release from v0.1.1 on) goes back to it. The plugin half updates on its own if you turn on **Sync automatically** for the Oso marketplace under Customize, Plugins, or click **Check for updates** there.
 - **Changing settings**: run `oso settings` in your command window. A small window opens where you can change the vault folder, time zone, how often Oso checks for changes (15 minutes by default), what counts as urgent, quiet hours, which courses are muted, the tablet folder, and the Canvas feed or token. **Save and check** applies the change, reschedules the checks if needed, and runs the health check.
 
 ### Optional: a Canvas token
@@ -256,10 +256,12 @@ oso set-drive-folder MATH-101-001 "<path to that folder>"
 | `Today.md` says Canvas has not synced in many hours | Your computer may have been off. Turn it on and wait a few minutes, or run `oso sync`. If it keeps happening, run `oso install-task` again. |
 | Canvas says the login was rejected or the address no longer works | Get a fresh calendar feed address (step 2.1) and run `oso init` again with it. |
 | `oso` is not recognized as a command | Close the command window and open a new one. If it still fails, run `uv tool update-shell`, then open another new window. |
-| Claude says it cannot reach Oso's tools | Run `oso doctor`. If it says `oso-mcp` is missing, run the installer line again. Then restart the Claude app. |
+| Claude says it cannot reach Oso's tools | Run `oso doctor`. If it says `oso-mcp` is missing, run the installer lines again (step 2.2). Then restart the Claude app. |
+| Every `oso` command prints `No module named 'oso'`, or an install says `Access is denied` | An update was interrupted while Oso was running. Quit the Claude app and run the installer lines again (step 2.2); your settings and deadlines are kept. |
+| `oso install-task` says `Access is denied` | You have a version older than v0.1.1. Run the installer lines again (step 2.2). |
 | A handwritten page came out wrong | The original page image is linked at the bottom of the note. Fix the text in Obsidian; Oso never overwrites your edits. |
 | The tablet does not sync | Check **USB web interface** is on, the cable is in, and the tablet software is current. Check the notebook is inside a folder named after the course. Run `oso sync` while it is plugged in. |
-| I want to start over | Delete the vault folder and the Oso data folder (`oso doctor` prints where it is). Run the installer line again. |
+| I want to start over | Delete the vault folder and the Oso data folder (`oso doctor` prints where it is). Run the installer lines again. |
 
 ## Commands
 

@@ -177,7 +177,7 @@ The plugin is the set of instructions that teach Claude how to use Oso.
 ### 3.4 Set up your first course
 
 1. Save each course's syllabus into your vault's `Inbox` folder (drag the PDF in through Obsidian, or save it there with your browser).
-2. In Cowork, click the **+** button in the message box, choose to add a folder, and pick your vault folder (in Claude Code, start `claude` from inside the vault folder). Then say: *"Set up my Calculus course from the syllabus in Inbox."*
+2. In Cowork, click **Add folder** just below the message box and pick your vault folder (in Claude Code, start `claude` from inside the vault folder). Then say: *"Set up my Calculus course from the syllabus in Inbox."*
 3. Claude reads the syllabus and shows you every date, exam, and grade weight it found. Check them, correct anything wrong, and confirm. Only then does it save anything.
 4. Repeat for each course.
 

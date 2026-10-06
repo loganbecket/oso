@@ -44,6 +44,8 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("update", help="install the newest Oso on your update channel (set in oso settings; stable by default)")
     s.add_argument("--version", help="install this exact version (e.g. v0.1.0) or commit, for rolling back")
     s.add_argument("--installed", help=argparse.SUPPRESS)  # set by the installers after they install
+    s = sub.add_parser("reset-skills", help="put back Oso's version of its commands' instructions (all, or the ones named), discarding your edits")
+    s.add_argument("names", nargs="*", help="commands to reset, e.g. oso-summarize (default: all)")
     s = sub.add_parser("connect-calendar", help="let Oso put urgent changes on its own Google calendar")
     s.add_argument("--client-file", required=True, help="the OAuth client file downloaded from Google Cloud")
     sub.add_parser("disconnect-calendar", help="stop Oso writing to Google Calendar and forget its access")
@@ -183,6 +185,12 @@ def _dispatch(args: argparse.Namespace) -> int:
 
         gcal.disconnect()
         print("Disconnected. Oso will no longer write to Google Calendar. The Oso calendar itself is left as is.")
+        return 0
+
+    if args.cmd == "reset-skills":
+        from . import skillsync
+
+        print(skillsync.reset(cfg, args.names or None))
         return 0
 
     if args.cmd == "update":

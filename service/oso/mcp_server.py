@@ -289,6 +289,27 @@ def file_syllabus(course: str, path: str) -> dict:
 
 
 @mcp.tool()
+def skill_instructions(name: str) -> str:
+    """The instructions for an Oso command (the student's copy in Oso/Skills)."""
+    from . import skillsync
+
+    return skillsync.instructions(_cfg(), name)
+
+
+@mcp.tool()
+def resolve_skill(name: str | None = None, choice: str | None = None, text: str | None = None) -> list[dict] | str:
+    """No arguments: list commands whose new Oso version clashes with the student's edits. With name and choice (mine, oso, combined + text): settle one. Choice default (name optional): restore Oso's version."""
+    from . import skillsync
+
+    cfg = _cfg()
+    if choice == "default":
+        return skillsync.reset(cfg, [name] if name else None)
+    if not name:
+        return skillsync.describe(cfg)
+    return skillsync.resolve(cfg, name, choice or "", text)
+
+
+@mcp.tool()
 def vault_path() -> str:
     """Absolute path of the vault."""
     return str(_cfg().vault)

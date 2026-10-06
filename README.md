@@ -224,6 +224,7 @@ The rule is simple: **a folder on the tablet with the same name as a course fold
 - **Grades**: Oso tracks them if your school allows a Canvas token (below). Otherwise tell Claude a grade and it records it.
 - **Something looks wrong**: in Claude Code say *"Run the Oso doctor"*, or in your command window run `oso doctor --fix`.
 - **Updating Oso**: when a newer version exists, the morning briefing and `oso doctor` say so. Run `oso update` in your command window (or click **Update Oso** in `oso settings`); it downloads the new version from GitHub, reinstalls the service, and keeps your notes, deadlines, and settings. On Windows the update finishes in the background about a minute later; close any Oso windows and restart the Claude app once it is done. By default Oso follows **stable**, meaning only versions marked as releases. To get every change as soon as it is published, set **Updates** to **latest** in `oso settings`. If a new version causes trouble, `oso update --version v0.1.1` (or any earlier release from v0.1.1 on) goes back to it. The plugin half updates on its own if you turn on **Sync automatically** for the Oso marketplace under Customize, Plugins, or click **Check for updates** there.
+- **Making Oso's commands your own**: the instructions behind each Oso command (summarize, quiz, study guide, and the rest) are plain notes in your vault under `Oso/Skills/`. Edit one in Obsidian and Claude follows your version from then on. When Oso updates a command you haven't touched, your copy updates quietly. If you have changed it, your copy is kept, and the briefing tells you a new version is waiting; ask Claude to go through the Oso command updates, and it shows what changed on each side and lets you keep yours, take Oso's, or combine them. To throw away your edits, run `oso reset-skills` (or `oso reset-skills oso-summarize` for just one). Files you add to that folder yourself are never touched.
 - **Changing settings**: run `oso settings` in your command window. A small window opens where you can change the vault folder, time zone, how often Oso checks for changes (15 minutes by default), what counts as urgent, quiet hours, which courses are muted, the tablet folder, and the Canvas feed or token. **Save and check** applies the change, reschedules the checks if needed, and runs the health check.
 
 ### Optional: a Canvas token
@@ -278,6 +279,7 @@ oso transcribe            turn queued handwritten pages into notes
 oso install-task          schedule the sync (every 15 minutes by default)
 oso update                install the newest Oso on your update channel
 oso update --version V    install an exact earlier version
+oso reset-skills [NAME]   put back Oso's version of its commands (all, or the ones named)
 oso connect-calendar      let Oso put urgent changes on its own Google calendar
 oso disconnect-calendar   stop that and forget the access
 ```

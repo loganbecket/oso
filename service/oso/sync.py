@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from . import alerts, convert, dashboard, db, drive, filing, handwriting, instructions, merge, secrets, today, update
+from . import alerts, convert, dashboard, db, drive, filing, handwriting, instructions, merge, secrets, skillsync, today, update
 from .config import Config
 from .connectors import Connector
 from .connectors.canvas_api import CanvasApi
@@ -59,6 +59,7 @@ def run(cfg: Config, now: datetime | None = None) -> dict[str, object]:
         results["remarkable"] = _pull_tablet(conn, cfg)
         results["handwriting_queued"] = _safe(lambda: handwriting.queue_new(conn, cfg), 0)
         results["update"] = _safe(lambda: update.check_daily(conn, cfg, now), None)
+        results["skill_conflicts"] = len(_safe(lambda: skillsync.sync(cfg), []))
         today.write(conn, cfg, now)
         _safe(lambda: dashboard.write(conn, cfg, now), None)
         _safe(lambda: instructions.write(cfg), None)

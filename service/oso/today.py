@@ -60,6 +60,7 @@ def render(conn: sqlite3.Connection, cfg: Config, now: datetime) -> str:
     lines += _changes(conn, cfg, now)
     lines += _handwriting(conn)
     lines += _update_note(conn)
+    lines += _skill_note()
     lines += _health(conn, now, timedelta(hours=cfg.stale_hours))
     return "\n".join(lines) + "\n"
 
@@ -158,6 +159,19 @@ def _update_note(conn: sqlite3.Connection) -> list[str]:
     if not row or not row["value"]:
         return []
     return ["## Oso", f"- {row['value']}", ""]
+
+
+def _skill_note() -> list[str]:
+    from . import skillsync
+
+    try:
+        names = skillsync.conflicts()
+    except OSError:
+        return []
+    if not names:
+        return []
+    which = ", ".join(n.removeprefix("oso-") for n in names)
+    return ["## Oso commands", f"- Oso has a new version of commands you changed ({which}). Ask Claude to go through the Oso command updates.", ""]
 
 
 def _handwriting(conn: sqlite3.Connection) -> list[str]:

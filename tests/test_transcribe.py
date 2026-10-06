@@ -1,7 +1,9 @@
 import os
 import stat
+import sys
 from pathlib import Path
 
+import pytest
 from PIL import Image, ImageDraw
 
 from oso import db, handwriting, transcribe
@@ -43,6 +45,7 @@ def test_render_height_setting(tmp_path: Path):
         assert abs(im.height - 600) <= 2
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="the fake claude is a bash script")
 def test_transcribe_one_page_per_call(tmp_path: Path, monkeypatch):
     cfg = make_cfg(tmp_path)
     hw = cfg.vault / "Courses" / "Physics" / "Handwriting"

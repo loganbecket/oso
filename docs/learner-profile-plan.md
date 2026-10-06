@@ -60,6 +60,33 @@ The foundation. Every quiz Oso gives is recorded in detail.
 - Tests cover recording, retakes, partial results, and a quiz abandoned halfway (handed out, never answered).
 - A real quiz in Cowork produces correct rows (checked with a small `oso profile --raw` dump).
 
+## Phase 1b: Quiz window (planned, not yet approved to build)
+
+A formal way to take quizzes outside the chat, so timing is exact and answers stay hidden until he submits.
+
+**How it works**
+- He asks Claude for a quiz in Cowork as today. Claude writes it, including an answer key for multiple-choice questions, and records it with `start_quiz`. The key is stored by Oso and never shown in the chat.
+- Oso opens a quiz window on his laptop (the same kind of window as `oso settings`; Oso's tools already run on his computer, so they can open it). The window shows one question at a time with a timer per question.
+- Multiple choice is graded instantly by Oso against the key. Typed answers are saved. When he submits, the window tells him to go back to the chat, where Claude grades the typed and written answers and records the results.
+
+**Written work: labeled pages, submitted at the end**
+- For worked problems he writes on paper or on the reMarkable, one or more pages per question, with the question number in the top corner of each page.
+- When he submits, the window offers **Add written work**: pull the quiz notebook from the reMarkable if it is plugged in, or pick a scan or photo file (paper work scanned with a phone).
+- Oso renders the pages and Claude reads each page's corner label to match it to its question, then grades the work. A page without a readable label is shown to him to assign.
+- This keeps the window independent of the tablet: paper scans work the same way.
+
+**reMarkable details**
+- Oso can download notebooks over the tablet's USB connection on demand, as it already does; the quiz window would use the same connection. It cannot erase or edit a notebook over USB, so a "clear the page after each question" flow is not possible; a fresh page per question is the equivalent.
+- Optionally, Oso can upload a quiz to the tablet as a PDF with the questions and room to work, so he writes his answers on the questions themselves.
+
+**Recorded, in addition to Phase 1**
+- exact time per question (from the window), time to first answer, changes of answer before submitting
+- for written work, the page images linked from the quiz record
+
+**Done when**
+- Tests cover the key staying hidden, instant grading, timing, and matching labeled pages to questions.
+- A real quiz taken in the window, with one written answer from the tablet and one from a paper scan, grades correctly.
+
 ## Phase 2: Check-my-work records and topic lists
 
 Checks of his own work are the second scored source.

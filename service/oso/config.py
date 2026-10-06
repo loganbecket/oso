@@ -66,6 +66,7 @@ class Config:
     half_life_days: int = 21  # a result this old counts half as much as one from today
     readiness_days: int = 7  # exams this close get readiness checks in Today.md
     quiz_warning_percent: int = 70  # a last quiz below this on an exam's topics is flagged
+    canvas_notify: bool = True  # show a desktop notification when the Canvas sign-in expires
 
     @property
     def tz(self) -> ZoneInfo:
@@ -135,6 +136,7 @@ def load(path: Path | None = None) -> Config:
         half_life_days=int(raw.get("half_life_days", 21)),
         readiness_days=int(raw.get("readiness_days", 7)),
         quiz_warning_percent=int(raw.get("quiz_warning_percent", 70)),
+        canvas_notify=bool(raw.get("canvas_notify", True)),
     )
 
 
@@ -165,6 +167,7 @@ def save(cfg: Config, path: Path | None = None) -> Path:
         f"half_life_days = {cfg.half_life_days}",
         f"readiness_days = {cfg.readiness_days}",
         f"quiz_warning_percent = {cfg.quiz_warning_percent}",
+        f"canvas_notify = {'true' if cfg.canvas_notify else 'false'}",
         "",
     ]
     for c in cfg.courses:

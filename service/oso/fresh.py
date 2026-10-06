@@ -2,7 +2,8 @@
 
 Kept: the settings (vault location, time zone, check schedule, urgency and quiet hours, models, update
 channel), the Canvas feed and token and the Google Calendar connection in the credential store, the
-scheduled check, Obsidian's own settings and plugins (`.obsidian`), and the downloaded search model.
+scheduled check, the Canvas sign-in, Obsidian's own settings and plugins (`.obsidian`), and the downloaded
+search model. Everything read from Canvas is cleared and read again on the next check.
 
 Deleted, with no backup: everything else in the vault, the courses and anything tied to them (muted
 courses, Drive folder links), and Oso's database (deadlines, grades, alerts, transcription history, and the

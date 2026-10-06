@@ -8,6 +8,7 @@ when any of these hold:
 - some of those topics are still shaky or untested
 - his last quiz on those topics scored below `quiz_warning_percent`
 - his scores on those topics dropped across his last two quizzes on them
+- his graded Canvas work on those topics averages below `quiz_warning_percent`, or some of it is missing
 
 If no topic is mapped to the exam, the whole course's topics stand in, and the line says so.
 The flags go into a "Readiness" section of `Today.md`, one line per exam.
@@ -86,6 +87,15 @@ def flags(conn: sqlite3.Connection, cfg: Config, now: datetime) -> list[dict]:
             reasons.append(f"untested: {_names(untested)}")
         if quizzes and quizzes[-1]["score"] is not None and quizzes[-1]["score"] < cfg.quiz_warning_percent:
             reasons.append(f"last quiz {quizzes[-1]['score']:.0f}%")
+        from . import canvas_store
+
+        if mapped:  # graded Canvas work counts only where topics tie it to this exam
+            avg, n = canvas_store.topic_average(conn, c.code, topics)
+            if avg is not None and avg < cfg.quiz_warning_percent:
+                reasons.append(f"graded work on its topics averages {avg:.0f}% ({n} assignment{'s' if n != 1 else ''})")
+            gone = canvas_store.missing_on(conn, c.code, topics)
+            if gone:
+                reasons.append(f"missing: {_names(gone)}")
         if len(quizzes) >= 2 and None not in (quizzes[-1]["score"], quizzes[-2]["score"]) \
                 and quizzes[-2]["score"] - quizzes[-1]["score"] >= SLIP_POINTS:
             reasons.append(f"scores dropping ({quizzes[-2]['score']:.0f}% then {quizzes[-1]['score']:.0f}%)")

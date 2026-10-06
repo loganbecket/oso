@@ -29,6 +29,8 @@ There is no Oso server. Your notes stay on your computer and in your own Google 
 
 **Adding notes and files.** Scan paper notes into that course's `Handwriting` folder, then run `oso transcribe` in your command window to turn them into searchable notes in the course's `Notes` folder. Drop any other course document into the course folder; Oso makes a text copy on its next check. Scans saved anywhere outside a course folder are ignored.
 
+**Canvas.** If you connect Canvas (see Part 5), Oso also reads your grades, scores, missing work, and instructor comments. New grades and comments show up in the briefing, missing work is flagged, your real graded work counts toward your topic ratings, and the exam warnings say things like "your homework on its topics averages 64%" and offer a study plan and practice test.
+
 **Search.** Oso indexes everything in your course folders on each check, so Claude can find the right passage across your current classes in a fraction of a second, even when your question uses different words than your notes.
 
 **When a semester ends.** Tell Claude to mark a course finished (your briefing suggests it once a course has had nothing due for two weeks). It disappears from the briefing, deadlines, and everyday searches, but stays in place and can still be searched by name. When a new course builds on an old one, like Calculus III on Calculus II, `/create-course` offers to relate them, and searches in the new course then include the old course's notes.
@@ -259,15 +261,19 @@ The rule is simple: **a folder on the tablet with the same name as a course fold
 - **Making Oso's commands your own**: the instructions behind each Oso command (summarize, quiz, study guide, and the rest) are plain notes in your vault under `Oso/Skills/`. Edit one in Obsidian and Claude follows your version from then on. When Oso updates a command you haven't touched, your copy updates quietly. If you have changed it, your copy is kept, and the briefing tells you a new version is waiting; ask Claude to go through the Oso command updates, and it shows what changed on each side and lets you keep yours, take Oso's, or combine them. To throw away your edits, run `oso reset-skills` (or `oso reset-skills oso-summarize` for just one). Files you add to that folder yourself are never touched.
 - **Changing settings**: run `oso settings` in your command window. A small window opens where you can change the vault folder, time zone, how often Oso checks for changes (15 minutes by default), what counts as urgent, quiet hours, which courses are muted, the tablet folder, and the Canvas feed or token. **Save and check** applies the change, reschedules the checks if needed, and runs the health check.
 
-### Optional: a Canvas token
+### Connect Canvas for grades and coursework
 
-If your school allows it, a token lets Oso read grades, announcements, and course files from Canvas, not just dates. In Canvas, open **Account**, then **Settings**, scroll to **Approved Integrations**, and click **+ New Access Token**. Name it `Oso`, leave the expiry blank, and copy the token. Then in your command window:
+The calendar feed only brings in due dates. To let Oso read your grades, scores, missing work, instructor comments, and course files too, sign in to Canvas once through Oso:
 
 ```
-oso init --vault "<your vault path>" --canvas-url https://<yourschool>.instructure.com --canvas-token <paste the token>
+oso connect-canvas
 ```
 
-If the **+ New Access Token** button is missing, your school has turned tokens off. The calendar feed still gives Oso every deadline.
+A small window opens with your school's Canvas sign-in page. Sign in as you normally do, including any two-step check; the window closes by itself once you're in. Oso never sees your password: it keeps only the signed-in session, in your computer's credential store, and reads your own Canvas pages on every check, never changing anything. (**Connect Canvas** in `oso settings` does the same.)
+
+Canvas ends sign-ins after a while. When that happens, Oso shows a notification ("Canvas needs you to sign in again"); click it, or run `oso connect-canvas`, and sign in again. Until you do, your briefing says so and due dates keep coming from the calendar feed. `oso canvas --raw` shows what Oso has read, and `oso disconnect-canvas` makes it forget the sign-in.
+
+If your school allows Canvas access tokens, you can use one instead: in Canvas, open **Account**, **Settings**, **+ New Access Token**, then run `oso init --vault "<your vault path>" --canvas-url https://<yourschool>.instructure.com --canvas-token <the token>`.
 
 ### Optional: a shared Google Drive folder
 
@@ -314,6 +320,8 @@ oso update --version V    install an exact earlier version
 oso reset-skills [NAME]   put back Oso's version of its commands (all, or the ones named)
 oso quiz [N]              reopen a quiz window (the latest one not yet submitted)
 oso profile --raw         show every recorded quiz, question by question
+oso connect-canvas        sign in to Canvas so Oso can read grades and coursework
+oso canvas --raw          show what Oso has read from Canvas
 oso fresh-start           start over as if newly installed, keeping your settings (deletes the vault's contents)
 oso connect-calendar      let Oso put urgent changes on its own Google calendar
 oso disconnect-calendar   stop that and forget the access

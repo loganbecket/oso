@@ -21,6 +21,8 @@ The payoff is the tutoring this whole project is for: "Exam 2 is Thursday and yo
 
 ## Phase 0: Confirm it works at his school
 
+**Status:** skipped for now at Logan's direction (built on the expectation it works); to be confirmed when he first connects.
+
 A check, not a build. Decides whether the rest goes ahead.
 
 - He signs in to Canvas in his browser, then opens `https://<his school>.instructure.com/api/v1/users/self/courses?include[]=total_scores`.
@@ -31,6 +33,8 @@ A check, not a build. Decides whether the rest goes ahead.
 - Record the results here.
 
 ## Phase 1: The sign-in window
+
+**Status:** built and tested against a stand-in Canvas; not yet run against his school. Unreleased.
 
 **Built**
 - `oso connect-canvas` (and a **Connect Canvas** button in `oso settings`) opens a small window showing his school's Canvas sign-in page. He signs in as usual, including any two-step check.
@@ -45,6 +49,8 @@ A check, not a build. Decides whether the rest goes ahead.
 
 ## Phase 2: Noticing expiry and getting him back in
 
+**Status:** built and tested against a stand-in Canvas; not yet run against his school. Unreleased.
+
 **Built**
 - On every check, if Canvas refuses the session, Oso marks Canvas as needing sign-in and:
   - shows a Windows notification, "Canvas needs you to sign in again," that opens the sign-in window when clicked (once per expiry, not every 15 minutes)
@@ -57,6 +63,8 @@ A check, not a build. Decides whether the rest goes ahead.
 
 ## Phase 3: Reading Canvas
 
+**Status:** built and tested against a stand-in Canvas; not yet run against his school. Unreleased.
+
 On every check, while connected, Oso reads and stores:
 
 | What | Used for |
@@ -66,7 +74,7 @@ On every check, while connected, Oso reads and stores:
 | Assignments: title, due date, points, group, type, whether it is a quiz | Deadlines (merged with the feed and syllabus as today), topic tagging |
 | His submissions: score, grade, submitted when, late, missing, excused | Grades, missing-work warnings, readiness |
 | Instructor comments on his submissions | Feedback Claude can explain |
-| Quiz results: score, attempts, and per-question results where the instructor allows students to see them | Topic ratings, readiness |
+| Quiz results: score, attempts, and per-question results where the instructor allows students to see them | Topic ratings, readiness (built: quiz scores come in with the other submissions; per-question results are not read yet) |
 | Announcements | Already mirrored into the course folder; kept |
 | Course files | Already mirrored into the course folder and made searchable; kept |
 
@@ -81,6 +89,8 @@ On every check, while connected, Oso reads and stores:
 
 ## Phase 4: Claude's view of Canvas
 
+**Status:** built and tested against a stand-in Canvas; not yet run against his school. Unreleased.
+
 **Built**
 - One tool for Claude, `canvas_info`, answering by course: grades and standing, recent scores, missing or late work, instructor comments, quiz results.
 - Topic tagging: when new assignments appear, Claude tags each with the syllabus topics it covers (once per assignment, during the next briefing or course chat), stored by Oso. Assignments it cannot place are left untagged rather than guessed.
@@ -90,6 +100,8 @@ On every check, while connected, Oso reads and stores:
 - Tests cover the tool's answers and storing tags.
 
 ## Phase 5: Canvas results in the profile and the briefing
+
+**Status:** built and tested against a stand-in Canvas; not yet run against his school. Unreleased.
 
 **Built**
 - Graded Canvas work becomes evidence in the learner profile, next to practice quizzes and checks: each tagged assignment's score counts toward its topics.
@@ -104,12 +116,16 @@ On every check, while connected, Oso reads and stores:
 
 ## Phase 6: Wrap-up
 
+**Status:** README, settings buttons, and fresh start done; release (v0.2.0) and deleting this document wait for the go-ahead.
+
 - README: connecting Canvas, what Oso reads, what happens when the sign-in expires.
 - `oso fresh-start` keeps the Canvas connection (it is a connection, like the calendar) and clears everything read from Canvas; the next check reads it again.
 - Settings window: Connect / Disconnect Canvas, and whether to show the Windows notification.
 - Release as v0.2.0. Delete this document.
 
-## Decisions needed before starting
+## Decisions
+
+Made with the defaults below at Logan's direction; easy to revisit.
 
 1. **Do real Canvas grades count toward topic ratings**, or only feed the readiness warnings? (Recommendation: count them, weighted the same as a practice result, since a graded homework is real evidence.)
 2. **The Windows notification**: on by default, or briefing line only?

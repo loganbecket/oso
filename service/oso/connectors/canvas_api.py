@@ -1,7 +1,9 @@
-"""Canvas REST API with a student access token, where the school allows one.
+"""Canvas REST API, read with the student's own signed-in session (canvas_session.py) or, where a
+school allows one, an access token.
 
-Adds what the calendar feed cannot: grade weights, points, submissions and grades,
-announcements, and the course files, which are mirrored into the vault.
+Adds what the calendar feed cannot: grade weights, points, submissions and grades, late and missing
+flags, instructor comments, current course grades, announcements, and the course files, which are
+mirrored into the vault. `fetch` gathers it all in one pass; `canvas_store.save` keeps it in the database.
 """
 
 from __future__ import annotations
@@ -10,6 +12,7 @@ import logging
 import re
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
 import requests
@@ -24,37 +27,71 @@ NAME = "canvas_api"
 MAX_FILE_MB = 50
 
 
+class SessionExpired(Exception):
+    """Canvas no longer accepts the signed-in session; the student has to sign in again."""
+
+
 class CanvasApi:
     name = NAME
 
-    def __init__(self, base_url: str, token: str, cfg: Config, timeout: float = 30.0):
+    def __init__(self, base_url: str, token: str | None, cfg: Config, timeout: float = 30.0,
+                 cookies: dict[str, str] | None = None):
         self.base = base_url.rstrip("/")
         self.cfg = cfg
         self.tz: ZoneInfo = cfg.tz
         self.timeout = timeout
         self.s = requests.Session()
-        self.s.headers["Authorization"] = f"Bearer {token}"
+        self.s.headers["Accept"] = "application/json"
+        if token:
+            self.s.headers["Authorization"] = f"Bearer {token}"
+        host = urlparse(self.base).hostname or ""
+        for k, v in (cookies or {}).items():
+            # Tied to the Canvas host, so a session Canvas refreshes replaces this one instead of sitting beside it.
+            self.s.cookies.set(k, v, domain=host, path="/")
+        self.uses_session = bool(cookies) and not token
         self.grades: dict[str, tuple[float | None, float | None]] = {}
         self.weights: dict[str, float] = {}
+        # Raw records from the last fetch, for canvas_store.
+        self.courses: list[dict] = []
+        self.groups: dict[str, dict] = {}
+        self.assignments: list[dict] = []
+        self.submissions: list[dict] = []
+
+    def cookies(self) -> dict[str, str]:
+        """The session as Canvas last refreshed it."""
+        return {c.name: c.value for c in self.s.cookies}
 
     # ---- items -------------------------------------------------------------------------------
 
     def fetch(self) -> list[Item]:
         items: list[Item] = []
+        self.courses, self.groups, self.assignments, self.submissions = [], {}, [], []
         for course in self._courses():
+            self.courses.append(course)
             code = course.get("course_code") or str(course["id"])
             self._load_group_weights(course["id"])
             for a in self._pages(f"/api/v1/courses/{course['id']}/assignments", {"include[]": "submission", "per_page": 100}):
+                a["_course_code"] = code
+                self.assignments.append(a)
                 items.append(self._assignment(a, code))
+            try:
+                for sub in self._pages(f"/api/v1/courses/{course['id']}/students/submissions",
+                                       {"student_ids[]": "self", "include[]": "submission_comments", "per_page": 100}):
+                    sub["_course_code"] = code
+                    self.submissions.append(sub)
+            except requests.HTTPError:
+                pass
         return items
 
     def _courses(self) -> list[dict]:
-        return [c for c in self._pages("/api/v1/courses", {"enrollment_state": "active", "per_page": 50}) if "course_code" in c]
+        params = [("enrollment_state", "active"), ("per_page", 50), ("include[]", "total_scores"), ("include[]", "term")]
+        return [c for c in self._pages("/api/v1/courses", params) if "course_code" in c]
 
     def _load_group_weights(self, course_id: int) -> None:
         self.weights = {}
         try:
             for g in self._pages(f"/api/v1/courses/{course_id}/assignment_groups", {"per_page": 50}):
+                self.groups[str(g["id"])] = g
                 if g.get("group_weight"):
                     self.weights[str(g["id"])] = float(g["group_weight"])
         except requests.HTTPError:
@@ -145,11 +182,13 @@ class CanvasApi:
 
     # ---- http --------------------------------------------------------------------------------
 
-    def _pages(self, path: str, params: dict) -> list[dict]:
+    def _pages(self, path: str, params) -> list[dict]:
         url = self.base + path
         out: list[dict] = []
         while url:
-            r = self.s.get(url, params=params, timeout=self.timeout)
+            r = self.s.get(url, params=params, timeout=self.timeout, allow_redirects=not self.uses_session)
+            if self.uses_session and (r.status_code in (401, 302, 303) or "/login" in r.headers.get("Location", "")):
+                raise SessionExpired()
             r.raise_for_status()
             data = r.json()
             out.extend(data if isinstance(data, list) else [data])

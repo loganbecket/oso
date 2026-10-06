@@ -44,8 +44,10 @@ def render(conn: sqlite3.Connection, cfg: Config, now: datetime) -> str:
         lines.append("")
 
     lines += _section("Overdue", overdue, cfg, now)
+    lines += _canvas_sign_in(conn)
     lines += _section("Due today", due_today, cfg, now)
     lines += _readiness(conn, cfg, now)
+    lines += _missing(conn, cfg)
     lines += _section("Due this week", this_week, cfg, now)
 
     lines.append("## Exams")
@@ -59,6 +61,7 @@ def render(conn: sqlite3.Connection, cfg: Config, now: datetime) -> str:
     lines.append("")
 
     lines += _changes(conn, cfg, now)
+    lines += _canvas_events(conn, cfg, now)
     lines += _handwriting(conn)
     lines += _update_note(conn)
     lines += _skill_note()
@@ -106,6 +109,54 @@ def _section(heading: str, rows: list[dict], cfg: Config, now: datetime) -> list
         link = f" [open]({r['url']})" if r["url"] else ""
         lines.append(f"- {_course_label(r, cfg)}{r['title']} ({r['kind']}), {when}{extra}{link}")
     lines.append("")
+    return lines
+
+
+def _canvas_sign_in(conn: sqlite3.Connection) -> list[str]:
+    from . import canvas_session
+
+    try:
+        if canvas_session.status(conn) == "needs_sign_in":
+            return ["## Canvas", f"- {canvas_session.SIGN_IN_LINE}", ""]
+    except Exception:  # noqa: BLE001
+        pass
+    return []
+
+
+def _missing(conn: sqlite3.Connection, cfg: Config) -> list[str]:
+    from . import canvas_store
+
+    try:
+        rows = canvas_store.missing_work(conn, cfg)
+    except sqlite3.Error:
+        return []
+    if not rows:
+        return []
+    lines = ["## Missing work"]
+    for r in rows:
+        c = cfg.course_for(r["course"])
+        lines.append(f"- **{c.name if c else r['course']}**: {r['name']} is marked missing in Canvas.")
+    lines.append("")
+    return lines
+
+
+def _canvas_events(conn: sqlite3.Connection, cfg: Config, now: datetime) -> list[str]:
+    from . import canvas_store
+
+    try:
+        rows = canvas_store.recent_events(conn, now)
+        untagged = canvas_store.untagged_count(conn, cfg)
+    except sqlite3.Error:
+        return []
+    lines = []
+    if rows:
+        lines.append("## From Canvas")
+        for r in rows:
+            c = cfg.course_for(r["course"])
+            lines.append(f"- **{c.name if c else r['course']}**: {r['text']}.")
+        lines.append("")
+    if untagged:
+        lines += ["## Oso", f"- {untagged} Canvas assignment{'s' if untagged != 1 else ''} not yet matched to course topics; Claude does this during the briefing.", ""]
     return lines
 
 

@@ -54,6 +54,10 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("names", nargs="*", help="commands to reset, e.g. oso-summarize (default: all)")
     s = sub.add_parser("connect-calendar", help="let Oso put urgent changes on its own Google calendar")
     s.add_argument("--client-file", required=True, help="the OAuth client file downloaded from Google Cloud")
+    sub.add_parser("connect-canvas", help="sign in to Canvas so Oso can read your grades and coursework")
+    sub.add_parser("disconnect-canvas", help="forget the Canvas sign-in")
+    s = sub.add_parser("canvas", help="show what Oso has read from Canvas")
+    s.add_argument("--raw", action="store_true", help="every course and assignment with its score")
     sub.add_parser("disconnect-calendar", help="stop Oso writing to Google Calendar and forget its access")
     s = sub.add_parser("transcribe", help="turn queued handwritten pages into notes, one page per Claude Code call")
     s.add_argument("--model", help="override the model from settings (sonnet, opus, ...)")
@@ -185,6 +189,27 @@ def _dispatch(args: argparse.Namespace) -> int:
         print("A browser window will open. Sign in with your Google account and allow access.")
         gcal.connect(client, cfg)
         print("Connected. Oso created a calendar named 'Oso' and will put urgent changes on it.")
+        return 0
+
+    if args.cmd == "connect-canvas":
+        from . import canvas_session
+
+        with db.connect() as conn:
+            print(canvas_session.connect(conn))
+        return 0
+
+    if args.cmd == "disconnect-canvas":
+        from . import canvas_session
+
+        canvas_session.forget()
+        print("Oso forgot your Canvas sign-in. Due dates still come from the calendar feed.")
+        return 0
+
+    if args.cmd == "canvas":
+        from . import canvas_store
+
+        with db.connect() as conn:
+            print(canvas_store.raw_dump(conn, cfg))
         return 0
 
     if args.cmd == "disconnect-calendar":

@@ -97,6 +97,18 @@ def run(fix: bool = False) -> list[tuple[str, str]]:
     else:
         out.append(("ok", st["message"]))
 
+    from . import canvas_session
+
+    with db.connect() as conn:
+        cs = canvas_session.status(conn)
+        hours = canvas_session.lifetimes(conn)
+    if cs == "connected":
+        out.append(("ok", "Canvas connected through your sign-in" + (f" (sessions have lasted about {sorted(hours)[len(hours) // 2]:g} hours)" if hours else "")))
+    elif cs == "needs_sign_in":
+        out.append(("warn", canvas_session.SIGN_IN_LINE))
+    elif not secrets.get(secrets.CANVAS_TOKEN):
+        out.append(("warn", "Canvas grades and coursework are not connected; only due dates come in. Run 'oso connect-canvas' to sign in."))
+
     from . import search
 
     si = search.status()

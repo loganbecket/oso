@@ -5,17 +5,19 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from . import alerts, convert, dashboard, db, drive, filing, handwriting, instructions, mastery, merge, search, secrets, skillsync, today, update
+from . import alerts, canvas_session, canvas_store, convert, dashboard, db, drive, filing, handwriting, instructions, mastery, merge, search, secrets, skillsync, today, update
 from .config import Config
 from .connectors import Connector
-from .connectors.canvas_api import CanvasApi
+from .connectors.canvas_api import CanvasApi, SessionExpired
 from .connectors.canvas_feed import CanvasFeed
 from .connectors.remarkable_usb import NotConnected, RemarkableUsb
 
 log = logging.getLogger("oso")
 
 
-def connectors(cfg: Config) -> list[Connector]:
+def connectors(cfg: Config, conn=None) -> list[Connector]:
+    from . import canvas_session
+
     out: list[Connector] = []
     url = secrets.get(secrets.CANVAS_FEED_URL)
     if url:
@@ -24,6 +26,9 @@ def connectors(cfg: Config) -> list[Connector]:
     token = secrets.get(secrets.CANVAS_TOKEN)
     if base and token:
         out.append(CanvasApi(base, token, cfg))
+    elif conn is not None and canvas_session.status(conn) == "connected":
+        # Read Canvas with his own signed-in session; skipped while it waits for him to sign in again.
+        out.append(CanvasApi(canvas_session.base_url() or "", None, cfg, cookies=canvas_session.load()))
     return out
 
 
@@ -34,14 +39,25 @@ def run(cfg: Config, now: datetime | None = None) -> dict[str, object]:
         for c in cfg.courses:
             db.upsert_course(conn, c.code, c.name, c.folder)
 
-        for connector in connectors(cfg):
+        for connector in connectors(cfg, conn):
             run_id = db.record_sync(conn, connector.name)
             try:
                 items = connector.fetch()
                 counts = merge.apply(conn, items, connector.name, now, urgent_days=cfg.urgent_days)
                 if isinstance(connector, CanvasApi):
                     counts["grades"] = _apply_grades(conn, connector)
+                    counts.update(canvas_store.save(conn, connector))
                     counts.update(connector.mirror())
+                    if connector.uses_session:
+                        canvas_session.mark_connected(conn)
+                        if connector.cookies() and connector.cookies() != canvas_session.load():
+                            canvas_session.save(connector.cookies())  # Canvas refreshed the session
+            except SessionExpired:
+                db.finish_sync(conn, run_id, ok=False, error=canvas_session.SIGN_IN_LINE)
+                results[connector.name] = "needs sign-in"
+                if canvas_session.mark_expired(conn) and cfg.canvas_notify:
+                    canvas_session.notify_sign_in()
+                continue
             except Exception as e:  # noqa: BLE001
                 db.finish_sync(conn, run_id, ok=False, error=plain_error(e))
                 results[connector.name] = plain_error(e)

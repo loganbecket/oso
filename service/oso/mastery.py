@@ -1,6 +1,7 @@
 """Phase 3 of the learner profile: what the student knows, topic by topic.
 
-Every scored result (a graded quiz question or a check of his own work) is evidence about one topic.
+Every scored result (a graded quiz question, a check of his own work, or graded Canvas work tagged with
+the topic) is evidence about one topic.
 Plain arithmetic turns that evidence into a state per topic:
 
 - credit: right 1, partly right 0.5, wrong or skipped 0. A quiz question he only got right after another
@@ -56,6 +57,9 @@ def evidence(conn: sqlite3.Connection, course: str) -> list[dict]:
     ):
         out.append({"topic": r["topic"], "credit": 1.0 if r["correct"] else 0.0, "mistake": r["mistake"],
                     "at": r["checked_at"], "source": f"check {r['id']}"})
+    from . import canvas_store
+
+    out.extend(canvas_store.evidence(conn, course))  # graded Canvas work tagged with topics
     out.sort(key=lambda e: e["at"])
     return out
 
@@ -73,7 +77,7 @@ def topic_states(conn: sqlite3.Connection, cfg: Config, course: str, now: dateti
         ev = by_topic.get(name, [])
         row = {"topic": name, "week": meta.get(name, {}).get("week"), "exams": meta.get(name, {}).get("exams", []),
                "results": len(ev), "accuracy": None, "last_practiced": None, "trend": None, "common_mistake": None,
-               "sources": sorted({e["source"] for e in ev}, key=lambda s: (s.split()[0], int(s.split()[1])))}
+               "sources": sorted({e["source"] for e in ev}, key=lambda s: (s.split()[0], int(s.split()[1]) if s.split()[1].isdigit() else 0))}
         if ev:
             weights = [0.5 ** ((now - _parse(e["at"])).total_seconds() / 86400 / cfg.half_life_days) for e in ev]
             row["accuracy"] = round(100 * sum(w * e["credit"] for w, e in zip(weights, ev)) / sum(weights), 1)

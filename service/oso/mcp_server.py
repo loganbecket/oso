@@ -269,6 +269,24 @@ def get_profile(course: str) -> dict:
 
 
 @mcp.tool()
+def canvas_info(course: str, what: str = "summary") -> dict:
+    """What Oso read from Canvas for a course. what: summary (grade, recent scores, missing and late work) | assignments (each with score and topics) | comments (instructor feedback) | untagged (assignments awaiting topics)."""
+    from . import canvas_store
+
+    with db.connect() as conn:
+        return canvas_store.info(conn, _cfg(), course, what)
+
+
+@mcp.tool()
+def tag_assignments(tags: list[dict]) -> dict:
+    """Store the syllabus topics each Canvas assignment covers: [{canvas_id, topics: [...]}]; an empty list means it fits none."""
+    from . import canvas_store
+
+    with db.connect() as conn:
+        return {"tagged": canvas_store.tag(conn, _cfg(), tags)}
+
+
+@mcp.tool()
 def correct_result(quiz_id: int | None = None, number: int | None = None, check_id: int | None = None,
                    result: str | None = None, mistake: str | None = None, remove: bool = False) -> str:
     """Fix a recorded result the student says is wrong: a quiz question (quiz_id + number) or a check (check_id); new result and mistake kind, or remove."""

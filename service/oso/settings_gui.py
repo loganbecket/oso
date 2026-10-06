@@ -131,6 +131,10 @@ def open_settings(cfg: cfgmod.Config) -> None:
     ttk.Spinbox(frm, from_=0, to=100, increment=5, textvariable=warn_var, width=6).grid(row=row, column=1, sticky="w", **pad)
     row += 1
 
+    canvas_notify_var = tk.BooleanVar(value=cfg.canvas_notify)
+    ttk.Checkbutton(frm, text="Show a notification when Canvas needs me to sign in again", variable=canvas_notify_var).grid(row=row, column=0, columnspan=3, sticky="w", **pad)
+    row += 1
+
     # reMarkable folder
     label("Tablet folder holding the course folders", "leave empty if course folders are at the tablet's top level")
     rm_var = tk.StringVar(value=cfg.remarkable_folder or "")
@@ -207,6 +211,7 @@ def open_settings(cfg: cfgmod.Config) -> None:
             cfg.half_life_days = max(3, int(half_var.get()))
             cfg.readiness_days = max(1, int(ready_var.get()))
             cfg.quiz_warning_percent = min(100, max(0, int(warn_var.get())))
+            cfg.canvas_notify = bool(canvas_notify_var.get())
             cfg.muted_courses = [code for code, v in mute_vars.items() if v.get()]
             cfgmod.save(cfg)
             if feed_var.get().strip():
@@ -238,6 +243,8 @@ def open_settings(cfg: cfgmod.Config) -> None:
     ttk.Button(btns, text="Transcribe now", command=lambda: show(_transcribe_now())).grid(row=0, column=3, padx=4)
     ttk.Button(btns, text="Update Oso", command=lambda: show(_update_now())).grid(row=1, column=0, padx=4, pady=4)
     ttk.Button(btns, text="Connect Google Calendar…", command=lambda: show(_connect_calendar(cfg))).grid(row=0, column=4, padx=4)
+    ttk.Button(btns, text="Connect Canvas…", command=lambda: show(_connect_canvas())).grid(row=1, column=1, padx=4, pady=4)
+    ttk.Button(btns, text="Disconnect Canvas", command=lambda: show(_disconnect_canvas())).grid(row=1, column=2, padx=4, pady=4)
     ttk.Button(btns, text="Close", command=root.destroy).grid(row=0, column=5, padx=4)
 
     root.mainloop()
@@ -262,6 +269,20 @@ def _update_now() -> str:
     from . import update
 
     return update.run(cfgmod.load())
+
+
+def _connect_canvas() -> str:
+    from . import canvas_session, db
+
+    with db.connect() as conn:
+        return canvas_session.connect(conn)
+
+
+def _disconnect_canvas() -> str:
+    from . import canvas_session
+
+    canvas_session.forget()
+    return "Oso forgot your Canvas sign-in. Due dates still come from the calendar feed."
 
 
 def _connect_calendar(cfg) -> str:

@@ -34,7 +34,7 @@ A check, not a build. Decides whether the rest goes ahead.
 
 ## Phase 1: The sign-in window
 
-**Status:** built and tested against a stand-in Canvas; not yet run against his school. Unreleased.
+**Status:** built, tested against a stand-in Canvas, and released in v0.2.0; not yet run against his school.
 
 **Built**
 - `oso connect-canvas` (and a **Connect Canvas** button in `oso settings`) opens a small window showing his school's Canvas sign-in page. He signs in as usual, including any two-step check.
@@ -49,7 +49,7 @@ A check, not a build. Decides whether the rest goes ahead.
 
 ## Phase 2: Noticing expiry and getting him back in
 
-**Status:** built and tested against a stand-in Canvas; not yet run against his school. Unreleased.
+**Status:** built, tested against a stand-in Canvas, and released in v0.2.0; not yet run against his school.
 
 **Built**
 - On every check, if Canvas refuses the session, Oso marks Canvas as needing sign-in and:
@@ -63,7 +63,7 @@ A check, not a build. Decides whether the rest goes ahead.
 
 ## Phase 3: Reading Canvas
 
-**Status:** built and tested against a stand-in Canvas; not yet run against his school. Unreleased.
+**Status:** built, tested against a stand-in Canvas, and released in v0.2.0; not yet run against his school.
 
 On every check, while connected, Oso reads and stores:
 
@@ -89,7 +89,7 @@ On every check, while connected, Oso reads and stores:
 
 ## Phase 4: Claude's view of Canvas
 
-**Status:** built and tested against a stand-in Canvas; not yet run against his school. Unreleased.
+**Status:** built, tested against a stand-in Canvas, and released in v0.2.0; not yet run against his school.
 
 **Built**
 - One tool for Claude, `canvas_info`, answering by course: grades and standing, recent scores, missing or late work, instructor comments, quiz results.
@@ -101,7 +101,7 @@ On every check, while connected, Oso reads and stores:
 
 ## Phase 5: Canvas results in the profile and the briefing
 
-**Status:** built and tested against a stand-in Canvas; not yet run against his school. Unreleased.
+**Status:** built, tested against a stand-in Canvas, and released in v0.2.0; not yet run against his school.
 
 **Built**
 - Graded Canvas work becomes evidence in the learner profile, next to practice quizzes and checks: each tagged assignment's score counts toward its topics.

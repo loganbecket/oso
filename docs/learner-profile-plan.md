@@ -77,7 +77,7 @@ A formal way to take quizzes outside the chat, so timing is exact and answers st
 
 **reMarkable details**
 - Oso can download notebooks over the tablet's USB connection on demand, as it already does; the quiz window would use the same connection. It cannot erase or edit a notebook over USB, so a "clear the page after each question" flow is not possible; a fresh page per question is the equivalent.
-- Optionally, Oso can upload a quiz to the tablet as a PDF with the questions and room to work, so he writes his answers on the questions themselves.
+- Taking a whole quiz on the tablet (Oso uploads it as a PDF and he answers on it) is deferred: it loses per-question timing and the other window metadata, and adds formatting work. All quizzes, tests, and practice exams are given in the quiz window; the tablet is only for written work.
 
 **Recorded, in addition to Phase 1**
 - exact time per question (from the window), time to first answer, changes of answer before submitting

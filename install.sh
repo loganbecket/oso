@@ -71,6 +71,7 @@ oso doctor --fix || true
 
 echo
 echo "Oso is installed. Next:"
+echo "  0. Close this terminal and open a new one. The 'oso' command only works in terminals opened after installing."
 echo "  1. Open Obsidian and open $VAULT as a vault."
 echo "  2. In the Claude app (or claude.ai), open Customize, then Plugins, choose Add marketplace, enter $REPO, and install Oso."
 echo "  3. Run 'oso settings' any time to change how often Oso checks, quiet hours, updates, and the rest."

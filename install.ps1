@@ -64,6 +64,7 @@ oso doctor --fix
 
 Write-Host ""
 Write-Host "Oso is installed. Next:" -ForegroundColor Cyan
+Write-Host "  0. Close this PowerShell window and open a new one. The 'oso' command only works in windows opened after installing." -ForegroundColor Yellow
 Write-Host "  1. Open Obsidian and open $Vault as a vault."
 Write-Host "  2. In the Claude app, open Customize, then Plugins, choose Add marketplace, enter $Repo, and install Oso."
 Write-Host "  3. If the Claude app was open, quit and reopen it so it reconnects to Oso."

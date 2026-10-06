@@ -43,6 +43,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("settings", help="open the settings window")
     s = sub.add_parser("update", help="install the newest Oso on your update channel (set in oso settings; stable by default)")
     s.add_argument("--version", help="install this exact version (e.g. v0.1.0) or commit, for rolling back")
+    s.add_argument("--installed", help=argparse.SUPPRESS)  # set by the installers after they install
     s = sub.add_parser("connect-calendar", help="let Oso put urgent changes on its own Google calendar")
     s.add_argument("--client-file", required=True, help="the OAuth client file downloaded from Google Cloud")
     sub.add_parser("disconnect-calendar", help="stop Oso writing to Google Calendar and forget its access")
@@ -187,7 +188,7 @@ def _dispatch(args: argparse.Namespace) -> int:
     if args.cmd == "update":
         from . import update
 
-        print(update.run(cfg, version=args.version))
+        print(update.record(cfg, args.installed) if args.installed else update.run(cfg, version=args.version))
         return 0
 
     if args.cmd == "settings":

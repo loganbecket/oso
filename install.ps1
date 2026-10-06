@@ -15,8 +15,29 @@ if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
     $env:Path = "$env:USERPROFILE\.local\bin;$env:Path"
 }
 
+# The newest version tag (stable), or master when there is none.
+$Target = "https://github.com/$Repo/archive/refs/heads/master.zip"
+$Version = $null
+try {
+    $Tag = (Invoke-RestMethod "https://api.github.com/repos/$Repo/tags?per_page=100").name |
+        Where-Object { $_ -match '^v\d+\.\d+\.\d+$' } |
+        Sort-Object { [version]$_.TrimStart('v') } | Select-Object -Last 1
+    if ($Tag) {
+        $Target = "https://github.com/$Repo/archive/refs/tags/$Tag.zip"
+        $Version = $Tag
+    } else {
+        $Version = (Invoke-RestMethod "https://api.github.com/repos/$Repo/commits/master").sha.Substring(0, 12)
+    }
+} catch { }
+
+# Windows cannot replace files a running program holds, so stop any Oso already running
+# (including the one the Claude app keeps open) before reinstalling.
+Get-CimInstance Win32_Process | Where-Object {
+    $_.Name -in @('oso.exe', 'oso-mcp.exe') -or $_.CommandLine -match '\\tools\\oso\\'
+} | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+
 Write-Host "Installing the Oso service (this takes a minute or two)..."
-uv tool install --force --python 3.12 "https://github.com/$Repo/archive/refs/heads/master.zip"
+uv tool install --force --python 3.12 $Target
 uv tool update-shell | Out-Null
 $env:Path = "$env:USERPROFILE\.local\bin;$env:Path"
 
@@ -37,7 +58,7 @@ Write-Host "In Canvas, open Calendar, click 'Calendar Feed', and copy the addres
 $Feed = Read-Host "Paste the Canvas Calendar Feed URL (or press Enter to skip)"
 
 oso init --vault "$Vault" --timezone $Timezone --canvas-feed-url "$Feed"
-oso update
+if ($Version) { oso update --installed $Version | Out-Null }
 oso sync
 oso doctor --fix
 
@@ -45,4 +66,5 @@ Write-Host ""
 Write-Host "Oso is installed. Next:" -ForegroundColor Cyan
 Write-Host "  1. Open Obsidian and open $Vault as a vault."
 Write-Host "  2. In the Claude app, open Customize, then Plugins, choose Add marketplace, enter $Repo, and install Oso."
-Write-Host "  3. Run 'oso settings' any time to change how often Oso checks, quiet hours, updates, and the rest."
+Write-Host "  3. If the Claude app was open, quit and reopen it so it reconnects to Oso."
+Write-Host "  4. Run 'oso settings' any time to change how often Oso checks, quiet hours, updates, and the rest."

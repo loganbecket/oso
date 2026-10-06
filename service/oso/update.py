@@ -8,10 +8,14 @@ Stable is the default; switching to latest is done in the settings window (`chan
 `oso update` installs the newest version on the configured channel; `oso update --version v0.1.0` (or a
 commit) installs that exact version, for rolling back.
 Once a day the sync asks GitHub whether something newer exists and says so in Today.md and `oso doctor`.
+
+Windows will not let a running program replace its own files, so there the reinstall is handed to a
+background PowerShell job that stops every Oso process (including the one Claude keeps open) first.
 """
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import sqlite3
@@ -118,25 +122,82 @@ def run(cfg: Config, channel: str | None = None, version: str | None = None) -> 
         cfgmod.save(cfg)
         return f"Oso is already at {t['version']} on the {cfg.channel} channel."
     try:
-        install(t["url"])
+        done = install(t["url"])
     except UpdateError as e:
         return f"Could not install Oso {t['version']}: {e}"
     cfg.installed_version = t["version"]
     cfgmod.save(cfg)
-    lines.append(f"Installed Oso {t['version']} ({'pinned' if version else cfg.channel}).")
+    label = f"{t['version']} ({'pinned' if version else cfg.channel})"
+    if done:
+        lines.append(f"Installed Oso {label}.")
+    else:
+        lines.append(f"Oso {label} is installing in the background and will be ready in about a minute. "
+                     "Close any Oso windows, then restart the Claude app so it reconnects.")
     if t["fallback"]:
         lines.append("No stable release has been tagged yet, so this is the latest version.")
-    lines.append(_reschedule(cfg))
+    if done:
+        lines.append(_reschedule(cfg))
     return "\n".join(lines)
 
 
-def install(url: str) -> None:
+def record(cfg: Config, version: str) -> str:
+    """Note which version the installer just put in place, without reinstalling."""
+    cfg.installed_version = version
+    cfgmod.save(cfg)
+    return f"Recorded Oso {version} as installed."
+
+
+def install(url: str) -> bool:
+    """Reinstall from url. True when done now; False when handed to a background job (Windows)."""
     uv = shutil.which("uv")
     if not uv:
         raise UpdateError("uv is not installed; run the Oso installer again")
+    if sys.platform == "win32":
+        _install_in_background(uv, url)
+        return False
     r = subprocess.run([uv, "tool", "install", "--force", "--python", "3.12", url], capture_output=True, text=True, timeout=900)
     if r.returncode != 0:
         raise UpdateError((r.stderr or r.stdout).strip().splitlines()[-1][:200] if (r.stderr or r.stdout) else "uv failed")
+    return True
+
+
+# Waits up to a minute for the process that asked for the update to exit, stops every Oso process
+# (oso.exe, oso-mcp.exe, and the Python they run from the uv tool folder), then reinstalls, retrying
+# while Windows still holds a file.
+_WIN_SCRIPT = """$ErrorActionPreference = 'Continue'
+$log = '{log}'
+"Update started $(Get-Date -Format s)" | Out-File -Encoding utf8 $log
+Wait-Process -Id {pid} -Timeout 60 -ErrorAction SilentlyContinue
+for ($i = 1; $i -le 3; $i++) {{
+    Get-CimInstance Win32_Process | Where-Object {{
+        $_.ProcessId -ne $PID -and ($_.Name -in @('oso.exe', 'oso-mcp.exe') -or $_.CommandLine -match '\\\\tools\\\\oso\\\\')
+    }} | ForEach-Object {{ Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }}
+    Start-Sleep -Seconds 2
+    & '{uv}' tool install --force --python 3.12 '{url}' *>> $log
+    if ($LASTEXITCODE -eq 0) {{ 'Update finished' | Out-File -Append -Encoding utf8 $log; exit 0 }}
+    Start-Sleep -Seconds 5
+}}
+'Update failed; run the Oso installer again' | Out-File -Append -Encoding utf8 $log
+exit 1
+"""
+
+
+def _install_in_background(uv: str, url: str) -> None:
+    def q(text: str) -> str:  # inside a single-quoted PowerShell string
+        return str(text).replace("'", "''")
+
+    script = cfgmod.data_dir() / "update.ps1"
+    log = cfgmod.data_dir() / "update.log"
+    script.write_text(_WIN_SCRIPT.format(log=q(log), pid=os.getpid(), uv=q(uv), url=q(url)), encoding="utf-8")
+    # Created through WMI so the job outlives this process: the oso.exe launcher kills its children on exit.
+    command = f'powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "{script}"'
+    r = subprocess.run(
+        ["powershell", "-NoProfile", "-Command",
+         f"(Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{{CommandLine='{q(command)}'}}).ReturnValue"],
+        capture_output=True, text=True, timeout=60,
+    )
+    if r.returncode != 0 or r.stdout.strip() != "0":
+        raise UpdateError("Windows would not start the background update; run the Oso installer again")
 
 
 def _reschedule(cfg: Config) -> str:

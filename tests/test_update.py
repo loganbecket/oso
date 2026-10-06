@@ -60,7 +60,7 @@ def test_status_and_daily_check(tmp_path: Path, monkeypatch):
 def test_run_installs_channel_target_and_pins(monkeypatch):
     monkeypatch.setattr(update.requests, "get", fake_github(["v0.2.0"]))
     installed = []
-    monkeypatch.setattr(update, "install", lambda url: installed.append(url))
+    monkeypatch.setattr(update, "install", lambda url: installed.append(url) or True)
     monkeypatch.setattr(update, "_reschedule", lambda cfg: "rescheduled")
     monkeypatch.setattr(update.cfgmod, "save", lambda cfg, path=None: None)
     cfg = Config(vault=Path("/tmp/v"))
@@ -81,3 +81,27 @@ def test_github_unreachable_is_plain(monkeypatch):
     cfg = Config(vault=Path("/tmp/v"))
     assert not update.status(cfg)["known"]
     assert update.run(cfg).startswith("Could not reach GitHub")
+
+
+def test_background_install_says_so_and_skips_reschedule(monkeypatch):
+    monkeypatch.setattr(update.requests, "get", fake_github(["v0.2.0"]))
+    monkeypatch.setattr(update, "install", lambda url: False)
+    monkeypatch.setattr(update, "_reschedule", lambda cfg: (_ for _ in ()).throw(AssertionError("rescheduled")))
+    monkeypatch.setattr(update.cfgmod, "save", lambda cfg, path=None: None)
+    cfg = Config(vault=Path("/tmp/v"))
+    out = update.run(cfg)
+    assert "installing in the background" in out and "restart the Claude app" in out
+    assert cfg.installed_version == "v0.2.0"
+
+
+def test_windows_script_quotes_paths():
+    text = update._WIN_SCRIPT.format(log="C:\\Users\\O''Neil\\update.log", pid=42, uv="uv.exe", url="https://x/y.zip")
+    assert "Wait-Process -Id 42" in text and "'C:\\Users\\O''Neil\\update.log'" in text
+    assert r"-match '\\tools\\oso\\'" in text
+
+
+def test_record_does_not_reinstall(monkeypatch):
+    monkeypatch.setattr(update, "install", lambda url: (_ for _ in ()).throw(AssertionError("installed")))
+    monkeypatch.setattr(update.cfgmod, "save", lambda cfg, path=None: None)
+    cfg = Config(vault=Path("/tmp/v"))
+    assert "v0.2.0" in update.record(cfg, "v0.2.0") and cfg.installed_version == "v0.2.0"

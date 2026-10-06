@@ -34,3 +34,25 @@ jobs:
 
       - name: Install the way students do and start it
         run: uvx --python 3.12 --from . oso --help
+
+      - name: Update in place while Oso is running (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          uv tool install --python 3.12 .
+          $env:Path = "$env:USERPROFILE\.local\bin;$env:Path"
+          oso init --vault "$env:RUNNER_TEMP\vault" --timezone America/New_York --canvas-feed-url ""
+          # Hold Oso's files open the way the Claude app's copy does.
+          $py = Join-Path (uv tool dir) "oso\Scripts\python.exe"
+          $held = Start-Process $py -ArgumentList '-c', 'import time; time.sleep(900)' -PassThru -WindowStyle Hidden
+          oso update --version ${{ github.sha }}
+          for ($i = 0; $i -lt 60; $i++) {
+            Start-Sleep -Seconds 5
+            $log = Get-ChildItem $env:LOCALAPPDATA -Recurse -Filter update.log -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($log -and (Select-String -Path $log.FullName -Pattern 'Update (finished|failed)' -Quiet)) { break }
+          }
+          Get-Content $log.FullName
+          if (-not (Select-String -Path $log.FullName -Pattern 'Update finished' -Quiet)) { exit 1 }
+          if (-not $held.HasExited) { Write-Host "the held process was not stopped"; exit 1 }
+          oso --help | Out-Null
+          if ($LASTEXITCODE -ne 0) { exit 1 }

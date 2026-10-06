@@ -19,7 +19,7 @@ def test_seed_quiet_update_keep_edit_and_conflict(tmp_path: Path, monkeypatch):
     summ, quiz = skillsync.vault_file(cfg, "oso-summarize"), skillsync.vault_file(cfg, "oso-quiz")
     assert summ.read_text() == "summarize v1\n"
 
-    summ.write_text("summarize, my way\r\n")  # the student edits one command
+    summ.write_bytes(b"summarize, my way\r\n")  # the student edits one command
     assert skillsync.sync(cfg, st) == []
     assert summ.read_text() == "summarize, my way\n"
 

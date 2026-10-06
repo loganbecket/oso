@@ -15,7 +15,7 @@ This plan makes every book he owns a first-class, page-cited source in his vault
 ## Principles
 
 - **His books, his vault, his use.** Book text lives only inside his own vault (and so his own Drive and NAS backup). It is never sent anywhere else, shared, or published. Claude reads passages only to answer his own questions.
-- **Every format he can open.** DRM-free PDFs and EPUBs, scans and phone photos of pages, pages printed to PDF from a reader app, and pages clipped from a web reader he is signed into. Oso does not include anything that breaks a publisher's copy protection.
+- **Every format he can open.** DRM-free PDFs and EPUBs, scans and phone photos of pages, pages printed to PDF from a reader app, and pages clipped from a web reader he is signed into.
 - **No Claude spend on bulk reading.** Text is pulled from a book on the laptop: directly from digital files, and with the operating system's own built-in text recognition for scans (Windows and macOS both include one). Claude looks at a page image only when he is asking about that page, which is where equations and diagrams matter.
 - **The book is the authority.** When the book and his notes disagree, tutoring says so and goes with the book, citing both.
 - **Done once, in the background.** A book is processed once when it appears and never again unless the file changes. Progress shows in `oso doctor` and the dashboard.

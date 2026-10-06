@@ -10,6 +10,31 @@ Oso combines three parts:
 
 There is no Oso server. Your notes stay on your computer and in your own Google Drive, and reach Claude only when you ask it something.
 
+## How Oso works, at a glance
+
+**What happens on its own.** Every 15 minutes Oso checks Canvas for new or changed deadlines, picks up new files and scans in your course folders, makes searchable text copies of documents, and updates `Today.md` (what's due soon) and `Dashboard.md` (everything) in your vault. Urgent changes, like a moved due date, go straight onto an **Oso** calendar in Google Calendar. Each morning a briefing appears in the Claude app on your phone.
+
+**Where things live in your vault.**
+
+- `Courses/<course>/`: one folder per class, holding its syllabus, notes, readings, and anything Oso pulls in.
+- `Courses/<course>/Handwriting/`: where scans of paper notes go.
+- `Clippings/`: where the Obsidian Web Clipper saves web pages, including syllabi before a course is set up.
+- `Oso/`: Oso's own files, including the instructions behind each Oso command (see below). You can ignore it.
+
+**Asking Claude.** Start your chats inside the Cowork project that has your vault attached (step 3.4). Ask in plain words: "What's due this week?", "Summarize Tuesday's physics notes in three sentences", "Quiz me on chapter 4", "Explain the chain rule from my notes." Answers come back in the chat at the length you ask for. Claude saves a file only when you ask, except flashcards, which have to live in the vault for Obsidian to review them.
+
+**Adding a course.** Clip the syllabus with the Web Clipper, then type `/create-course <course name>` in a chat. Claude shows every date, exam, and grade weight it found; nothing is saved until you confirm. It then creates the course folder and files the syllabus inside it.
+
+**Adding notes and files.** Scan paper notes into that course's `Handwriting` folder, then run `oso transcribe` in your command window to turn them into searchable notes in the course's `Notes` folder. Drop any other course document into the course folder; Oso makes a text copy on its next check. Scans saved anywhere outside a course folder are ignored.
+
+**Search.** Oso indexes everything in your course folders on each check, so Claude can find the right passage across all your classes in a fraction of a second, even when your question uses different words than your notes.
+
+**Making commands your own.** The instructions Claude follows for each command (summarize, quiz, study guide, and the rest) are notes you can edit in `Oso/Skills/`. If Oso later ships a new version of one you changed, your briefing tells you, and Claude walks you through keeping yours, taking the new one, or combining them. `oso reset-skills` puts Oso's versions back.
+
+**Keeping Oso up to date.** When a new version is out, your briefing says so. Run `oso update` in your command window, wait about a minute, and restart the Claude app.
+
+**When something seems wrong.** Run `oso doctor` in your command window. It checks every part of Oso and says in plain words what to fix. Part 6 below lists common problems.
+
 Oso runs on Windows, macOS, and Linux. Installation instructions follow. Setup takes about an hour, most of it installing and signing in to apps. Do the sections in order; where a step differs by platform, the differences are listed.
 
 ---

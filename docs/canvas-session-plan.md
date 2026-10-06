@@ -116,7 +116,7 @@ On every check, while connected, Oso reads and stores:
 
 ## Phase 6: Wrap-up
 
-**Status:** README, settings buttons, and fresh start done; release (v0.2.0) and deleting this document wait for the go-ahead.
+**Status:** README, settings buttons, and fresh start done; released as v0.2.0. Delete this document once the first real connection confirms it works.
 
 - README: connecting Canvas, what Oso reads, what happens when the sign-in expires.
 - `oso fresh-start` keeps the Canvas connection (it is a connection, like the calendar) and clears everything read from Canvas; the next check reads it again.

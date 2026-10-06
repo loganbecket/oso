@@ -68,35 +68,25 @@ Cowork on laptop or phone is the one place to ask Oso anything. Obsidian is the 
 
 The vault is the center. The service fills it and keeps the SQLite facts file beside it. Cowork and Claude Code read both through one Claude plugin of skills and MCP servers. Google Drive for Desktop carries the vault to the phone and to Anthropic's cloud for the scheduled briefing.
 
-| Piece | Choice |
-| --- | --- |
-| Front door | Claude Cowork on desktop, web, and mobile |
-| Installation and local runs | Claude Code |
-| Notes | Obsidian with the Web Clipper; vault in a folder synced to Google Drive (Drive for Desktop on Windows and macOS, rclone on Linux) |
-| Skills and tools | One Claude plugin installed in Cowork and Claude Code |
-| Service | Python 3.12; every 15 minutes on Windows Task Scheduler, a macOS launch agent, or a Linux systemd timer, with catch-up after sleep |
-| Facts | One SQLite file |
-| Search | A local index built at ingestion: exact-word (SQLite FTS5) plus meaning (a 65 MB embedding model run by Oso itself), queried through one Oso tool |
-| Canvas | Calendar feed; REST API with a token where allowed |
-| reMarkable | Built-in USB web interface: notebooks downloaded as PDFs when plugged in, pages rendered to PNG, transcribed by a Claude Code run on the laptop |
-| Office, LibreOffice, PDF | MarkItDown; LibreOffice headless for OpenDocument and legacy formats; pointer notes for Google Docs |
-| Google | Built-in Drive, Gmail, and Calendar connectors for Claude; the service writes urgent changes to its own Oso calendar directly through the Calendar API |
-| Browser | Claude in Chrome |
-| Secrets | The operating system's credential store (Windows Credential Manager, macOS Keychain, Linux Secret Service) |
+| Piece                       | Choice                                                                                                                                                 |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Front door                  | Claude Cowork on desktop, web, and mobile                                                                                                              |
+| Installation and local runs | Claude Code                                                                                                                                            |
+| Notes                       | Obsidian with the Web Clipper; vault in a folder synced to Google Drive (Drive for Desktop on Windows and macOS, rclone on Linux)                      |
+| Skills and tools            | One Claude plugin installed in Cowork and Claude Code                                                                                                  |
+| Service                     | Python 3.12; every 15 minutes on Windows Task Scheduler, a macOS launch agent, or a Linux systemd timer, with catch-up after sleep                     |
+| Facts                       | One SQLite file                                                                                                                                        |
+| Search                      | A local index built at ingestion: exact-word (SQLite FTS5) plus meaning (a 65 MB embedding model run by Oso itself), queried through one Oso tool      |
+| Canvas                      | Calendar feed; REST API with a token where allowed                                                                                                     |
+| reMarkable                  | Built-in USB web interface: notebooks downloaded as PDFs when plugged in, pages rendered to PNG, transcribed by a Claude Code run on the laptop        |
+| Office, LibreOffice, PDF    | MarkItDown; LibreOffice headless for OpenDocument and legacy formats; pointer notes for Google Docs                                                    |
+| Google                      | Built-in Drive, Gmail, and Calendar connectors for Claude; the service writes urgent changes to its own Oso calendar directly through the Calendar API |
+| Browser                     | Claude in Chrome                                                                                                                                       |
+| Secrets                     | The operating system's credential store (Windows Credential Manager, macOS Keychain, Linux Secret Service)                                             |
 
 ## Privacy and integrity
 
 Course content reaches Anthropic only when the student asks Cowork or Claude Code something, under the consumer terms of their subscription. The account's data-use setting is reviewed and set deliberately at install. The cloud briefing reads only `Today.md` and what the briefing needs. Logs hold no credentials and no note content. Export is copying a folder; wipe is deleting it. The tutor teaches and checks work; it never produces submittable answers, and each course's AI policy is raised whenever it forbids what was asked.
-
-## Open questions
-
-- Does the school allow student-generated Canvas access tokens?
-- Which publisher or lab sites does each course use, and do they offer feeds or email alerts?
-- reMarkable Paper Pro or reMarkable 2? Both have the USB web interface.
-- Pro or Max? Decide after Phase 1 usage is measured.
-- Chrome or another browser?
-- Each course's AI policy.
-- Study blocks written to the calendar automatically, or only suggested?
 
 ## Success metrics
 
@@ -112,16 +102,16 @@ Course content reaches Anthropic only when the student asks Cowork or Claude Cod
 
 ## Risks and mitigations
 
-| Risk | Mitigation |
-| --- | --- |
-| Pro usage limits bind during exam weeks | Measure in Phase 1; move transcription to a local vision model; upgrade to Max |
-| The cloud briefing task cannot reach the laptop | The service writes the day's facts into the vault, Drive syncs it, the task reads it there; a local Claude Code run is the fallback |
-| Vault sync conflicts between Drive and Obsidian | The service writes only to its own Oso folder, generated files, and folders it fills |
-| Four apps feel like tool sprawl | Cowork is the only place to ask and Obsidian the only place to write; the service, connectors, and plugin are invisible |
-| Handwriting transcription misreads equations | Page image linked from every transcript, confidence shown, corrections made in place; test on real handwriting in Phase 2 |
-| School disables Canvas tokens | The calendar feed is the primary path and cannot be blocked; the token only adds grades and files |
-| Subscription terms change | Oso never calls a model itself; all model use is inside Claude products. Re-check the terms each semester |
-| The tutor is confidently wrong on technical material | Citations required, decline on empty retrieval, and a small per-course set of solved problems to spot-check against |
-| Academic-integrity concerns | Per-course AI policy captured and displayed; tutor teaches and checks rather than answers; nothing is ever submitted |
-| It breaks mid-semester with nobody maintaining it | Problems appear in the briefing in plain language; a self-service health check repairs the common failures; the fix for anything else is in the repo |
-| Scope creep | Ship Phase 1 and use it for two weeks before starting Phase 2 |
+| Risk                                                 | Mitigation                                                                                                                                           |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pro usage limits bind during exam weeks              | Measure in Phase 1; move transcription to a local vision model; upgrade to Max                                                                       |
+| The cloud briefing task cannot reach the laptop      | The service writes the day's facts into the vault, Drive syncs it, the task reads it there; a local Claude Code run is the fallback                  |
+| Vault sync conflicts between Drive and Obsidian      | The service writes only to its own Oso folder, generated files, and folders it fills                                                                 |
+| Four apps feel like tool sprawl                      | Cowork is the only place to ask and Obsidian the only place to write; the service, connectors, and plugin are invisible                              |
+| Handwriting transcription misreads equations         | Page image linked from every transcript, confidence shown, corrections made in place; test on real handwriting in Phase 2                            |
+| School disables Canvas tokens                        | The calendar feed is the primary path and cannot be blocked; the token only adds grades and files                                                    |
+| Subscription terms change                            | Oso never calls a model itself; all model use is inside Claude products. Re-check the terms each semester                                            |
+| The tutor is confidently wrong on technical material | Citations required, decline on empty retrieval, and a small per-course set of solved problems to spot-check against                                  |
+| Academic-integrity concerns                          | Per-course AI policy captured and displayed; tutor teaches and checks rather than answers; nothing is ever submitted                                 |
+| It breaks mid-semester with nobody maintaining it    | Problems appear in the briefing in plain language; a self-service health check repairs the common failures; the fix for anything else is in the repo |
+| Scope creep                                          | Ship Phase 1 and use it for two weeks before starting Phase 2                                                                                        |

@@ -260,6 +260,27 @@ def finish_quiz(quiz_id: int) -> dict:
 
 
 @mcp.tool()
+def course_topics(course: str, topics: list[dict] | None = None) -> list[dict]:
+    """A course's topic list. Pass topics [{name, week, exams: [exam names]}] to set them from the syllabus (topics found later are kept)."""
+    from . import profile
+
+    with db.connect() as conn:
+        if topics is not None:
+            return profile.set_topics(conn, _cfg(), course, topics)
+        return profile.list_topics(conn, course)
+
+
+@mcp.tool()
+def record_check(course: str, topic: str, correct: bool, theme: str | None = None, mistake: str | None = None,
+                 mistake_at: str | None = None, hints: int = 0, full_solution: bool = False) -> dict:
+    """Record a check of the student's own work: topic, whether it was right as submitted, the first mistake's kind (concept_gap|calculation_slip|misread_question|incomplete) and where, hints given, full solution shown."""
+    from . import profile
+
+    with db.connect() as conn:
+        return profile.record_check(conn, _cfg(), course, topic, correct, theme, mistake, mistake_at, hints, full_solution)
+
+
+@mcp.tool()
 def recent_quizzes(course: str | None = None, limit: int = 10) -> list[dict]:
     """Recent quizzes with topics, status, and score (to find one to retake)."""
     from . import profile

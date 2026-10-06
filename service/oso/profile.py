@@ -10,6 +10,10 @@ each question, counts changed answers, grades multiple choice against the key Cl
 never shown to the student), saves typed answers, and attaches written work (tablet pages or scans).
 Claude then grades the rest from `grading_view`.
 
+Phase 2: checks of the student's own work are recorded too (`record_check`), and every course has a topic
+list, seeded from its syllabus at setup (`set_topics`), that quizzes and checks tag against. A topic with
+no results is "untested", so silence is never mistaken for mastery.
+
 All numbers here are computed in plain Python; Claude supplies only the judgments it has to make while
 writing and grading (each question's topic, theme, type, and difficulty; each answer's result and kind
 of mistake).
@@ -18,6 +22,7 @@ of mistake).
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 from datetime import UTC, datetime
 
@@ -49,6 +54,29 @@ CREATE TABLE IF NOT EXISTS quiz_responses (
     seconds         REAL NOT NULL,         -- time the question was on screen
     changes         INTEGER NOT NULL,      -- times the answer changed after first being given
     first_answer_at TEXT                   -- when an answer was first given
+);
+CREATE TABLE IF NOT EXISTS course_topics (
+    id         INTEGER PRIMARY KEY,
+    course     TEXT NOT NULL,
+    name       TEXT NOT NULL,
+    key        TEXT NOT NULL,                -- normalized name used for matching
+    week       INTEGER,                      -- week of the course it is taught, from the syllabus
+    exams      TEXT NOT NULL DEFAULT '[]',   -- JSON list of exam names that cover it
+    origin     TEXT NOT NULL,                -- 'syllabus' or 'added' (first seen in a quiz or check)
+    created_at TEXT NOT NULL,
+    UNIQUE (course, key)
+);
+CREATE TABLE IF NOT EXISTS checks (
+    id            INTEGER PRIMARY KEY,
+    course        TEXT NOT NULL,
+    topic         TEXT NOT NULL,
+    theme         TEXT,
+    correct       INTEGER NOT NULL,          -- 1 if the attempt was right as submitted
+    mistake       TEXT,                      -- kind of the first mistake, if any
+    mistake_at    TEXT,                      -- where it went wrong, in a few words
+    hints         INTEGER NOT NULL DEFAULT 0,
+    full_solution INTEGER NOT NULL DEFAULT 0,
+    checked_at    TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS quiz_work (
     id       INTEGER PRIMARY KEY,
@@ -126,6 +154,7 @@ def start_quiz(conn: sqlite3.Connection, cfg: Config, course: str, questions: li
     if retake_of is not None and not conn.execute("SELECT 1 FROM quizzes WHERE id = ?", (retake_of,)).fetchone():
         raise ProfileError(f"There is no earlier quiz {retake_of} to retake.")
     rows, numbers = [], set()
+    when = now or _now()
     for i, q in enumerate(questions, start=1):
         n = int(q.get("number") or i)
         if n in numbers:
@@ -134,6 +163,7 @@ def start_quiz(conn: sqlite3.Connection, cfg: Config, course: str, questions: li
         topic = str(q.get("topic") or "").strip()
         if not topic:
             raise ProfileError(f"Question {n} needs a topic.")
+        topic = match_topic(conn, c.code, topic, when)
         qtype = _pick(q.get("type") or q.get("qtype"), QUESTION_TYPES, f"Question {n}'s type")
         choices, key = None, None
         if qtype == "multiple_choice":
@@ -152,7 +182,7 @@ def start_quiz(conn: sqlite3.Connection, cfg: Config, course: str, questions: li
     cur = conn.execute(
         """INSERT INTO quizzes (course, topics, sources, requested, retake_of, handed_out_at, question_count, mode)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-        (c.code, json.dumps(topics), json.dumps(sources or []), requested, retake_of, now or _now(), len(rows),
+        (c.code, json.dumps(topics), json.dumps(sources or []), requested, retake_of, when, len(rows),
          "window" if window else "chat"),
     )
     quiz_id = cur.lastrowid
@@ -162,6 +192,100 @@ def start_quiz(conn: sqlite3.Connection, cfg: Config, course: str, questions: li
         [(quiz_id, *r) for r in rows],
     )
     return quiz_id
+
+
+# ---- topics ---------------------------------------------------------------------------------------
+
+
+def topic_key(name: str) -> str:
+    """Lowercase words without punctuation, filler words, or plural endings: "Newton's Laws" -> "newton law"."""
+    words = re.findall(r"[a-z0-9]+", name.lower().replace("'s", ""))
+    words = [w for w in words if w not in ("the", "a", "an", "of", "and", "to", "in")]
+    return " ".join(w[:-1] if len(w) > 3 and w.endswith("s") and not w.endswith("ss") else w for w in words)
+
+
+def match_topic(conn: sqlite3.Connection, course: str, name: str, now: str | None = None) -> str:
+    """The course's name for this topic. An exact match on the normalized name wins; otherwise the one
+    topic whose words all appear in the other ("kinematics" and "1D kinematics"); otherwise it is added."""
+    ensure(conn)
+    key = topic_key(name)
+    rows = conn.execute("SELECT name, key FROM course_topics WHERE course = ?", (course,)).fetchall()
+    for r in rows:
+        if r["key"] == key:
+            return r["name"]
+    words = set(key.split())
+    close = [r for r in rows if words and (set(r["key"].split()) <= words or words <= set(r["key"].split()))]
+    if len(close) == 1:
+        return close[0]["name"]
+    conn.execute("INSERT INTO course_topics (course, name, key, origin, created_at) VALUES (?, ?, ?, 'added', ?)",
+                 (course, name.strip(), key, now or _now()))
+    return name.strip()
+
+
+def set_topics(conn: sqlite3.Connection, cfg: Config, course: str, topics: list[dict], now: str | None = None) -> list[dict]:
+    """Set a course's topics from its syllabus: [{name, week, exams: [...]}]. Topics added later by quizzes
+    and checks are kept; a syllabus topic with the same normalized name takes over its record."""
+    ensure(conn)
+    c = cfg.course_for(course)
+    if c is None:
+        raise ProfileError(f"There is no course {course!r}; use its code from list_courses.")
+    when = now or _now()
+    for t in topics:
+        name = str(t.get("name") or "").strip()
+        if not name:
+            raise ProfileError("Every topic needs a name.")
+        week = int(t["week"]) if t.get("week") not in (None, "") else None
+        exams = json.dumps([str(e).strip() for e in (t.get("exams") or []) if str(e).strip()])
+        conn.execute(
+            """INSERT INTO course_topics (course, name, key, week, exams, origin, created_at) VALUES (?, ?, ?, ?, ?, 'syllabus', ?)
+               ON CONFLICT(course, key) DO UPDATE SET name = excluded.name, week = excluded.week, exams = excluded.exams, origin = 'syllabus'""",
+            (c.code, name, topic_key(name), week, exams, when),
+        )
+    return list_topics(conn, c.code)
+
+
+def list_topics(conn: sqlite3.Connection, course: str) -> list[dict]:
+    ensure(conn)
+    rows = conn.execute(
+        "SELECT name, week, exams, origin FROM course_topics WHERE LOWER(course) = LOWER(?) ORDER BY week IS NULL, week, id", (course,)
+    ).fetchall()
+    return [{"name": r["name"], "week": r["week"], "exams": json.loads(r["exams"]), "origin": r["origin"]} for r in rows]
+
+
+# ---- checks of his own work ------------------------------------------------------------------------
+
+
+def record_check(conn: sqlite3.Connection, cfg: Config, course: str, topic: str, correct: bool, theme: str | None = None,
+                 mistake: str | None = None, mistake_at: str | None = None, hints: int = 0, full_solution: bool = False,
+                 now: str | None = None) -> dict:
+    """Record one check of the student's own attempt at a problem."""
+    ensure(conn)
+    c = cfg.course_for(course)
+    if c is None:
+        raise ProfileError(f"There is no course {course!r}; use its code from list_courses.")
+    if not str(topic or "").strip():
+        raise ProfileError("A check needs a topic.")
+    when = now or _now()
+    kind = None if correct else _pick(mistake, MISTAKES, "The mistake")
+    name = match_topic(conn, c.code, topic, when)
+    cur = conn.execute(
+        """INSERT INTO checks (course, topic, theme, correct, mistake, mistake_at, hints, full_solution, checked_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (c.code, name, (theme or "").strip() or None, 1 if correct else 0, kind, (mistake_at or "").strip() or None,
+         max(0, int(hints or 0)), 1 if full_solution else 0, when),
+    )
+    return {"check_id": cur.lastrowid, "course": c.code, "topic": name}
+
+
+def recent_checks(conn: sqlite3.Connection, course: str | None = None, limit: int = 20) -> list[dict]:
+    ensure(conn)
+    sql, params = "SELECT * FROM checks", []
+    if course:
+        sql += " WHERE LOWER(course) = LOWER(?)"
+        params.append(course)
+    sql += " ORDER BY checked_at DESC, id DESC LIMIT ?"
+    params.append(limit)
+    return [dict(r) for r in conn.execute(sql, params)]
 
 
 def _key_letter(answer, opts: list[str], n: int) -> str:
@@ -394,4 +518,13 @@ def raw_dump(conn: sqlite3.Connection, limit: int = 10) -> str:
                 f"{r['result']}" + (f" ({r['mistake']})" if r["mistake"] else "") + f", {r['attempts']} attempt{'s' if r['attempts'] != 1 else ''}" + (", hint" if r["hint"] else ""))
             lines.append(f"  {r['number']}. {r['topic']}{theme} [{r['qtype']}, {r['difficulty']}]: {ans}")
         lines.append("")
-    return "\n".join(lines) if lines else "No quizzes recorded yet."
+    checks = recent_checks(conn, limit=limit)
+    if checks:
+        lines.append("Checks of his own work")
+        for k in checks:
+            theme = f" / {k['theme']}" if k["theme"] else ""
+            res = "right" if k["correct"] else f"mistake: {k['mistake']}" + (f" ({k['mistake_at']})" if k["mistake_at"] else "")
+            extra = (f", {k['hints']} hint{'s' if k['hints'] != 1 else ''}" if k["hints"] else "") + (", asked for the full solution" if k["full_solution"] else "")
+            lines.append(f"  {k['checked_at']} | {k['course']} | {k['topic']}{theme}: {res}{extra}")
+        lines.append("")
+    return "\n".join(lines) if lines else "Nothing recorded yet."

@@ -142,3 +142,43 @@ def test_window_quiz_needs_text_and_valid_keys(env):
         profile.start_quiz(conn, cfg, "PHYS-110", [{"topic": "x", "type": "multiple_choice", "difficulty": "easy", "question": "?", "choices": ["a", "b"], "answer": "D"}], window=True)
     view = profile.grading_view(conn, cfg, profile.start_quiz(conn, cfg, "PHYS-110", WINDOW_QS[2:3], window=True))
     assert view["status"] == "handed_out"
+
+
+def test_topics_from_syllabus_and_matching(env):
+    conn, cfg = env
+    out = profile.set_topics(conn, cfg, "PHYS-110", [
+        {"name": "Kinematics", "week": 2, "exams": ["Exam 1"]},
+        {"name": "Newton's Laws", "week": 4, "exams": ["Exam 1", "Final"]},
+        {"name": "Work and Energy", "week": 7},
+    ])
+    assert [t["name"] for t in out] == ["Kinematics", "Newton's Laws", "Work and Energy"]
+    assert out[1]["exams"] == ["Exam 1", "Final"] and out[2]["exams"] == []
+    assert profile.match_topic(conn, "PHYS-110", "newton laws") == "Newton's Laws"
+    assert profile.match_topic(conn, "PHYS-110", "1D kinematics") == "Kinematics"
+    assert profile.match_topic(conn, "PHYS-110", "energy") == "Work and Energy"
+    assert profile.match_topic(conn, "PHYS-110", "Momentum") == "Momentum"  # new: added
+    assert [t["origin"] for t in profile.list_topics(conn, "PHYS-110")][-1] == "added"
+    # quizzes use the course's names
+    qid = profile.start_quiz(conn, cfg, "PHYS-110", [{"topic": "kinematics", "type": "conceptual", "difficulty": "easy"}])
+    assert profile.summary(conn, qid)["questions"][0]["topic"] == "Kinematics"
+    # a syllabus re-run takes over an added topic and keeps the rest
+    profile.set_topics(conn, cfg, "PHYS-110", [{"name": "Momentum", "week": 9, "exams": ["Final"]}])
+    t = {x["name"]: x for x in profile.list_topics(conn, "PHYS-110")}
+    assert t["Momentum"]["origin"] == "syllabus" and t["Momentum"]["week"] == 9 and "Kinematics" in t
+
+
+def test_checks_recorded(env):
+    conn, cfg = env
+    profile.set_topics(conn, cfg, "PHYS-110", [{"name": "Kinematics", "week": 2}])
+    a = profile.record_check(conn, cfg, "PHYS-110", "kinematics", correct=False, theme="projectile motion",
+                             mistake="calculation slip", mistake_at="dropped the sign on g", hints=2, now="2026-10-06T15:00:00+00:00")
+    assert a["topic"] == "Kinematics"
+    profile.record_check(conn, cfg, "PHYS-110", "Kinematics", correct=True, now="2026-10-06T16:00:00+00:00")
+    checks = profile.recent_checks(conn, "PHYS-110")
+    assert [c["correct"] for c in checks] == [1, 0]
+    assert checks[1]["mistake"] == "calculation_slip" and checks[1]["hints"] == 2 and checks[1]["mistake_at"] == "dropped the sign on g"
+    assert "Kinematics / projectile motion: mistake: calculation_slip (dropped the sign on g), 2 hints" in profile.raw_dump(conn)
+    with pytest.raises(profile.ProfileError, match="mistake must be one of"):
+        profile.record_check(conn, cfg, "PHYS-110", "Kinematics", correct=False)
+    with pytest.raises(profile.ProfileError, match="no course"):
+        profile.record_check(conn, cfg, "BIO", "x", correct=True)

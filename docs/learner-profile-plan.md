@@ -62,7 +62,7 @@ The foundation. Every quiz Oso gives is recorded in detail.
 
 ## Phase 1b: Quiz window
 
-**Status:** built and tested (including the window itself on a virtual display); not yet tried by the student. Unreleased.
+**Status:** built, tested, and released in 0.1.8; not yet tried by the student.
 
 A formal way to take quizzes outside the chat, so timing is exact and answers stay hidden until he submits.
 
@@ -90,6 +90,8 @@ A formal way to take quizzes outside the chat, so timing is exact and answers st
 - A real quiz taken in the window, with one written answer from the tablet and one from a paper scan, grades correctly.
 
 ## Phase 2: Check-my-work records and topic lists
+
+**Status:** built and tested; unreleased. Not yet tried on a real syllabus.
 
 Checks of his own work are the second scored source.
 

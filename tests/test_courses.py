@@ -70,3 +70,13 @@ def test_finished_courses_leave_today_and_default_search(env, tmp_path: Path, mo
     search.update(env, idx)
     assert search.query(env, "thesis", path=idx) == []
     assert search.query(env, "thesis", course="Composition", path=idx)[0]["course"] == "ENGL-1301"
+
+
+def test_converted_copies_know_their_nested_course(env):
+    from oso import convert
+
+    courses.register(env, "MATH-1302", "Calculus II", term="2026 Fall")
+    courses.register(env, "MATH-1302B", "Calculus", term="2026 Fall")
+    f = env.vault / "Courses" / "2026 Fall" / "Calculus II" / "Lectures" / "x.pdf"
+    assert convert._course_from_path(env, f) == "MATH-1302"
+    assert convert._course_from_path(env, env.vault / "Courses" / "2026 Fall" / "Calculus" / "x.pdf") == "MATH-1302B"

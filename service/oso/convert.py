@@ -214,8 +214,8 @@ def _course_from_path(cfg: Config, path: Path) -> str | None:
         rel = path.relative_to(cfg.vault / "Courses")
     except ValueError:
         return None
-    folder = rel.parts[0] if rel.parts else None
-    for c in cfg.courses:
-        if c.folder == folder:
+    low = rel.as_posix().lower() + "/"
+    for c in sorted(cfg.courses, key=lambda c: len(c.folder), reverse=True):
+        if low.startswith(c.folder.lower().rstrip("/") + "/"):
             return c.code
     return None

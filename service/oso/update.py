@@ -22,6 +22,7 @@ import sqlite3
 import subprocess
 import sys
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import requests
 
@@ -169,6 +170,7 @@ $Host.UI.RawUI.WindowTitle = 'Updating Oso'
 $log = '{log}'
 $uv = '{uv}'
 $url = '{url}'
+$oso = '{oso}'
 "Update started $(Get-Date -Format s)" | Out-File -Encoding utf8 $log
 Write-Host 'Updating Oso. This window closes by itself when the update is done.' -ForegroundColor Cyan
 Wait-Process -Id {pid} -Timeout 60 -ErrorAction SilentlyContinue
@@ -182,6 +184,8 @@ for ($i = 1; $i -le 3; $i++) {{
     cmd /c "`"$uv`" tool install --force --python 3.12 `"$url`" 2>&1" | Tee-Object -FilePath $log -Append
     if ($LASTEXITCODE -eq 0) {{
         'Update finished' | Out-File -Append -Encoding utf8 $log
+        Write-Host 'Making sure the automatic check is scheduled...'
+        & $oso install-task 2>&1 | Tee-Object -FilePath $log -Append
         Write-Host 'Oso is updated. Restart the Claude app so it reconnects.' -ForegroundColor Green
         Start-Sleep -Seconds 3
         exit 0
@@ -202,7 +206,8 @@ def _install_in_window(uv: str, url: str) -> None:
 
     script = cfgmod.data_dir() / "update.ps1"
     log = cfgmod.data_dir() / "update.log"
-    script.write_text(_WIN_SCRIPT.format(log=q(log), pid=os.getpid(), uv=q(uv), url=q(url)), encoding="utf-8")
+    oso = shutil.which("oso") or str(Path.home() / ".local" / "bin" / "oso.exe")
+    script.write_text(_WIN_SCRIPT.format(log=q(log), pid=os.getpid(), uv=q(uv), url=q(url), oso=q(oso)), encoding="utf-8")
     # Created through WMI so the job outlives this process: the oso.exe launcher kills its children on exit.
     # ShowWindow 1 makes the window visible, so the student can watch the installer.
     command = f'powershell -NoProfile -ExecutionPolicy Bypass -File "{script}"'

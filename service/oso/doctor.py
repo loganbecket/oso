@@ -73,14 +73,14 @@ def run(fix: bool = False) -> list[tuple[str, str]]:
             if r.returncode == 0:
                 out.append(("ok", "Scheduled task 'Oso Sync' is installed"))
             else:
-                out.append(("warn", "Scheduled task is not installed. Run 'oso install-task'."))
+                out.append(_schedule_missing(cfg, fix, "Scheduled task"))
     elif sys.platform == "darwin":
         from .install_macos import installed
 
-        out.append(("ok", "Launch agent installed") if installed() else ("warn", "Launch agent not installed. Run 'oso install-task'."))
+        out.append(("ok", "Launch agent installed") if installed() else _schedule_missing(cfg, fix, "Launch agent"))
     else:
         unit = Path.home() / ".config" / "systemd" / "user" / "oso-sync.timer"
-        out.append(("ok", "systemd timer installed") if unit.exists() else ("warn", "Timer not installed. Run 'oso install-task'."))
+        out.append(("ok", "systemd timer installed") if unit.exists() else _schedule_missing(cfg, fix, "Timer"))
 
     from . import gcal
 
@@ -122,6 +122,17 @@ def run(fix: bool = False) -> list[tuple[str, str]]:
     if not shutil.which("oso-mcp"):
         out.append(("warn", "The 'oso-mcp' command is not on PATH, so Cowork and Claude Code cannot reach Oso's tools. Run the installer again."))
     return out
+
+
+def _schedule_missing(cfg, fix: bool, what: str) -> tuple[str, str]:
+    """The automatic check is missing: recreate it when fixing, otherwise say how."""
+    if not fix:
+        return ("warn", f"{what} for the automatic check is not installed, so Oso only updates when you run it. Run 'oso doctor --fix' or 'oso install-task'.")
+    from .update import _reschedule
+
+    result = _reschedule(cfg)
+    ok = result.startswith("Installed")
+    return ("ok" if ok else "warn", f"{what} for the automatic check was missing; recreated it." if ok else result)
 
 
 def format_report(results: list[tuple[str, str]]) -> str:

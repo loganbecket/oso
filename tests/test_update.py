@@ -95,7 +95,7 @@ def test_windows_install_says_so_and_skips_reschedule(monkeypatch):
 
 
 def test_windows_script_quotes_paths():
-    text = update._WIN_SCRIPT.format(log="C:\\Users\\O''Neil\\update.log", pid=42, uv="uv.exe", url="https://x/y.zip")
+    text = update._WIN_SCRIPT.format(log="C:\\Users\\O''Neil\\update.log", pid=42, uv="uv.exe", url="https://x/y.zip", oso="oso.exe")
     assert "Wait-Process -Id 42" in text and "'C:\\Users\\O''Neil\\update.log'" in text
     assert r"-match '\\tools\\oso\\'" in text
 
@@ -105,3 +105,18 @@ def test_record_does_not_reinstall(monkeypatch):
     monkeypatch.setattr(update.cfgmod, "save", lambda cfg, path=None: None)
     cfg = Config(vault=Path("/tmp/v"))
     assert "v0.2.0" in update.record(cfg, "v0.2.0") and cfg.installed_version == "v0.2.0"
+
+
+def test_update_window_reschedules_the_check():
+    text = update._WIN_SCRIPT.format(log="L", pid=1, uv="uv.exe", url="https://x/y.zip", oso="C:\\bin\\oso.exe")
+    assert "$oso = 'C:\\bin\\oso.exe'" in text
+    assert text.index("& $oso install-task") > text.index("'Update finished'")
+
+
+def test_doctor_fix_recreates_a_missing_schedule(monkeypatch):
+    from oso import doctor
+
+    monkeypatch.setattr(update, "_reschedule", lambda cfg: "Installed 'Oso Sync': runs every 15 minutes.")
+    assert doctor._schedule_missing(None, True, "Scheduled task") == ("ok", "Scheduled task for the automatic check was missing; recreated it.")
+    level, text = doctor._schedule_missing(None, False, "Scheduled task")
+    assert level == "warn" and "oso doctor --fix" in text

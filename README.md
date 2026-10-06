@@ -293,7 +293,7 @@ oso set-drive-folder MATH-101-001 "<path to that folder>"
 | --- | --- |
 | Urgent changes are not reaching my calendar | Run `oso doctor`. If it says Google Calendar is not connected, do step 3.2. If the connection expired, check the Google project is published (step 3.2, point 5) and connect again. |
 | The briefing did not arrive | Open the Claude app and check the scheduled task ran. Then check `Today.md` in your vault is from today; if not, run `oso doctor`. |
-| `Today.md` says Canvas has not synced in many hours | Your computer may have been off. Turn it on and wait a few minutes, or run `oso sync`. If it keeps happening, run `oso install-task` again. |
+| `Today.md` says Canvas has not synced in many hours, or deadlines never change | Your computer may have been off. Turn it on and wait a few minutes, or run `oso sync`. If it keeps happening, run `oso doctor --fix`; it recreates the automatic check if it is missing. |
 | Canvas says the login was rejected or the address no longer works | Get a fresh calendar feed address (step 2.1) and run `oso init` again with it. |
 | `oso` is not recognized as a command | Close the command window and open a new one. If it still fails, run `uv tool update-shell`, then open another new window. |
 | Claude says it cannot reach Oso's tools | Run `oso doctor`. If it says `oso-mcp` is missing, run the installer lines again (step 2.2). Then restart the Claude app. |

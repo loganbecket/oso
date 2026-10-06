@@ -76,7 +76,8 @@ class CanvasApi:
                 items.append(self._assignment(a, code))
             try:
                 for sub in self._pages(f"/api/v1/courses/{course['id']}/students/submissions",
-                                       {"student_ids[]": "self", "include[]": "submission_comments", "per_page": 100}):
+                                       [("student_ids[]", "self"), ("include[]", "submission_comments"),
+                                        ("include[]", "submission_history"), ("per_page", 100)]):
                     sub["_course_code"] = code
                     self.submissions.append(sub)
             except requests.HTTPError:

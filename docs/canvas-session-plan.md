@@ -74,7 +74,7 @@ On every check, while connected, Oso reads and stores:
 | Assignments: title, due date, points, group, type, whether it is a quiz | Deadlines (merged with the feed and syllabus as today), topic tagging |
 | His submissions: score, grade, submitted when, late, missing, excused | Grades, missing-work warnings, readiness |
 | Instructor comments on his submissions | Feedback Claude can explain |
-| Quiz results: score, attempts, and per-question results where the instructor allows students to see them | Topic ratings, readiness (built: quiz scores come in with the other submissions; per-question results are not read yet) |
+| Quiz results: score, attempts, and per-question results where the instructor allows students to see them | Topic ratings, readiness (built: for classic Canvas quizzes whose results students can see, each question's result from his latest attempt counts as its own result for the quiz's topics; Canvas does not give students the question text, so questions take the quiz's topics) |
 | Announcements | Already mirrored into the course folder; kept |
 | Course files | Already mirrored into the course folder and made searchable; kept |
 

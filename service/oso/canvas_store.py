@@ -2,7 +2,8 @@
 
 Each check replaces the stored picture with what Canvas shows now: courses with current grades,
 assignment groups and weights, assignments, his submissions (score, late, missing, excused), and
-instructor comments. The raw Canvas record is kept with each row so a new question can be answered
+instructor comments, and, for Canvas quizzes whose results the instructor lets students see, how he did on
+each question of his latest attempt. The raw Canvas record is kept with each row so a new question can be answered
 without reading Canvas again. Newly graded work and new comments become events that Today.md lists.
 
 Claude reads it through `canvas_info`, and tags each new assignment with the syllabus topics it covers
@@ -61,6 +62,15 @@ CREATE TABLE IF NOT EXISTS canvas_comments (
     author        TEXT,
     comment       TEXT NOT NULL,
     created_at    TEXT
+);
+CREATE TABLE IF NOT EXISTS canvas_quiz_questions (
+    assignment_id INTEGER NOT NULL,
+    question_id   INTEGER NOT NULL,
+    attempt       INTEGER NOT NULL,      -- the attempt these results are from (his latest graded one)
+    attempts      INTEGER NOT NULL,      -- how many attempts he has made
+    result        TEXT NOT NULL,         -- right, partly_right, wrong
+    points        REAL,
+    PRIMARY KEY (assignment_id, question_id)
 );
 CREATE TABLE IF NOT EXISTS canvas_assignment_topics (
     assignment_id INTEGER NOT NULL,
@@ -154,6 +164,7 @@ def save(conn: sqlite3.Connection, api, now: str | None = None) -> dict[str, int
             conn.execute("INSERT INTO canvas_events (at, course, text) VALUES (?, ?, ?)",
                          (when, course, f"{title} graded: {_fmt_score(score, points.get(aid))}"))
             counts["new_grades"] += 1
+        counts["quiz_questions"] = counts.get("quiz_questions", 0) + _save_quiz_questions(conn, aid, s)
         for cm in s.get("submission_comments") or []:
             if conn.execute("SELECT 1 FROM canvas_comments WHERE canvas_id = ?", (cm["id"],)).fetchone():
                 continue
@@ -163,6 +174,35 @@ def save(conn: sqlite3.Connection, api, now: str | None = None) -> dict[str, int
                          (when, course, f"New comment on {title}" + (f" from {cm['author_name']}" if cm.get("author_name") else "")))
             counts["new_comments"] += 1
     return counts
+
+
+def _save_quiz_questions(conn: sqlite3.Connection, aid: int, s: dict) -> int:
+    """Per-question results from a quiz submission's history, when Canvas shows them to the student."""
+    tries = [h for h in s.get("submission_history") or [] if h.get("submission_data")]
+    if not tries:
+        return 0
+    latest = max(tries, key=lambda h: (h.get("attempt") or 0, h.get("graded_at") or ""))
+    rows = []
+    for q in latest["submission_data"]:
+        if q.get("question_id") is None or "correct" not in q:
+            continue
+        c = q["correct"]
+        result = "right" if c is True else "partly_right" if c in ("partial", "partially_correct") else "wrong"
+        rows.append((aid, int(q["question_id"]), int(latest.get("attempt") or 1), len(tries), result, q.get("points")))
+    if rows:
+        conn.execute("DELETE FROM canvas_quiz_questions WHERE assignment_id = ?", (aid,))
+        conn.executemany(
+            "INSERT INTO canvas_quiz_questions (assignment_id, question_id, attempt, attempts, result, points) VALUES (?, ?, ?, ?, ?, ?)", rows)
+    return len(rows)
+
+
+def quiz_questions(conn: sqlite3.Connection, aid: int) -> dict | None:
+    rows = conn.execute("SELECT result, attempt, attempts FROM canvas_quiz_questions WHERE assignment_id = ?", (aid,)).fetchall()
+    if not rows:
+        return None
+    return {"questions": len(rows), "right": sum(1 for r in rows if r["result"] == "right"),
+            "partly_right": sum(1 for r in rows if r["result"] == "partly_right"),
+            "wrong": sum(1 for r in rows if r["result"] == "wrong"), "attempt": rows[0]["attempt"], "attempts": rows[0]["attempts"]}
 
 
 # ---- reading it back ----------------------------------------------------------------------------------
@@ -200,7 +240,14 @@ def info(conn: sqlite3.Connection, cfg: Config, course: str, what: str = "summar
     rows = [dict(r) for r in base]
     if what == "assignments":
         tags = _tags(conn)
-        return {"course": code, "assignments": [{**r, "topics": tags.get(r["canvas_id"], [])} for r in rows]}
+        out = []
+        for r in rows:
+            item = {**r, "topics": tags.get(r["canvas_id"], [])}
+            q = quiz_questions(conn, r["canvas_id"])
+            if q:
+                item["quiz_questions"] = q
+            out.append(item)
+        return {"course": code, "assignments": out}
     if what == "comments":
         cms = conn.execute(
             """SELECT a.name AS assignment, m.author, m.comment, m.created_at FROM canvas_comments m
@@ -260,16 +307,34 @@ def untagged_count(conn: sqlite3.Connection, cfg: Config) -> int:
     return sum(1 for r in rows if cfg.course_for(r["course"]) is not None and cfg.is_active(r["course"]))
 
 
+CREDIT = {"right": 1.0, "partly_right": 0.5, "wrong": 0.0}
+
+
 def evidence(conn: sqlite3.Connection, course: str) -> list[dict]:
-    """Graded, tagged Canvas work as learner-profile evidence: one result per topic per assignment."""
+    """Graded, tagged Canvas work as learner-profile evidence. A Canvas quiz with per-question results gives
+    one result per question for each of its topics, the same grain as a practice quiz; anything else gives
+    one result (its score) per topic."""
     ensure(conn)
     out = []
+    per_question = {}
+    for r in conn.execute(
+        """SELECT q.assignment_id, q.question_id, q.result, s.graded_at, t.topic FROM canvas_quiz_questions q
+           JOIN canvas_assignments a ON a.canvas_id = q.assignment_id JOIN canvas_submissions s ON s.assignment_id = a.canvas_id
+           JOIN canvas_assignment_topics t ON t.assignment_id = a.canvas_id
+           WHERE LOWER(a.course) = LOWER(?) AND s.excused = 0""",
+        (course,),
+    ):
+        per_question.setdefault(r["assignment_id"], []).append(r)
+        out.append({"topic": r["topic"], "credit": CREDIT[r["result"]], "mistake": None,
+                    "at": r["graded_at"] or _now(), "source": f"canvas {r['assignment_id']}"})
     for r in conn.execute(
         """SELECT a.canvas_id, a.name, a.points, s.score, s.graded_at, s.excused, t.topic FROM canvas_assignment_topics t
            JOIN canvas_assignments a ON a.canvas_id = t.assignment_id JOIN canvas_submissions s ON s.assignment_id = a.canvas_id
            WHERE LOWER(a.course) = LOWER(?) AND s.score IS NOT NULL AND s.excused = 0 AND a.points > 0""",
         (course,),
     ):
+        if r["canvas_id"] in per_question:
+            continue  # counted question by question above
         out.append({"topic": r["topic"], "credit": max(0.0, min(1.0, r["score"] / r["points"])), "mistake": None,
                     "at": r["graded_at"] or _now(), "source": f"canvas {r['canvas_id']}"})
     return out
@@ -315,6 +380,8 @@ def raw_dump(conn: sqlite3.Connection, cfg: Config) -> str:
             flags = ", ".join(f for f, on in (("late", r["late"]), ("missing", r["missing"]), ("excused", r["excused"])) if on)
             score = _fmt_score(r["score"], r["points"]) if r["score"] is not None else "not graded"
             topics = f" [{', '.join(r['topics'])}]" if r["topics"] else ""
-            lines.append(f"  {r['name']} (due {(r['due_at'] or 'no date')[:10]}): {score}" + (f", {flags}" if flags else "") + topics)
+            qq = r.get("quiz_questions")
+            qtext = f", {qq['right']} of {qq['questions']} questions right (attempt {qq['attempt']} of {qq['attempts']})" if qq else ""
+            lines.append(f"  {r['name']} (due {(r['due_at'] or 'no date')[:10]}): {score}" + (f", {flags}" if flags else "") + qtext + topics)
         lines.append("")
     return "\n".join(lines) if lines else "Nothing read from Canvas yet."

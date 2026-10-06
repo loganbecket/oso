@@ -31,12 +31,22 @@ def canvas_data():
              "submission_types": ["online_upload"], "html_url": "https://x/102"},
             {"id": 103, "name": "Exam 2", "due_at": "2026-11-05T14:00:00Z", "points_possible": 100, "assignment_group_id": 11,
              "submission_types": ["on_paper"], "html_url": "https://x/103"},
+            {"id": 104, "name": "Quiz 3: Kinematics", "due_at": "2026-10-25T23:59:00Z", "points_possible": 4, "assignment_group_id": 10,
+             "submission_types": ["online_quiz"], "quiz_id": 55, "html_url": "https://x/104"},
         ],
         "/api/v1/courses/1/students/submissions": [
             {"assignment_id": 101, "score": STATE["hw4_score"], "grade": str(STATE["hw4_score"]), "submitted_at": "2026-10-28T20:00:00Z",
              "graded_at": f"2026-10-30T12:00:{int(STATE['hw4_score']):02d}Z", "late": False, "missing": False, "excused": False,
              "submission_comments": STATE["comments"]},
             {"assignment_id": 102, "score": None, "submitted_at": None, "late": False, "missing": True, "excused": False, "submission_comments": []},
+            {"assignment_id": 104, "score": 2.5, "submitted_at": "2026-10-25T20:00:00Z", "graded_at": "2026-10-25T20:05:00Z", "late": False,
+             "missing": False, "excused": False, "submission_comments": [],
+             "submission_history": [
+                 {"attempt": 1, "submission_data": [{"question_id": 1, "correct": False, "points": 0}, {"question_id": 2, "correct": False, "points": 0},
+                                                    {"question_id": 3, "correct": False, "points": 0}, {"question_id": 4, "correct": True, "points": 1}]},
+                 {"attempt": 2, "submission_data": [{"question_id": 1, "correct": True, "points": 1}, {"question_id": 2, "correct": "partial", "points": 0.5},
+                                                    {"question_id": 3, "correct": False, "points": 0}, {"question_id": 4, "correct": True, "points": 1}]},
+             ]},
         ],
         "/api/v1/courses/1/files": [],
         "/api/v1/announcements": [],
@@ -112,11 +122,11 @@ def test_read_and_store(env, server):
     cfg, _ = env
     api = CanvasApi(server, None, cfg, cookies={"canvas_session": "good"})
     items = api.fetch()
-    assert {i.title for i in items} == {"HW 4: Kinematics", "HW 5: Forces", "Exam 2"}
+    assert {i.title for i in items} == {"HW 4: Kinematics", "HW 5: Forces", "Exam 2", "Quiz 3: Kinematics"}
     assert next(i for i in items if i.title == "Exam 2").kind == "exam" and next(i for i in items if i.title == "HW 4: Kinematics").weight == 30
     with db.connect() as conn:
         c = canvas_store.save(conn, api, now="2026-11-01T12:00:00+00:00")
-        assert c["new_grades"] == 1 and c["new_comments"] == 0 and c["submissions"] == 2
+        assert c["new_grades"] == 2 and c["new_comments"] == 0 and c["submissions"] == 3 and c["quiz_questions"] == 4
         s = canvas_store.info(conn, cfg, "PHYS-110")
         assert s["current_score"] == 81.5 and s["current_grade"] == "B-" and s["missing"] == ["HW 5: Forces"]
         assert s["recent_scores"][0] == {"name": "HW 4: Kinematics", "score": 6.0, "points": 10.0, "graded_at": "2026-10-30T12:00:06Z"}
@@ -146,9 +156,9 @@ def test_topics_profile_and_readiness(env, server):
     with db.connect() as conn:
         canvas_store.save(conn, api)
         profile.set_topics(conn, cfg, "PHYS-110", [{"name": "Kinematics", "exams": ["Exam 2"]}, {"name": "Forces", "exams": ["Exam 2"]}])
-        assert [u["name"] for u in canvas_store.info(conn, cfg, "PHYS-110", "untagged")["untagged"]] == ["HW 4: Kinematics", "HW 5: Forces", "Exam 2"]
+        assert [u["name"] for u in canvas_store.info(conn, cfg, "PHYS-110", "untagged")["untagged"]] == ["Quiz 3: Kinematics", "HW 4: Kinematics", "HW 5: Forces", "Exam 2"]
         assert canvas_store.tag(conn, cfg, [{"canvas_id": 101, "topics": ["kinematics"]}, {"canvas_id": 102, "topics": ["Forces"]},
-                                            {"canvas_id": 103, "topics": []}]) == 3
+                                            {"canvas_id": 103, "topics": []}, {"canvas_id": 104, "topics": []}]) == 4
         assert canvas_store.untagged_count(conn, cfg) == 0
         assert canvas_store.topic_average(conn, "PHYS-110", ["Kinematics", "Forces"]) == (60.0, 1)
         ev = [e for e in mastery.evidence(conn, "PHYS-110") if e["source"].startswith("canvas")]
@@ -178,7 +188,7 @@ def test_check_marks_expiry_once_and_recovers(env, server, monkeypatch):
 
     results = sync.run(cfg, NOW)
     assert isinstance(results["canvas_api"], dict), results["canvas_api"]
-    assert results["canvas_api"]["new_grades"] == 1
+    assert results["canvas_api"]["new_grades"] == 2
     assert canvas_session.load() == {"canvas_session": "good2"}  # the refreshed session was saved
     STATE.update(cookie="good3")  # Canvas ends the session
     assert sync.run(cfg, NOW)["canvas_api"] == "needs sign-in"
@@ -213,3 +223,22 @@ def test_cookies_taken_only_for_the_canvas_host_and_connect_needs_an_address(env
     assert canvas_session._cookies_from(FakeWindow(), "tamu.instructure.com") == {"canvas_session": "abc"}
     with db.connect() as conn:
         assert "doesn't know your Canvas address" in canvas_session.connect(conn)
+
+
+
+def test_quiz_questions_from_the_latest_attempt(env, server):
+    cfg, _ = env
+    api = CanvasApi(server, None, cfg, cookies={"canvas_session": "good"})
+    api.fetch()
+    with db.connect() as conn:
+        canvas_store.save(conn, api)
+        assert canvas_store.quiz_questions(conn, 104) == {"questions": 4, "right": 2, "partly_right": 1, "wrong": 1, "attempt": 2, "attempts": 2}
+        assert "Quiz 3: Kinematics (due 2026-10-25): 2.5/4, 2 of 4 questions right (attempt 2 of 2)" in canvas_store.raw_dump(conn, cfg)
+        profile.set_topics(conn, cfg, "PHYS-110", [{"name": "Kinematics"}])
+        canvas_store.tag(conn, cfg, [{"canvas_id": 104, "topics": ["Kinematics"]}])
+        ev = [e for e in mastery.evidence(conn, "PHYS-110") if e["source"] == "canvas 104"]
+        assert sorted(e["credit"] for e in ev) == [0.0, 0.5, 1.0, 1.0]  # one result per question, not one for the whole quiz
+        # a quiz whose results are hidden from students still counts once, by its score
+        conn.execute("DELETE FROM canvas_quiz_questions")
+        ev = [e for e in mastery.evidence(conn, "PHYS-110") if e["source"] == "canvas 104"]
+        assert [e["credit"] for e in ev] == [0.625]

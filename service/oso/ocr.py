@@ -53,7 +53,8 @@ def read_images(paths: list[Path]) -> list[str]:
         r = subprocess.run([sys.executable, "-m", "oso.ocr", *map(str, paths)], capture_output=True, text=True, encoding="utf-8",
                            timeout=60 + 30 * len(paths), creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
         if r.returncode != 0:
-            raise OcrUnavailable("Windows text recognition is not available.")
+            why = (r.stderr or "").strip().splitlines()[-1:] or ["unknown reason"]
+            raise OcrUnavailable(f"Windows text recognition is not available ({why[0][:160]}).")
         return json.loads(r.stdout)
     return [_read_here(p) for p in paths]
 
@@ -131,6 +132,6 @@ if __name__ == "__main__":  # the Windows worker: page images in, their text out
 
     try:
         print(json.dumps([_read_here(Path(p)) for p in sys.argv[1:]]))
-    except OcrUnavailable as e:
-        print(str(e), file=sys.stderr)
+    except Exception as e:  # noqa: BLE001
+        print(f"{type(e).__name__}: {e}", file=sys.stderr)
         sys.exit(2)

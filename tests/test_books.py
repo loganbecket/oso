@@ -90,10 +90,10 @@ def test_pdf_book_by_table_of_contents_with_printed_page_numbers(env):
     folder = books_dir(cfg) / "Physics"
     names = sorted(p.name for p in folder.glob("[0-9]*.md"))
     assert names == ["01 Front matter.md", "02 1 Motion.md", "03 2 Forces.md"]
-    motion = (folder / "02 1 Motion.md").read_text()
+    motion = (folder / "02 1 Motion.md").read_text(encoding="utf-8")
     assert "type: textbook" in motion and "book: Physics for Students, 3rd Edition" in motion and "edition: 3rd edition" in motion
     assert "pages: 103–104" in motion and "## p. 103" in motion and "rate of change of position" in motion
-    index = (folder / "Book.md").read_text()
+    index = (folder / "Book.md").read_text(encoding="utf-8")
     assert "By A. Author, 3rd edition." in index and "| [[02 1 Motion\\|1 Motion]] | 103–104 |" in index
     assert books.process(cfg)["books"] == 0  # read once
 
@@ -131,7 +131,7 @@ def test_big_book_is_read_a_batch_at_a_time(env, monkeypatch):
     monkeypatch.setattr(books.time, "monotonic", lambda: next(clock))
     first = books.process(cfg, budget=4)
     assert 0 < first["pages"] < 6 and first["finished"] == 0
-    assert "still reading this book" in (books_dir(cfg) / "Big" / "Book.md").read_text()
+    assert "still reading this book" in (books_dir(cfg) / "Big" / "Book.md").read_text(encoding="utf-8")
     while books.process(cfg, budget=4)["finished"] == 0:
         pass
     state = books.load_state(books_dir(cfg) / "Big")
@@ -143,9 +143,9 @@ def test_epub_chapters_and_page_marks(env):
     make_epub(books_dir(cfg) / "Calc.epub")
     books.process(cfg)
     folder = books_dir(cfg) / "Calc"
-    one = (folder / "01 1. Limits.md").read_text()
+    one = (folder / "01 1. Limits.md").read_text(encoding="utf-8")
     assert "book: Calculus Made Plain" in one and "pages: 1–2" in one and "## p. 2\n\nMore on limits." in one
-    two = (folder / "02 2. Derivatives.md").read_text()
+    two = (folder / "02 2. Derivatives.md").read_text(encoding="utf-8")
     assert "### Rules" in two and "## p. 3" in two
     assert "Cover" not in one
 
@@ -162,7 +162,7 @@ def test_scans_recognized_join_later_and_poor_pages(env, monkeypatch):
     books.process(cfg)
     state = books.load_state(books_dir(cfg) / "Mechanics")
     assert [p["label"] for p in state["pages"]] == ["12", "2"] and [p["poor"] for p in state["pages"]] == [False, True]
-    assert "Pages read poorly" in (books_dir(cfg) / "Mechanics" / "Book.md").read_text()
+    assert "Pages read poorly" in (books_dir(cfg) / "Mechanics" / "Book.md").read_text(encoding="utf-8")
     # a later scan joins the end without re-reading the first ones
     books_order.append("c.png")
     Image.new("RGB", (60, 80), "white").save(scans / "c.png")
@@ -173,7 +173,7 @@ def test_scans_recognized_join_later_and_poor_pages(env, monkeypatch):
     assert pg["read_poorly"] and pg["image"].endswith("p0002.png") and Path(pg["image_full_path"]).exists()
     books.save_page_reading(cfg, "mechanics", "2", "$x = \\frac{a+b}{2}$")
     assert not books.page(cfg, "Mechanics", "2")["read_poorly"]
-    chapter = next((books_dir(cfg) / "Mechanics").glob("01 *.md")).read_text()
+    chapter = next((books_dir(cfg) / "Mechanics").glob("01 *.md")).read_text(encoding="utf-8")
     assert "\\frac{a+b}{2}" in chapter and "was read poorly" not in chapter
 
 
@@ -192,7 +192,7 @@ def test_clipped_book_page_files_into_the_book(env):
     (clips / "Reader page.md").write_text("---\ncourse: Physics\nbook: Physics for Students\npage: '88'\n---\n\nSome text from the reader.\n")
     assert filing.file_clippings(cfg) == 1
     moved = books_dir(cfg) / "Physics for Students" / "Clipped" / "Reader page.md"
-    text = moved.read_text()
+    text = moved.read_text(encoding="utf-8")
     assert "type: textbook" in text and "## p. 88\n\nSome text from the reader." in text
 
 

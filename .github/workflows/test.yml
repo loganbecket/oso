@@ -69,3 +69,23 @@ jobs:
           $out = oso install-task
           Write-Host $out
           if ($out -notmatch "^Installed") { exit 1 }
+
+      - name: Report text recognition on this machine
+        if: runner.os != 'Linux'
+        shell: bash
+        run: |
+          uv run --python 3.12 python - <<'PY'
+          import tempfile
+          from pathlib import Path
+          from PIL import Image, ImageDraw, ImageFont
+          from oso import ocr
+          img = Image.new("RGB", (1400, 300), "white")
+          ImageDraw.Draw(img).text((40, 100), "Velocity and acceleration", fill="black", font=ImageFont.load_default(size=72))
+          p = Path(tempfile.mkdtemp()) / "page.png"
+          img.save(p)
+          try:
+              text = ocr.read_image(p)
+              print("::notice title=Text recognition::read " + repr(text.strip())[:120])
+          except Exception as e:
+              print("::warning title=Text recognition::" + str(e)[:300])
+          PY

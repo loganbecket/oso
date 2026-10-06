@@ -60,6 +60,7 @@ $Feed = Read-Host "Paste the Canvas Calendar Feed URL (or press Enter to skip)"
 oso init --vault "$Vault" --timezone $Timezone --canvas-feed-url "$Feed"
 if ($Version) { oso update --installed $Version | Out-Null }
 oso sync
+oso install-task
 oso doctor --fix
 
 Write-Host ""

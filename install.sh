@@ -67,6 +67,7 @@ EOF2
 fi
 
 oso sync
+oso install-task
 oso doctor --fix || true
 
 echo

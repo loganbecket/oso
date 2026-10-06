@@ -91,7 +91,7 @@ A formal way to take quizzes outside the chat, so timing is exact and answers st
 
 ## Phase 2: Check-my-work records and topic lists
 
-**Status:** built and tested; unreleased. Not yet tried on a real syllabus.
+**Status:** built, tested, and released in 0.1.9. Not yet tried on a real syllabus.
 
 Checks of his own work are the second scored source.
 
@@ -116,7 +116,7 @@ Checks of his own work are the second scored source.
 
 ## Phase 3: What he knows
 
-**Status:** built and tested; unreleased. Uses the placeholder thresholds (now settings: `strong_percent`, `strong_min_results`, `untested_below`, `half_life_days`). A quiz or check he only got right after another try or a hint counts as half credit.
+**Status:** built, tested, and released in 0.1.9. Uses the placeholder thresholds (now settings: `strong_percent`, `strong_min_results`, `untested_below`, `half_life_days`). A quiz or check he only got right after another try or a hint counts as half credit.
 
 Turn the records into a per-topic picture.
 
@@ -138,7 +138,7 @@ Turn the records into a per-topic picture.
 
 ## Phase 4: Readiness in the briefing
 
-**Status:** built and tested; unreleased. New settings: `readiness_days` (7) and `quiz_warning_percent` (70). An exam's topics come from the topic list's exam names; if none match, the whole course stands in and the line says so. Scores "dropping" means 10 points or more between the last two quizzes on the exam's topics.
+**Status:** built, tested, and released in 0.1.9. New settings: `readiness_days` (7) and `quiz_warning_percent` (70). An exam's topics come from the topic list's exam names; if none match, the whole course stands in and the line says so. Scores "dropping" means 10 points or more between the last two quizzes on the exam's topics.
 
 Combine the profile with the deadlines Oso already knows.
 
@@ -157,6 +157,8 @@ Combine the profile with the deadlines Oso already knows.
 - Tests cover each rule firing and not firing.
 
 ## Phase 5: Practice habits
+
+**Status:** built and tested; unreleased. The narrative is written by Claude in the Sunday review (instructions forbid claims the numbers do not show); that part can only be checked on real data. Habits start once there are at least 10 results over at least 14 days.
 
 The slow-moving picture, from test records only. Weekly, once there are a few weeks of records.
 

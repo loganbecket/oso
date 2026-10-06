@@ -269,6 +269,26 @@ def get_profile(course: str) -> dict:
 
 
 @mcp.tool()
+def practice_habits() -> dict:
+    """Practice-habit numbers from quiz and check results: lead time before exams, follow-through on missed topics, score trends, practice share per course, pace. enough_data says whether there is enough to describe."""
+    from . import habits
+
+    with db.connect() as conn:
+        return habits.compute(conn, _cfg())
+
+
+@mcp.tool()
+def save_habits_summary(narrative: str) -> dict:
+    """Save the weekly practice-habits note (your short narrative; Oso appends the numbers) to Oso/Profile/Habits.md."""
+    from . import habits
+
+    cfg = _cfg()
+    with db.connect() as conn:
+        h = habits.compute(conn, cfg)
+    return {"path": habits.save(cfg, narrative, h)}
+
+
+@mcp.tool()
 def course_topics(course: str, topics: list[dict] | None = None) -> list[dict]:
     """A course's topic list. Pass topics [{name, week, exams: [exam names]}] to set them from the syllabus (topics found later are kept)."""
     from . import profile

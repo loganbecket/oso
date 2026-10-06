@@ -23,4 +23,10 @@ Turn the facts in `Today.md` into a short briefing the student can read on a pho
 - Short by default. Skip empty sections. Expand only if asked.
 - Never invent an item, a date, or a weight that is not in `Today.md`.
 - Link each item to its Canvas page when a link is present.
-- For the Sunday review, add what was completed last week and the total load for the coming week.
+- For the Sunday review, add what was completed last week and the total load for the coming week, then the practice-habits note below.
+
+## Practice habits (Sunday review only)
+
+1. Call `practice_habits`. If `enough_data` is false, skip this part entirely.
+2. Write three to five plain sentences about how he practices, using only what the numbers show: how far ahead of exams he started practice quizzes, whether he retests topics he missed and whether the retests go better, whether scores in each course are rising or fading, and whether his practice goes to the courses whose grades and upcoming work need it. Name the number behind each claim ("first practice quiz for Exam 1 came 1 day before it"). Describe what he did, never what kind of person he is; no "procrastinates", "lazy", or "great job". If a number does not support a sentence, leave the sentence out.
+3. Call `save_habits_summary` with those sentences, and put the single most useful one in the briefing.

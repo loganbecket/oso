@@ -45,6 +45,8 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("update", help="install the newest Oso on your update channel (set in oso settings; stable by default)")
     s.add_argument("--version", help="install this exact version (e.g. v0.1.0) or commit, for rolling back")
     s.add_argument("--installed", help=argparse.SUPPRESS)  # set by the installers after they install
+    s = sub.add_parser("profile", help="show what the learner profile has recorded")
+    s.add_argument("--raw", action="store_true", help="every recent quiz with each question and answer")
     sub.add_parser("fresh-start", help="delete everything in the vault and Oso's records and start fresh, keeping your settings")
     s = sub.add_parser("reset-skills", help="put back Oso's version of its commands' instructions (all, or the ones named), discarding your edits")
     s.add_argument("names", nargs="*", help="commands to reset, e.g. oso-summarize (default: all)")
@@ -188,6 +190,13 @@ def _dispatch(args: argparse.Namespace) -> int:
 
         gcal.disconnect()
         print("Disconnected. Oso will no longer write to Google Calendar. The Oso calendar itself is left as is.")
+        return 0
+
+    if args.cmd == "profile":
+        from . import profile
+
+        with db.connect() as conn:
+            print(profile.raw_dump(conn))
         return 0
 
     if args.cmd == "fresh-start":

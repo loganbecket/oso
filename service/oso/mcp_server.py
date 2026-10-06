@@ -212,6 +212,46 @@ def health() -> list[dict]:
         return [_row(r) for r in db.connector_health(conn)]
 
 
+# ---- learner profile ---------------------------------------------------------------------------
+
+
+@mcp.tool()
+def start_quiz(course: str, questions: list[dict], requested: str | None = None, sources: list[str] | None = None,
+               retake_of: int | None = None) -> dict:
+    """Record a quiz when you show it. questions: [{number, topic, theme, type: multiple_choice|short_answer|worked_problem|conceptual, difficulty: easy|medium|hard, question, source}]. Returns quiz_id."""
+    from . import profile
+
+    with db.connect() as conn:
+        return {"quiz_id": profile.start_quiz(conn, _cfg(), course, questions, requested, sources, retake_of)}
+
+
+@mcp.tool()
+def record_answers(quiz_id: int, answers: list[dict]) -> dict:
+    """Record graded answers: [{number, result: right|partly_right|wrong|skipped, mistake: concept_gap|calculation_slip|misread_question|incomplete (if not right), hint: bool}]. Re-answering counts as another attempt."""
+    from . import profile
+
+    with db.connect() as conn:
+        return profile.record_answers(conn, quiz_id, answers)
+
+
+@mcp.tool()
+def finish_quiz(quiz_id: int) -> dict:
+    """Close a quiz after grading; returns its score and per-question results."""
+    from . import profile
+
+    with db.connect() as conn:
+        return profile.finish_quiz(conn, quiz_id)
+
+
+@mcp.tool()
+def recent_quizzes(course: str | None = None, limit: int = 10) -> list[dict]:
+    """Recent quizzes with topics, status, and score (to find one to retake)."""
+    from . import profile
+
+    with db.connect() as conn:
+        return profile.recent_quizzes(conn, course, limit)
+
+
 # ---- notes -------------------------------------------------------------------------------------
 
 

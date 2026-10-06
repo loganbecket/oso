@@ -31,6 +31,8 @@ This is not a "second brain" for course content. Oso does not rewrite or synthes
 
 ## Phase 1: Quiz records
 
+**Status:** built and tested; waiting on a real quiz in Cowork after the next release to confirm the rows (`oso profile --raw`).
+
 The foundation. Every quiz Oso gives is recorded in detail.
 
 **Recorded per quiz session**

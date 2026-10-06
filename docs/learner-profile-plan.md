@@ -116,6 +116,8 @@ Checks of his own work are the second scored source.
 
 ## Phase 3: What he knows
 
+**Status:** built and tested; unreleased. Uses the placeholder thresholds (now settings: `strong_percent`, `strong_min_results`, `untested_below`, `half_life_days`). A quiz or check he only got right after another try or a hint counts as half credit.
+
 Turn the records into a per-topic picture.
 
 **Computed per topic (plain Python, no model)**

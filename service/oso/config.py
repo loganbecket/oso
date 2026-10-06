@@ -60,6 +60,10 @@ class Config:
     repo: str = "loganbecket/oso"  # GitHub repository Oso installs and updates from
     channel: str = "stable"  # stable (newest tagged version) or latest (master)
     installed_version: str | None = None  # tag or short commit of the installed service
+    strong_percent: int = 80  # a topic is strong at this weighted accuracy or better...
+    strong_min_results: int = 6  # ...over at least this many results in the last 60 days
+    untested_below: int = 3  # fewer results than this and a topic counts as untested
+    half_life_days: int = 21  # a result this old counts half as much as one from today
 
     @property
     def tz(self) -> ZoneInfo:
@@ -123,6 +127,10 @@ def load(path: Path | None = None) -> Config:
         repo=str(raw.get("repo", "loganbecket/oso")),
         channel=str(raw.get("channel", "stable")),
         installed_version=raw.get("installed_version") or None,
+        strong_percent=int(raw.get("strong_percent", 80)),
+        strong_min_results=int(raw.get("strong_min_results", 6)),
+        untested_below=int(raw.get("untested_below", 3)),
+        half_life_days=int(raw.get("half_life_days", 21)),
     )
 
 
@@ -147,6 +155,10 @@ def save(cfg: Config, path: Path | None = None) -> Path:
         f'repo = "{_toml_str(cfg.repo)}"',
         f'channel = "{_toml_str(cfg.channel)}"',
         *([f'installed_version = "{_toml_str(cfg.installed_version)}"'] if cfg.installed_version else []),
+        f"strong_percent = {cfg.strong_percent}",
+        f"strong_min_results = {cfg.strong_min_results}",
+        f"untested_below = {cfg.untested_below}",
+        f"half_life_days = {cfg.half_life_days}",
         "",
     ]
     for c in cfg.courses:

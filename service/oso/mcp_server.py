@@ -260,6 +260,15 @@ def finish_quiz(quiz_id: int) -> dict:
 
 
 @mcp.tool()
+def get_profile(course: str) -> dict:
+    """What the student knows in a course: topics grouped as shaky, untested, and strong, with accuracy, result count, trend, common mistake, and last practiced."""
+    from . import mastery
+
+    with db.connect() as conn:
+        return mastery.course_profile(conn, _cfg(), course)
+
+
+@mcp.tool()
 def course_topics(course: str, topics: list[dict] | None = None) -> list[dict]:
     """A course's topic list. Pass topics [{name, week, exams: [exam names]}] to set them from the syllabus (topics found later are kept)."""
     from . import profile

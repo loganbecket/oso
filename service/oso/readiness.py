@@ -1,4 +1,4 @@
-"""Phase 4 of the learner profile: is he ready for the exams coming up?
+"""Readiness: is he ready for the exams coming up?
 
 For each exam within `readiness_days` in a current course, the exam's topics (from the course's topic
 list, which records which exams cover each topic) are checked against his results. A flag is raised

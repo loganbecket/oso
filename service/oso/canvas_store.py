@@ -1,4 +1,4 @@
-"""What Oso has read from Canvas, kept in its database (docs/canvas-session-plan.md, phases 3 to 5).
+"""What Oso has read from Canvas, kept in its database.
 
 Each check replaces the stored picture with what Canvas shows now: courses with current grades,
 assignment groups and weights, assignments, his submissions (score, late, missing, excused), and

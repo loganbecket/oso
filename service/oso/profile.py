@@ -1,16 +1,16 @@
 """The learner profile: what the student has shown he knows, from his test results.
 
-Phase 1 of docs/learner-profile-plan.md: every quiz Oso gives is recorded in detail. The quiz skill
+Every quiz Oso gives is recorded in detail. The quiz skill
 calls `start_quiz` when it writes the questions, `record_answers` each time answers are graded (once,
 or again after a hint or a retry), and `finish_quiz` after grading. A quiz that was handed out and never
 answered stays recorded as abandoned.
 
-Phase 1b: quizzes are taken in the quiz window (`quizwin.py`) rather than in the chat. The window times
+Quizzes are taken in the quiz window (`quizwin.py`) rather than in the chat. The window times
 each question, counts changed answers, grades multiple choice against the key Claude supplied (which is
 never shown to the student), saves typed answers, and attaches written work (tablet pages or scans).
 Claude then grades the rest from `grading_view`.
 
-Phase 2: checks of the student's own work are recorded too (`record_check`), and every course has a topic
+Checks of the student's own work are recorded too (`record_check`), and every course has a topic
 list, seeded from its syllabus at setup (`set_topics`), that quizzes and checks tag against. A topic with
 no results is "untested", so silence is never mistaken for mastery.
 

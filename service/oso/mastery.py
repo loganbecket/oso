@@ -1,4 +1,4 @@
-"""Phase 3 of the learner profile: what the student knows, topic by topic.
+"""What the student knows, topic by topic.
 
 Every scored result (a graded quiz question, a check of his own work, or graded Canvas work tagged with
 the topic) is evidence about one topic.

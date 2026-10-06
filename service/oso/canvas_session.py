@@ -1,4 +1,4 @@
-"""Canvas through the student's own sign-in (docs/canvas-session-plan.md, phases 1 and 2).
+"""Canvas through the student's own sign-in.
 
 The school does not allow student access keys, so Oso reads Canvas the way his browser does. He signs in
 once in a small Oso window (`oso connect-canvas`), including any two-step check; Oso never sees his

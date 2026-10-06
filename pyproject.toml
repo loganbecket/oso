@@ -1,6 +1,6 @@
 [project]
 name = "oso"
-version = "0.2.2"
+version = "0.2.3"
 description = "Study assistant service: connectors, deadline database, and vault writer"
 requires-python = ">=3.12"
 license = "MIT"

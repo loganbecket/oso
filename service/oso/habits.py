@@ -1,4 +1,4 @@
-"""Phase 5 of the learner profile: practice habits, from test records only.
+"""Practice habits, from test records only.
 
 Computed in plain Python from quizzes and checks; nothing about how long he studied or what he chatted
 about. Once a week the Sunday review asks Claude to turn these numbers into a short narrative (each claim

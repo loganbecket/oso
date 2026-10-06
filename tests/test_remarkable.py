@@ -102,8 +102,8 @@ def test_not_connected_is_not_an_error(tmp_path: Path):
 
 
 def test_requeue_only_new_pages_after_redownload(tmp_path: Path):
-    cfg = Config(vault=tmp_path / "vault")
-    folder = cfg.vault / "Inbox" / "Handwriting"
+    cfg = Config(vault=tmp_path / "vault", courses=[Course("PHYS-110", "Physics", "Physics")])
+    folder = cfg.vault / "Courses" / "Physics" / "Handwriting"
     folder.mkdir(parents=True)
     src = folder / "Notes.pdf"
 
@@ -118,4 +118,4 @@ def test_requeue_only_new_pages_after_redownload(tmp_path: Path):
         assert handwriting.queue_new(conn, cfg) == 1
         pend = handwriting.pending(conn)
         assert [p["page"] for p in pend] == [1, 2, 3]
-        assert pend[0]["course"] is None
+        assert pend[0]["course"] == "PHYS-110"

@@ -35,13 +35,13 @@ def test_alerts_pending_mute_and_inbox(tmp_path: Path):
 
         assert alerts.write_inbox(conn, c, NOW) == 1
         assert alerts.write_inbox(conn, c, NOW) == 0
-        text = (c.vault / "Inbox" / "Alerts.md").read_text()
+        text = (c.vault / "Oso" / "Alerts.md").read_text()
         assert "Calculus I" in text and "Homework 1 moved" in text
         assert "| due 2026-10-09T08:00-04:00 <!-- alert 1 -->" in text
         assert muted.vault == c.vault
-        (c.vault / "Inbox" / "Alerts.md").unlink()
+        (c.vault / "Oso" / "Alerts.md").unlink()
         assert alerts.write_inbox(conn, quiet, NOW) == 1
-        assert "(quiet until 2026-10-05 09:00)" in (c.vault / "Inbox" / "Alerts.md").read_text()
+        assert "(quiet until 2026-10-05 09:00)" in (c.vault / "Oso" / "Alerts.md").read_text()
 
         alerts.mark_reported(conn, pend[0]["alert_id"])
         assert alerts.pending(conn, c, NOW) == []

@@ -3,7 +3,7 @@
   "name": "Oso",
   "behavior": "create",
   "noteNameFormat": "{{title}}",
-  "path": "Inbox",
+  "path": "Clippings",
   "noteContentFormat": "{{content}}",
   "properties": [
     { "name": "type", "value": "reading", "type": "text" },

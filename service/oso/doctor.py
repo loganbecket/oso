@@ -22,7 +22,7 @@ def run(fix: bool = False) -> list[tuple[str, str]]:
 
     if cfg.vault.is_dir():
         out.append(("ok", f"Vault at {cfg.vault}"))
-        for sub in ("Inbox", "Inbox/Handwriting", "Courses"):
+        for sub in ("Clippings", "Courses", "Oso"):
             p = cfg.vault / sub
             if not p.is_dir():
                 if fix:
@@ -87,7 +87,7 @@ def run(fix: bool = False) -> list[tuple[str, str]]:
     if gcal.connected():
         out.append(("ok", "Google Calendar connected for alerts"))
     else:
-        out.append(("warn", "Google Calendar is not connected, so urgent changes only appear in Today.md and Inbox/Alerts.md. See 'Connect the Oso calendar' in the README."))
+        out.append(("warn", "Google Calendar is not connected, so urgent changes only appear in Today.md and Oso/Alerts.md. See 'Connect the Oso calendar' in the README."))
 
     from . import update
 

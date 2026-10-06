@@ -51,8 +51,8 @@ Your vault lives in a folder that Google Drive keeps in sync, so your phone and 
 **Web Clipper** (saving web pages and papers into your vault):
 
 1. Install the Obsidian Web Clipper in your browser from [obsidian.md/clipper](https://obsidian.md/clipper). When it asks for a vault, pick the one you just made.
-2. Give it Oso's template so clips land in the right place with the right properties: click the clipper's icon, open its **Settings** (the gear), go to **Templates**, choose **Import**, and pick Oso's template file. Download it first from [this link](https://raw.githubusercontent.com/loganbecket/oso/master/obsidian/web-clipper-template.json) (right-click the page and choose **Save as** if it opens as text). If import is not offered, make a new template named `Oso` by hand: note location `Inbox`, note name `{{title}}`, and properties `type` = `reading`, `course` (empty), `source` = `{{url}}`, `author` = `{{author}}`, `clipped` = `{{date}}`.
-3. To clip a page: click the clipper icon, pick the **Oso** template, type the course in the `course` box (its name, code, or folder, for example `Physics`), and save. The note goes to `Inbox`; on the next sync Oso moves it into that course's `Readings` folder. Leave `course` empty if it belongs to no class and it stays in `Inbox`.
+2. Give it Oso's template so clips land in the right place with the right properties: click the clipper's icon, open its **Settings** (the gear), go to **Templates**, choose **Import**, and pick Oso's template file. Download it first from [this link](https://raw.githubusercontent.com/loganbecket/oso/master/obsidian/web-clipper-template.json) (right-click the page and choose **Save as** if it opens as text). If import is not offered, make a new template named `Oso` by hand: note location `Clippings`, note name `{{title}}`, and properties `type` = `reading`, `course` (empty), `source` = `{{url}}`, `author` = `{{author}}`, `clipped` = `{{date}}`.
+3. To clip a page: click the clipper icon, pick the **Oso** template, type the course in the `course` box (its name, code, or folder, for example `Physics`), and save. The note goes to `Clippings`; on the next sync Oso moves it into that course's `Readings` folder. Leave `course` empty if it belongs to no class and it stays in `Clippings`.
 
 **Spaced Repetition** (flashcards):
 
@@ -154,7 +154,7 @@ Google requires a one-time setup to let a program like Oso do this. It takes abo
 
 Oso then creates a calendar named **Oso** in your Google Calendar. To stop it, run `oso disconnect-calendar`; the calendar stays until you delete it.
 
-Without this step, urgent changes still appear in `Today.md`, in your morning briefing, and in `Inbox/Alerts.md`; they just don't reach your calendar.
+Without this step, urgent changes still appear in `Today.md`, in your morning briefing, and in `Oso/Alerts.md`; they just don't reach your calendar.
 
 ### 3.3 Install the Oso plugin
 
@@ -177,7 +177,7 @@ The plugin is the set of instructions that teach Claude how to use Oso.
 ### 3.4 Set up your courses
 
 1. In Cowork, click **Projects** in the sidebar and create a project named `School`. When it asks for a folder, pick your vault folder. Start every study chat inside this project so Claude can see your notes. (In Claude Code, start `claude` from inside the vault folder instead.)
-2. Open the course syllabus in your browser and clip it with the Obsidian Web Clipper. Leave the course field blank; it lands in your vault's `Inbox`. A syllabus PDF dragged into `Inbox` through Obsidian works too.
+2. Open the course syllabus in your browser and clip it with the Obsidian Web Clipper. Leave the course field blank; it lands in your vault's `Clippings` folder. A syllabus PDF dragged into `Clippings` through Obsidian works too.
 3. In a chat in the School project, type `/create-course` followed by the course name, for example `/create-course Intro to Engineering`.
 4. Claude finds the syllabus, reads it, and shows you every date, exam, and grade weight it found. Check them, correct anything wrong, and confirm. Only then does it create the course folder, move the syllabus into it as `Syllabus`, and save the dates.
 5. Repeat for each course.

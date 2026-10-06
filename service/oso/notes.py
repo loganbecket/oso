@@ -36,11 +36,10 @@ def safe_name(name: str, limit: int = 80) -> str:
     return name[:limit] or "untitled"
 
 
-def course_dir(cfg: Config, code: str | None) -> Path:
+def course_dir(cfg: Config, code: str | None) -> Path | None:
+    """The course's vault folder, or None for a course not set up in Oso."""
     c = cfg.course_for(code)
-    if c:
-        return cfg.vault / "Courses" / c.folder
-    return cfg.vault / "Inbox"
+    return cfg.vault / "Courses" / c.folder if c else None
 
 
 def guess_type(title: str, default: str = "reading") -> str:

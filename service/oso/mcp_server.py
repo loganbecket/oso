@@ -235,8 +235,8 @@ def read_section(path: str, heading: str) -> dict:
 
 
 @mcp.tool()
-def list_notes(folder: str = "Inbox", limit: int = 50) -> list[dict]:
-    """Files under a vault folder (e.g. Inbox, Courses/Physics/Notes), newest first, with title and type."""
+def list_notes(folder: str = "Clippings", limit: int = 50) -> list[dict]:
+    """Files under a vault folder (e.g. Clippings, Courses/Physics/Notes), newest first, with title and type."""
     from .notes import read_front_matter
 
     cfg = _cfg()
@@ -262,7 +262,7 @@ def list_notes(folder: str = "Inbox", limit: int = 50) -> list[dict]:
 
 @mcp.tool()
 def file_syllabus(course: str, path: str) -> dict:
-    """Move a syllabus (vault path, usually in Inbox) to Courses/<folder>/Syllabus and tag it with the course."""
+    """Move a syllabus (vault path, usually in Clippings) to Courses/<folder>/Syllabus and tag it with the course."""
     from .notes import read_front_matter, with_front_matter
 
     cfg = _cfg()

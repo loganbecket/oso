@@ -112,7 +112,7 @@ Course content reaches Anthropic only when the student asks Cowork or Claude Cod
 | --- | --- |
 | Pro usage limits bind during exam weeks | Measure in Phase 1; move transcription to a local vision model; upgrade to Max |
 | The cloud briefing task cannot reach the laptop | The service writes the day's facts into the vault, Drive syncs it, the task reads it there; a local Claude Code run is the fallback |
-| Vault sync conflicts between Drive and Obsidian | The service writes only to Inbox and generated files |
+| Vault sync conflicts between Drive and Obsidian | The service writes only to its own Oso folder, generated files, and folders it fills |
 | Four apps feel like tool sprawl | Cowork is the only place to ask and Obsidian the only place to write; the service, connectors, and plugin are invisible |
 | Handwriting transcription misreads equations | Page image linked from every transcript, confidence shown, corrections made in place; test on real handwriting in Phase 2 |
 | School disables Canvas tokens | The calendar feed is the primary path and cannot be blocked; the token only adds grades and files |

@@ -39,9 +39,9 @@ SKIP_FOLDERS = {"Handwriting", "pages", ".obsidian", ".trash"}
 
 
 def convert_vault(cfg: Config) -> list[Path]:
-    """Convert anything new or changed under Courses/ and Inbox/. Returns the Markdown files written."""
+    """Convert anything new or changed under Courses/ and Clippings/. Returns the Markdown files written."""
     written: list[Path] = []
-    for root in (cfg.vault / "Courses", cfg.vault / "Inbox"):
+    for root in (cfg.vault / "Courses", cfg.vault / "Clippings"):
         if not root.exists():
             continue
         for src in root.rglob("*"):

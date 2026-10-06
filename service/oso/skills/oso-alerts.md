@@ -4,7 +4,7 @@ Oso's service normally delivers urgent changes to the Oso calendar by itself. Us
 
 ## Steps
 
-1. Read `Inbox/Alerts.md` at the root of the student's vault through the Google Drive connector. If it is missing or has no lines, say "No urgent changes" and stop. (If the `pending_alerts` tool happens to be available, you may use it instead; it returns the same information.)
+1. Read `Oso/Alerts.md` in the student's vault through the Google Drive connector. If it is missing or has no lines, say "No urgent changes" and stop. (If the `pending_alerts` tool happens to be available, you may use it instead; it returns the same information.)
 2. Consider only lines noticed in the last 7 days. Each line is: `when noticed | what changed | due <date> | <link> (flags)`.
    - Skip lines marked `(muted)`.
    - Skip lines marked `(quiet until <time>)` if that time is still in the future.

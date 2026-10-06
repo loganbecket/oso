@@ -92,7 +92,7 @@ class CanvasApi:
         for course in self._courses():
             code = course.get("course_code") or str(course["id"])
             folder = notes.course_dir(self.cfg, code)
-            if folder == self.cfg.vault / "Inbox":
+            if folder is None:
                 continue  # course not set up in Oso yet
             counts["files"] += self._mirror_files(course["id"], folder / "Canvas")
             counts["announcements"] += self._mirror_announcements(course["id"], folder / "Announcements")

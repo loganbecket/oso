@@ -83,7 +83,7 @@ def _dispatch(args: argparse.Namespace) -> int:
         if args.canvas_url and args.canvas_token:
             secrets.set(secrets.CANVAS_BASE_URL, args.canvas_url)
             secrets.set(secrets.CANVAS_TOKEN, args.canvas_token)
-        for sub in ("Inbox", "Inbox/Handwriting", "Courses"):
+        for sub in ("Clippings", "Courses", "Oso"):
             (vault / sub).mkdir(parents=True, exist_ok=True)
         print(f"Saved settings to {path}. Feed URL stored in the credential manager." if url else f"Saved settings to {path}.")
         return 0

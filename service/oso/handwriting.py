@@ -2,7 +2,7 @@
 
 Notebooks pulled from the tablet land in `Courses/<folder>/Handwriting/` (see connectors/remarkable_usb.py).
 Scans and photos the student saves there (for example from a phone scanning app through Google Drive)
-are treated the same. Anything in `Inbox/Handwriting/` is handled with no course. This module renders
+are treated the same. Scans anywhere else are ignored: every page belongs to a course. This module renders
 each PDF page to a PNG under a `pages/<notebook>/` folder beside the PDF, skips blank pages, and queues
 the rest with their course. `oso transcribe` (or the transcribe skill) reads the queue, writes the
 Markdown note into the course's Notes folder, and marks pages done.
@@ -48,16 +48,9 @@ def ensure(conn: sqlite3.Connection) -> None:
     _migrate(conn)
 
 
-def inbox(cfg: Config) -> Path:
-    return cfg.vault / "Inbox" / "Handwriting"
-
-
-def roots(cfg: Config) -> list[tuple[Path, str | None]]:
-    """(folder, course code) for every place handwriting can land."""
-    out: list[tuple[Path, str | None]] = [(inbox(cfg), None)]
-    for c in cfg.courses:
-        out.append((cfg.vault / "Courses" / c.folder / "Handwriting", c.code))
-    return out
+def roots(cfg: Config) -> list[tuple[Path, str]]:
+    """(folder, course code) for every place handwriting can land: each course's Handwriting folder."""
+    return [(cfg.vault / "Courses" / c.folder / "Handwriting", c.code) for c in cfg.courses]
 
 
 def queue_new(conn: sqlite3.Connection, cfg: Config, scale: float | None = None) -> int:
@@ -176,7 +169,7 @@ def _queue_image(conn: sqlite3.Connection, cfg: Config, src: Path, course: str |
 def pending(conn: sqlite3.Connection, limit: int = 20) -> list[dict]:
     ensure(conn)
     rows = conn.execute(
-        "SELECT path, notebook, page, source_file, queued_at, course FROM pages WHERE status = 'pending' ORDER BY course, notebook, page LIMIT ?",
+        "SELECT path, notebook, page, source_file, queued_at, course FROM pages WHERE status = 'pending' AND course IS NOT NULL ORDER BY course, notebook, page LIMIT ?",
         (limit,),
     ).fetchall()
     return [dict(r) for r in rows]

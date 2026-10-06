@@ -1,7 +1,7 @@
 """Urgent changes: what needs to reach the student before the next briefing.
 
 The service cannot write to Google Calendar itself. It records urgent changes and appends them to
-`Inbox/Alerts.md`, one line per alert with everything the alerts skill needs. That skill runs as a
+`Oso/Alerts.md`, one line per alert with everything the alerts skill needs. That skill runs as a
 Cowork scheduled task in Anthropic's cloud, where Oso's local tools are out of reach, so it reads
 `Alerts.md` through Google Drive and creates calendar events, checking the Oso calendar first so an
 alert is never posted twice. When the skill runs locally it can also use `pending_alerts` and
@@ -63,7 +63,7 @@ def mark_reported(conn: sqlite3.Connection, alert_id: int) -> None:
 
 
 def write_inbox(conn: sqlite3.Connection, cfg: Config, now: datetime) -> int:
-    """Append new urgent changes to Inbox/Alerts.md so they are visible in Obsidian even before delivery."""
+    """Append new urgent changes to Oso/Alerts.md so they are visible in Obsidian even before delivery."""
     rows = conn.execute(
         f"""SELECT c.id, c.field, c.old_value, c.new_value, c.detected_at, i.url, {EFFECTIVE}
             FROM changes c JOIN items i ON i.id = c.item_id
@@ -73,7 +73,7 @@ def write_inbox(conn: sqlite3.Connection, cfg: Config, now: datetime) -> int:
     ).fetchall()
     if not rows:
         return 0
-    path = cfg.vault / "Inbox" / "Alerts.md"
+    path = cfg.vault / "Oso" / "Alerts.md"
     path.parent.mkdir(parents=True, exist_ok=True)
     existing = path.read_text(encoding="utf-8") if path.exists() else HEADER
     muted = {m.lower() for m in cfg.muted_courses}

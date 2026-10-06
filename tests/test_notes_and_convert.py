@@ -19,7 +19,7 @@ def inked_pdf(path, pages=1):
 def make_cfg(tmp_path: Path) -> Config:
     vault = tmp_path / "vault"
     (vault / "Courses" / "Calculus I" / "Lectures").mkdir(parents=True)
-    (vault / "Inbox" / "Handwriting").mkdir(parents=True)
+    (vault / "Courses" / "Calculus I" / "Handwriting").mkdir(parents=True)
     return Config(vault=vault, timezone="America/New_York", courses=[Course("MATH-101-001", "Calculus I", "Calculus I")])
 
 
@@ -111,7 +111,10 @@ def test_split_sections():
 
 def test_handwriting_queue_and_mark(tmp_path: Path):
     cfg = make_cfg(tmp_path)
-    inked_pdf(cfg.vault / "Inbox" / "Handwriting" / "Physics week 3.pdf", pages=2)
+    inked_pdf(cfg.vault / "Courses" / "Calculus I" / "Handwriting" / "Week 3.pdf", pages=2)
+    stray = cfg.vault / "Clippings"
+    stray.mkdir()
+    inked_pdf(stray / "No course.pdf")  # scans outside a course folder are ignored
     with db.connect(tmp_path / "t.sqlite") as conn:
         assert handwriting.queue_new(conn, cfg) == 2
         assert handwriting.queue_new(conn, cfg) == 0
@@ -127,7 +130,7 @@ def test_handwriting_queue_and_mark(tmp_path: Path):
 
 def test_handwriting_without_extension_is_recognized(tmp_path: Path):
     cfg = make_cfg(tmp_path)
-    hw = cfg.vault / "Inbox" / "Handwriting"
+    hw = cfg.vault / "Courses" / "Calculus I" / "Handwriting"
     inked_pdf(hw / "scan.pdf")
     (hw / "scan.pdf").rename(hw / "3f9a1c0e7b2d4a8f")
     (hw / "notes.txt").write_text("not a scan")

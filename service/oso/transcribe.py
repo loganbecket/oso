@@ -106,9 +106,9 @@ def _note_path(cfg: Config, course: str | None, notebook: str, queued_at: str) -
     day = datetime.fromisoformat(queued_at).astimezone(cfg.tz).strftime("%Y-%m-%d")
     name = f"{day} {notes.safe_name(notebook)}.md"
     c = cfg.course_for(course)
-    if c:
-        return cfg.vault / "Courses" / c.folder / "Notes" / name
-    return cfg.vault / "Inbox" / "Handwriting" / "Transcripts" / name
+    if c is None:
+        raise ValueError(f"no course {course!r} for handwritten page")
+    return cfg.vault / "Courses" / c.folder / "Notes" / name
 
 
 def _header(cfg: Config, course: str | None, notebook: str) -> str:

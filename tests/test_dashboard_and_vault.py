@@ -59,14 +59,35 @@ def test_filing_moves_clips_with_a_course(tmp_path: Path):
     from oso import filing
 
     cfg = Config(vault=tmp_path / "vault", courses=[Course("PHYS-110", "Physics", "Physics")])
-    inbox = cfg.vault / "Inbox"
-    inbox.mkdir(parents=True)
-    (inbox / "Orbital mechanics.md").write_text("---\ntype: reading\ncourse: physics\nsource: https://x\n---\n\nbody\n")
-    (inbox / "Unfiled.md").write_text("---\ntype: reading\ncourse: \n---\n\nbody\n")
-    assert filing.file_inbox(cfg) == 1
+    clips = cfg.vault / "Clippings"
+    clips.mkdir(parents=True)
+    (clips / "Orbital mechanics.md").write_text("---\ntype: reading\ncourse: physics\nsource: https://x\n---\n\nbody\n")
+    (clips / "Unfiled.md").write_text("---\ntype: reading\ncourse: \n---\n\nbody\n")
+    assert filing.file_clippings(cfg) == 1
     moved = cfg.vault / "Courses" / "Physics" / "Readings" / "Orbital mechanics.md"
     assert moved.exists() and "course: PHYS-110" in moved.read_text()
-    assert (inbox / "Unfiled.md").exists()
+    assert (clips / "Unfiled.md").exists()
+
+
+def test_old_inbox_is_retired(tmp_path: Path):
+    from oso import filing
+
+    cfg = Config(vault=tmp_path / "vault")
+    inbox = cfg.vault / "Inbox"
+    (inbox / "Handwriting" / "Transcripts").mkdir(parents=True)
+    (inbox / "Alerts.md").write_text("---\ntype: oso-alerts\n---\n\n# Alerts\n\n- 2026-10-05 10:00 | moved | due x <!-- alert 1 -->\n")
+    (inbox / "Some clip.md").write_text("clip")
+    (cfg.vault / "Clippings").mkdir()
+    (cfg.vault / "Clippings" / "Some clip.md").write_text("already here")
+    assert filing.retire_inbox(cfg) == 2
+    assert "alert 1" in (cfg.vault / "Oso" / "Alerts.md").read_text()
+    assert (cfg.vault / "Clippings" / "Some clip (2).md").read_text() == "clip"
+    assert not inbox.exists()
+
+    (inbox / "Handwriting").mkdir(parents=True)
+    (inbox / "Handwriting" / "stray.pdf").write_text("x")
+    filing.retire_inbox(cfg)
+    assert (inbox / "Handwriting" / "stray.pdf").exists()  # left alone, and ignored
 
 
 def test_vault_instructions_written_and_switchable(tmp_path: Path):
@@ -111,19 +132,19 @@ def test_create_course_tools_list_and_file_syllabus(tmp_path: Path, monkeypatch)
     from oso.config import Config
 
     cfg = Config(vault=tmp_path / "vault")
-    (cfg.vault / "Inbox").mkdir(parents=True)
-    clip = cfg.vault / "Inbox" / "EGR 1301 Syllabus.md"
+    (cfg.vault / "Clippings").mkdir(parents=True)
+    clip = cfg.vault / "Clippings" / "EGR 1301 Syllabus.md"
     clip.write_text("---\ntitle: EGR 1301 Syllabus\ntype: reading\ncourse: ''\n---\n\n# Intro to Engineering\n", encoding="utf-8")
     monkeypatch.setattr(mcp_server, "_cfg", lambda: cfg)
     monkeypatch.setattr(mcp_server.cfgmod, "save", lambda c, path=None: None)
     real_connect = db.connect
     monkeypatch.setattr(mcp_server.db, "connect", lambda *a, **k: real_connect(tmp_path / "t.sqlite"))
 
-    listed = mcp_server.list_notes("Inbox")
-    assert listed[0]["path"] == "Inbox/EGR 1301 Syllabus.md" and listed[0]["title"] == "EGR 1301 Syllabus"
+    listed = mcp_server.list_notes("Clippings")
+    assert listed[0]["path"] == "Clippings/EGR 1301 Syllabus.md" and listed[0]["title"] == "EGR 1301 Syllabus"
 
     mcp_server.add_course("EGR-1301-001", "Intro to Engineering")
-    out = mcp_server.file_syllabus("EGR-1301-001", "Inbox/EGR 1301 Syllabus.md")
+    out = mcp_server.file_syllabus("EGR-1301-001", "Clippings/EGR 1301 Syllabus.md")
     assert out["path"] == "Courses/Intro to Engineering/Syllabus.md" and not clip.exists()
     text = (cfg.vault / out["path"]).read_text(encoding="utf-8")
     assert "type: syllabus" in text and "course: EGR-1301-001" in text and "# Intro to Engineering" in text

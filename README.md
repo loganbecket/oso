@@ -165,7 +165,7 @@ The plugin is the set of instructions that teach Claude how to use Oso.
 1. In the sidebar, open **Customize**, then **Plugins**.
 2. Select **Add marketplace** and enter `loganbecket/oso`.
 3. The Oso plugin appears. Click **Install**.
-4. Open the installed plugin and go to its **Connectors** tab. Connect the **oso** connector. This is what lets Claude read your deadlines and notes. (On Linux, where Cowork runs in the browser, this connector cannot reach your computer; use Claude Code for anything that needs it, and Cowork for the briefing and questions over the vault in Drive.)
+4. Open the installed plugin and go to its **Connectors** tab. The **oso** connector is listed as "Runs in each session"; there is nothing to click, and it starts on its own in every new chat. This is what lets Claude read your deadlines and notes. Do not use **Add custom connector**; that is only for connectors hosted on the internet. (On Linux, where Cowork runs in the browser, this connector cannot reach your computer; use Claude Code for anything that needs it, and Cowork for the briefing and questions over the vault in Drive.)
 
 **In Claude Code:** a plugin installed in Cowork is saved to your Claude account, so Claude Code has it too. On Linux, where there is no desktop app, start Claude Code (`claude` in the command window) and type these two lines:
 

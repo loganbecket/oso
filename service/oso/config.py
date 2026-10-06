@@ -29,8 +29,16 @@ def data_dir() -> Path:
 class Course:
     code: str
     name: str
-    folder: str
+    folder: str  # path under Courses/, normally "<term>/<name>", e.g. "2026 Fall/Calculus II"
     drive_folder: str | None = None  # a local path synced by Google Drive for Desktop, mirrored into the course folder
+    term: str | None = None  # e.g. "2026 Fall"
+    finished: bool = False  # out of the briefing, deadlines, alerts, and default search; still searchable by name
+    related: list[str] = field(default_factory=list)  # codes of earlier courses whose notes this course's searches include
+
+    @property
+    def folder_name(self) -> str:
+        """The last part of the folder, which is what the tablet and clip filing match on."""
+        return Path(self.folder).name
 
 
 @dataclass
@@ -66,6 +74,13 @@ class Config:
                 return c
         return None
 
+    def finished_codes(self) -> set[str]:
+        return {c.code.lower() for c in self.courses if c.finished}
+
+    def is_active(self, code: str | None) -> bool:
+        """False only for a course marked finished; items with no or unknown course stay visible."""
+        return (code or "").lower() not in self.finished_codes()
+
 
 class ConfigError(Exception):
     pass
@@ -86,7 +101,8 @@ def load(path: Path | None = None) -> Config:
         raise ConfigError(f"{path} is missing the 'vault' setting") from e
     courses = [
         Course(code=c["code"], name=c.get("name", c["code"]), folder=c.get("folder", c.get("name", c["code"])),
-               drive_folder=c.get("drive_folder") or None)
+               drive_folder=c.get("drive_folder") or None, term=c.get("term") or None,
+               finished=bool(c.get("finished", False)), related=[str(x) for x in c.get("related", [])])
         for c in raw.get("courses", [])
     ]
     return Config(
@@ -140,6 +156,9 @@ def save(cfg: Config, path: Path | None = None) -> Path:
             f'name = "{_toml_str(c.name)}"',
             f'folder = "{_toml_str(c.folder)}"',
             *([f'drive_folder = "{_toml_str(c.drive_folder)}"'] if c.drive_folder else []),
+            *([f'term = "{_toml_str(c.term)}"'] if c.term else []),
+            *(["finished = true"] if c.finished else []),
+            *(["related = [" + ", ".join(f'"{_toml_str(r)}"' for r in c.related) + "]"] if c.related else []),
             "",
         ]
     path.write_text("\n".join(lines), encoding="utf-8")

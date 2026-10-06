@@ -39,24 +39,30 @@ def _vault_file(cfg: cfgmod.Config, path: str):
 
 @mcp.tool()
 def list_courses() -> list[dict]:
-    """Courses with code, vault folder, and AI policy."""
+    """Courses with code, term, vault folder, finished flag, related earlier courses, and AI policy."""
+    from . import courses
+
     with db.connect() as conn:
-        return [_row(r) for r in conn.execute("SELECT code, name, folder, ai_policy FROM courses ORDER BY name")]
+        policy = {r["code"]: r["ai_policy"] for r in conn.execute("SELECT code, ai_policy FROM courses")}
+    return [{**c, "ai_policy": policy.get(c["code"])} for c in courses.describe(_cfg())]
 
 
 @mcp.tool()
-def add_course(code: str, name: str, folder: str | None = None, ai_policy: str | None = None) -> dict:
-    """Register a course (code as Canvas labels it; folder defaults to name)."""
-    cfg = _cfg()
-    folder = folder or name
-    with db.connect() as conn:
-        db.upsert_course(conn, code, name, folder, ai_policy)
-    cfg.courses = [c for c in cfg.courses if c.code.lower() != code.lower()]
-    cfg.courses.append(cfgmod.Course(code=code, name=name, folder=folder))
-    cfgmod.save(cfg)
-    for sub in ("Lectures", "Homework", "Readings", "Notes", "Exams", "Handwriting"):
-        (cfg.vault / "Courses" / folder / sub).mkdir(parents=True, exist_ok=True)
-    return {"code": code, "name": name, "folder": f"Courses/{folder}"}
+def add_course(code: str, name: str, term: str | None = None, related: list[str] | None = None, ai_policy: str | None = None) -> dict:
+    """Register or update a course: code as Canvas labels it, term like "2026 Fall", related = earlier courses it builds on."""
+    from . import courses
+
+    c = courses.register(_cfg(), code, name, term=term, related=related, ai_policy=ai_policy)
+    return {"code": c.code, "name": c.name, "term": c.term, "folder": f"Courses/{c.folder}", "related": c.related}
+
+
+@mcp.tool()
+def update_course(code: str, finished: bool | None = None, related: list[str] | None = None) -> dict:
+    """Mark a course finished (or current again), or set the earlier courses it builds on."""
+    from . import courses
+
+    c = courses.update(_cfg(), code, finished=finished, related=related)
+    return {"code": c.code, "finished": c.finished, "related": c.related}
 
 
 @mcp.tool()
@@ -74,6 +80,8 @@ def list_deadlines(days: int = 14, course: str | None = None, include_done: bool
     sql += " ORDER BY COALESCE(user_due_at, due_at)"
     with db.connect() as conn:
         rows = [_row(r) for r in conn.execute(sql, params)]
+    if not course:
+        rows = [r for r in rows if cfg.is_active(r["course_code"])]
     if not include_done:
         rows = [r for r in rows if r["status"] != "done"]
     return rows
@@ -209,7 +217,7 @@ def health() -> list[dict]:
 
 @mcp.tool()
 def search_notes(query: str, course: str | None = None, limit: int = 8) -> list[dict]:
-    """Best-matching sections of the student's notes and course materials, by meaning and exact words. Returns path, heading, and the section text."""
+    """Best-matching sections of the student's notes and materials, by meaning and exact words. With a course: it and its related earlier courses; without: all current courses. Returns path, heading, text."""
     from . import search
 
     return search.query(_cfg(), query, course=course, limit=limit)

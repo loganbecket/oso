@@ -30,7 +30,7 @@ def render(conn: sqlite3.Connection, cfg: Config, now: datetime) -> str:
         "",
     ]
 
-    open_items = _open_items(conn)
+    open_items = [r for r in _open_items(conn) if cfg.is_active(r["course_code"])]
     overdue = [r for r in open_items if r["due"] and r["due"].date() < today]
     due_today = [r for r in open_items if r["due"] and r["due"].date() == today]
     this_week = [r for r in open_items if r["due"] and today < r["due"].date() <= week_end]
@@ -61,6 +61,7 @@ def render(conn: sqlite3.Connection, cfg: Config, now: datetime) -> str:
     lines += _handwriting(conn)
     lines += _update_note(conn)
     lines += _skill_note()
+    lines += _finished_note(conn, cfg, now)
     lines += _health(conn, now, timedelta(hours=cfg.stale_hours))
     return "\n".join(lines) + "\n"
 
@@ -159,6 +160,16 @@ def _update_note(conn: sqlite3.Connection) -> list[str]:
     if not row or not row["value"]:
         return []
     return ["## Oso", f"- {row['value']}", ""]
+
+
+def _finished_note(conn: sqlite3.Connection, cfg: Config, now: datetime) -> list[str]:
+    from . import courses
+
+    over = courses.looks_finished(conn, cfg, now)
+    if not over:
+        return []
+    names = ", ".join(c.name for c in over)
+    return ["## Courses", f"- {names} {'has' if len(over) == 1 else 'have'} had nothing due for two weeks. If the semester is over, ask Claude to mark {'it' if len(over) == 1 else 'them'} finished.", ""]
 
 
 def _skill_note() -> list[str]:

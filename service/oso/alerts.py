@@ -26,7 +26,7 @@ def pending(conn: sqlite3.Connection, cfg: Config, now: datetime) -> list[dict]:
     ).fetchall()
     out = []
     deliver_after = quiet_until(cfg, now)
-    muted = {m.lower() for m in cfg.muted_courses}
+    muted = {m.lower() for m in cfg.muted_courses} | cfg.finished_codes()
     for r in rows:
         if (r["course_code"] or "").lower() in muted:
             continue
@@ -76,7 +76,7 @@ def write_inbox(conn: sqlite3.Connection, cfg: Config, now: datetime) -> int:
     path = cfg.vault / "Oso" / "Alerts.md"
     path.parent.mkdir(parents=True, exist_ok=True)
     existing = path.read_text(encoding="utf-8") if path.exists() else HEADER
-    muted = {m.lower() for m in cfg.muted_courses}
+    muted = {m.lower() for m in cfg.muted_courses} | cfg.finished_codes()
     quiet = quiet_until(cfg, now)
     added = 0
     for r in rows:

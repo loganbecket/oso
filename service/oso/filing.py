@@ -91,6 +91,6 @@ def _match(cfg: Config, value) -> Course | None:
         return None
     v = value.strip().lower()
     for c in cfg.courses:
-        if v in (c.code.lower(), c.name.lower(), c.folder.lower()):
+        if v in (c.code.lower(), c.name.lower(), c.folder.lower(), c.folder_name.lower()):
             return c
     return None

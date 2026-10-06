@@ -26,7 +26,8 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("add-course", help="register a course")
     s.add_argument("code", help="code as Canvas shows it, e.g. MATH-101-001")
     s.add_argument("name", help="short name, e.g. Calculus I")
-    s.add_argument("--folder", help="vault folder name (defaults to the name)")
+    s.add_argument("--term", help='term, e.g. "2026 Fall"; the folder becomes Courses/<term>/<name>')
+    s.add_argument("--related", nargs="*", default=None, help="codes or names of earlier courses this one builds on")
 
     sub.add_parser("sync", help="pull every source and rewrite Today.md")
     sub.add_parser("today", help="rewrite Today.md from what is already stored")
@@ -92,13 +93,14 @@ def _dispatch(args: argparse.Namespace) -> int:
     cfg = cfgmod.load()
 
     if args.cmd == "add-course":
-        folder = args.folder or args.name
-        cfg.courses = [c for c in cfg.courses if c.code.lower() != args.code.lower()]
-        cfg.courses.append(cfgmod.Course(code=args.code, name=args.name, folder=folder))
-        cfgmod.save(cfg)
-        for sub in ("Lectures", "Homework", "Readings", "Notes", "Exams"):
-            (cfg.vault / "Courses" / folder / sub).mkdir(parents=True, exist_ok=True)
-        print(f"Added {args.name} ({args.code}); vault folder Courses/{folder}")
+        from . import courses
+
+        try:
+            c = courses.register(cfg, args.code, args.name, term=args.term, related=args.related)
+        except ValueError as e:
+            print(e)
+            return 1
+        print(f"Added {c.name} ({c.code}); vault folder Courses/{c.folder}")
         return 0
 
     if args.cmd == "sync":

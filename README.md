@@ -16,8 +16,8 @@ There is no Oso server. Your notes stay on your computer and in your own Google 
 
 **Where things live in your vault.**
 
-- `Courses/<course>/`: one folder per class, holding its syllabus, notes, readings, and anything Oso pulls in.
-- `Courses/<course>/Handwriting/`: where scans of paper notes go.
+- `Courses/<term>/<course>/`: one folder per class, grouped by semester (for example `Courses/2026 Fall/Calculus II/`), holding its syllabus, notes, readings, and anything Oso pulls in. Courses never move.
+- `Courses/<term>/<course>/Handwriting/`: where scans of paper notes go.
 - `Clippings/`: where the Obsidian Web Clipper saves web pages, including syllabi before a course is set up.
 - `Oso/`: Oso's own files, including the instructions behind each Oso command (see below). You can ignore it.
 
@@ -27,7 +27,9 @@ There is no Oso server. Your notes stay on your computer and in your own Google 
 
 **Adding notes and files.** Scan paper notes into that course's `Handwriting` folder, then run `oso transcribe` in your command window to turn them into searchable notes in the course's `Notes` folder. Drop any other course document into the course folder; Oso makes a text copy on its next check. Scans saved anywhere outside a course folder are ignored.
 
-**Search.** Oso indexes everything in your course folders on each check, so Claude can find the right passage across all your classes in a fraction of a second, even when your question uses different words than your notes.
+**Search.** Oso indexes everything in your course folders on each check, so Claude can find the right passage across your current classes in a fraction of a second, even when your question uses different words than your notes.
+
+**When a semester ends.** Tell Claude to mark a course finished (your briefing suggests it once a course has had nothing due for two weeks). It disappears from the briefing, deadlines, and everyday searches, but stays in place and can still be searched by name. When a new course builds on an old one, like Calculus III on Calculus II, `/create-course` offers to relate them, and searches in the new course then include the old course's notes.
 
 **Making commands your own.** The instructions Claude follows for each command (summarize, quiz, study guide, and the rest) are notes you can edit in `Oso/Skills/`. If Oso later ships a new version of one you changed, your briefing tells you, and Claude walks you through keeping yours, taking the new one, or combining them. `oso reset-skills` puts Oso's versions back.
 
@@ -82,7 +84,7 @@ Your vault lives in a folder that Google Drive keeps in sync, so your phone and 
 **Spaced Repetition** (flashcards):
 
 1. In **Settings**, **Community plugins**, click **Browse**, search for **Spaced Repetition**, click **Install**, then **Enable**.
-2. Oso's flashcard skill writes cards into `Courses/<course>/Notes/` tagged for this plugin. To review, open the command palette (Ctrl+P, or Cmd+P on a Mac), run **Spaced Repetition: Review flashcards**, and rate each card. The plugin schedules the next time you see it.
+2. Oso's flashcard skill writes cards into `Courses/<term>/<course>/Notes/` tagged for this plugin. To review, open the command palette (Ctrl+P, or Cmd+P on a Mac), run **Spaced Repetition: Review flashcards**, and rate each card. The plugin schedules the next time you see it.
 3. On your phone, the Obsidian app with the same plugin reviews the same cards.
 
 **Optional but useful:**
@@ -217,7 +219,7 @@ In Cowork, create a scheduled task that runs every day at the time you wake up, 
 
 Oso pulls your handwritten notes straight off the tablet over the USB cable. No reMarkable account or subscription is needed, and only your coursework comes over.
 
-The rule is simple: **a folder on the tablet with the same name as a course folder in your vault belongs to that course.** When you set up a course in Part 3, Oso created a folder for it in the vault under `Courses`, for example `Courses/Physics`. Make a folder called `Physics` on the tablet and keep that class's notebooks in it. Every notebook in that folder, including any sub-folders you make, is copied into `Courses/Physics/Handwriting` in your vault. Notebooks anywhere else on the tablet, like a journal or a to-do list, are never touched.
+The rule is simple: **a folder on the tablet with the same name as a course folder in your vault belongs to that course.** When you set up a course in Part 3, Oso created a folder for it in the vault, for example `Courses/2026 Fall/Physics`. Make a folder called `Physics` on the tablet and keep that class's notebooks in it. Every notebook in that folder, including any sub-folders you make, is copied into `Courses/2026 Fall/Physics/Handwriting` in your vault. Notebooks anywhere else on the tablet, like a journal or a to-do list, are never touched.
 
 1. On the tablet, open **Settings**, then **Storage**, and turn on **USB web interface**.
 2. On the tablet, make one folder per course, named exactly as the course folder in your vault (capital letters do not matter). If you would rather keep them together, put them all inside one folder such as `School` and run `oso set-remarkable-folder School` once in your command window.
@@ -225,7 +227,7 @@ The rule is simple: **a folder on the tablet with the same name as a course fold
 4. The next time Oso syncs (within 15 minutes, or run `oso sync`), it copies any notebook you changed. Leave it plugged in for a few minutes; charging it at your desk is enough.
 5. To turn the pages into notes you can search, run `oso transcribe` in your command window (or click **Transcribe now** in `oso settings`). It sends each page to Claude one at a time, writes the pages out with their equations and a description of every diagram, files the note in the right course, and skips blank pages. Pages it could not read well are listed in your morning briefing. Saying *"Transcribe my handwritten notes"* in Claude Code does the same thing.
 
-**Paper notes** work the same way. Scan them with any phone scanning app (Adobe Scan, for example) and save the PDF to Google Drive inside your vault, in the course's `Handwriting` folder: `Vault/Courses/Physics/Handwriting`. Drive brings it to your computer, and the next check queues the pages. A photo saved there works too.
+**Paper notes** work the same way. Scan them with any phone scanning app (Adobe Scan, for example) and save the PDF to Google Drive inside your vault, in the course's `Handwriting` folder: `Vault/Courses/2026 Fall/Physics/Handwriting`. Drive brings it to your computer, and the next check queues the pages. A photo saved there works too.
 
 **Usage.** Reading handwriting is the heaviest thing Oso asks of your Claude plan. Two settings in `oso settings` control it: the page image size (1200 pixels tall by default; smaller is cheaper, larger reads tiny writing better) and the model used for reading (Sonnet by default, which is accurate and light on usage). A separate setting picks the model for study guides and practice tests (Opus by default, where realism matters most). Two more settings keep everyday questions cheap: a cap on how much of a note Claude reads in one go (12,000 characters by default; set it to 0 to turn the cap off if answers seem to be missing context), and a small instructions file Oso keeps at the top of the vault so Claude Code sessions opened there know the layout without exploring. Which models your plan offers depends on Anthropic; the Claude app shows the current list.
 

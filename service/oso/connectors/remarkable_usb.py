@@ -73,7 +73,7 @@ class RemarkableUsb:
         conn.executescript(SCHEMA)
         if not self.connected():
             raise NotConnected()
-        folders = {c.folder.lower(): c for c in self.cfg.courses}
+        folders = {c.folder_name.lower(): c for c in self.cfg.courses if not c.finished}
         pulled = 0
         for doc in self._walk():
             if doc.get("Type") != "DocumentType":

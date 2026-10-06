@@ -125,11 +125,10 @@ def _files(cfg: Config):
 
 
 def _course_for(cfg: Config, rel: str, fm: dict) -> str | None:
-    parts = rel.split("/")
-    if parts[0] == "Courses" and len(parts) > 1:
-        for c in cfg.courses:
-            if c.folder.lower() == parts[1].lower():
-                return c.code
+    low = rel.lower()
+    for c in sorted(cfg.courses, key=lambda c: len(c.folder), reverse=True):
+        if low.startswith(f"courses/{c.folder.lower()}/"):
+            return c.code
     return fm.get("course") or None
 
 
@@ -190,13 +189,19 @@ def _fts_query(q: str) -> str:
 
 
 def query(cfg: Config, q: str, course: str | None = None, limit: int = 8, path: Path | None = None) -> list[dict]:
-    """The best-matching sections, combining exact-word and meaning rankings (reciprocal rank fusion)."""
+    """The best-matching sections, combining exact-word and meaning rankings (reciprocal rank fusion).
+
+    With a course: that course plus the earlier courses it is related to. Without: every course not marked
+    finished (finished courses are searched only when named)."""
     import numpy as np
 
-    where, params = "", []
-    if course:
-        c = cfg.course_for(course)
-        where, params = " AND c.course = ?", [c.code if c else course]
+    codes = scope(cfg, course)
+    if codes is None:
+        hidden = sorted(cfg.finished_codes())
+        where = f" AND LOWER(COALESCE(c.course, '')) NOT IN ({','.join('?' * len(hidden))})" if hidden else ""
+        params: list = hidden
+    else:
+        where, params = f" AND LOWER(c.course) IN ({','.join('?' * len(codes))})", sorted(codes)
     pool = max(50, limit * 6)
     ranks: dict[int, float] = {}
     with connect(path) as conn:
@@ -223,6 +228,16 @@ def query(cfg: Config, q: str, course: str | None = None, limit: int = 8, path: 
         found = {r["id"]: r for r in conn.execute(
             f"SELECT id, path, course, title, heading, text FROM chunks WHERE id IN ({','.join('?' * len(best))})", best)}
     return [{"path": found[i]["path"], "course": found[i]["course"], "heading": found[i]["heading"], "text": found[i]["text"]} for i in best if i in found]
+
+
+def scope(cfg: Config, course: str | None) -> set[str] | None:
+    """Lowercased course codes a search covers, or None for "every active course"."""
+    if not course:
+        return None
+    c = cfg.course_for(course) or next((x for x in cfg.courses if course.lower() in (x.name.lower(), x.folder_name.lower())), None)
+    if c is None:
+        return {course.lower()}
+    return {c.code.lower(), *(r.lower() for r in c.related)}
 
 
 def status(path: Path | None = None) -> dict[str, int]:

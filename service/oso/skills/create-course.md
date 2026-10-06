@@ -14,13 +14,16 @@ The goal is a confirmed list of facts, not a guess. Nothing is written until the
    - the instructor, office hours, and contact
    - the course's policy on AI tools, quoted as written
    - the late policy
-3. **Show everything as one list** and ask the student to confirm or correct it. Dates that are relative ("week 6") need the student to confirm the actual date. Mention that the syllabus will be moved to `Courses/<name>/Syllabus.md`. Do not write anything until they confirm.
-4. **After confirmation:**
-   - call `add_course` with the code, the name, and the AI policy text; this creates the course folder and its subfolders
+   - the term, like `2026 Fall` or `2027 Spring`, from the syllabus or its dates (January to May is Spring, June and July Summer, August to December Fall)
+   - prerequisites, if listed
+3. **Check for related courses.** Call `list_courses`. If an earlier course is a prerequisite or clearly the one this builds on (Calculus II before Calculus III), propose relating them, so searches in the new course include the earlier course's notes.
+4. **Show everything as one list** and ask the student to confirm or correct it, including the term and any related courses. Dates that are relative ("week 6") need the student to confirm the actual date. Mention that the course folder will be `Courses/<term>/<name>` with the syllabus inside it. Do not write anything until they confirm.
+5. **After confirmation:**
+   - call `add_course` with the code, the name, the term, the related course codes, and the AI policy text; this creates the course folder and its subfolders
    - call `file_syllabus` with the code and the syllabus path from step 1; it moves the file into the course folder as `Syllabus` and tags it with the course
    - call `add_item` once per dated item, with `kind` of assignment, quiz, exam, reading, or event, the ISO due date, and the weight if known
    - write `Courses/<folder>/Course.md` in the vault using the template below
-5. **Report** in two or three sentences: the course is set up, how many dates and grade weights were saved, and that the Canvas feed fills in anything the syllabus missed on the next check.
+6. **Report** in two or three sentences: the course is set up, how many dates and grade weights were saved, and that the Canvas feed fills in anything the syllabus missed on the next check.
 
 ## Course.md template
 

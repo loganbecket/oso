@@ -33,7 +33,7 @@ def render(conn: sqlite3.Connection, cfg: Config, now: datetime) -> str:
         "| Course | Standing | Graded | Next due | Open items |",
         "| --- | --- | --- | --- | --- |",
     ]
-    for c in sorted(cfg.courses, key=lambda c: c.name):
+    for c in sorted((c for c in cfg.courses if not c.finished), key=lambda c: c.name):
         s = grades.summary(conn, c.code)
         standing = f"{s['current_percent']}%" if s["current_percent"] is not None else "no grades yet"
         nxt = conn.execute(

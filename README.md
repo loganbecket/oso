@@ -261,6 +261,16 @@ The rule is simple: **a folder on the tablet with the same name as a course fold
 - **Making Oso's commands your own**: the instructions behind each Oso command (summarize, quiz, study guide, and the rest) are plain notes in your vault under `Oso/Skills/`. Edit one in Obsidian and Claude follows your version from then on. When Oso updates a command you haven't touched, your copy updates quietly. If you have changed it, your copy is kept, and the briefing tells you a new version is waiting; ask Claude to go through the Oso command updates, and it shows what changed on each side and lets you keep yours, take Oso's, or combine them. To throw away your edits, run `oso reset-skills` (or `oso reset-skills oso-summarize` for just one). Files you add to that folder yourself are never touched.
 - **Changing settings**: run `oso settings` in your command window. A small window opens where you can change the vault folder, time zone, how often Oso checks for changes (15 minutes by default), what counts as urgent, quiet hours, which courses are muted, the tablet folder, and the Canvas feed or token. **Save and check** applies the change, reschedules the checks if needed, and runs the health check.
 
+### Textbooks
+
+Put each textbook in the course's `Books` folder (for example `Courses/2026 Fall/Physics/Books`), and Oso turns it into notes you and Claude can search, one per chapter, with every page marked by its printed page number. Answers then cite the book ("Serway, ch. 4.2, p. 131"), and when your notes and the book disagree, Claude says so and goes with the book.
+
+- **A PDF or EPUB** (one without copy protection): drop the file in `Books`. Oso reads it on the next check; a big book takes a few checks, and `oso books` shows how far along it is.
+- **A scanned book or chapter, or photos of pages**: make a folder for the book with a `Scans` folder inside, `Books/<title>/Scans/`, and put the scans there in order (name them so they sort in page order). Scans you add later join the end of the book. Your computer's own text recognition reads them, so it costs none of your Claude usage. Pages that are mostly equations or figures don't recognize well; the first time you ask about one, Claude reads it from the page image and saves that reading.
+- **A book you read in a publisher's app or website**: print chapters to PDF and drop them in `Books`; or take screenshots of pages and put them in `Books/<title>/Scans/`; or clip pages with the Web Clipper, filling in `course`, `book` (the book's title), and `page`, and Oso files each clip into that book. Highlights and notes exported from a reader app go in `Books/<title>/Highlights/`; they're kept as your notes, not as the book.
+
+Ask Claude to **check my notes** against the book for a lecture or a chapter: it lists what's wrong, what's missing, and what the book covers that your notes skip, and saves corrections beside your note (never inside it) if you want. Scanned handouts and worksheets anywhere in a course folder are read the same way. Book text stays in your vault. `oso fresh-start` keeps your books and what Oso has read of them.
+
 ### Connect Canvas for grades and coursework
 
 The calendar feed only brings in due dates. To let Oso read your grades, scores, missing work, instructor comments, and course files too, sign in to Canvas once through Oso:
@@ -322,6 +332,7 @@ oso quiz [N]              reopen a quiz window (the latest one not yet submitted
 oso profile --raw         show every recorded quiz, question by question
 oso connect-canvas        sign in to Canvas so Oso can read grades and coursework
 oso canvas --raw          show what Oso has read from Canvas
+oso books                 how far Oso has read each textbook (--reprocess TITLE reads one again)
 oso fresh-start           start over as if newly installed, keeping your settings (deletes the vault's contents)
 oso connect-calendar      let Oso put urgent changes on its own Google calendar
 oso disconnect-calendar   stop that and forget the access

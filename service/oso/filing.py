@@ -2,7 +2,9 @@
 
 The Web Clipper saves into `Clippings/` (its default) with a `course` property when the Oso template is
 used. When the student fills that property in (the course code, or the course's name or folder), the next
-sync moves the note into `Courses/<folder>/Readings/`. Notes without a course stay in Clippings.
+sync moves the note into `Courses/<folder>/Readings/`; with a `book` property too (a page clipped from a
+publisher's web reader, with its `page` number), into that book's `Clipped` folder, where it is searched as
+part of the book. Notes without a course stay in Clippings.
 """
 
 from __future__ import annotations
@@ -33,9 +35,20 @@ def file_clippings(cfg: Config) -> int:
         course = _match(cfg, fm.get("course"))
         if course is None:
             continue
-        dest = _free(cfg.vault / "Courses" / course.folder / "Readings" / src.name)
-        if fm.get("course") != course.code:
-            fm["course"] = course.code
+        book = str(fm.get("book") or "").strip()
+        changed = fm.get("course") != course.code
+        fm["course"] = course.code
+        if book:
+            # A page clipped from a publisher's web reader: it joins that book, as a source with its page number.
+            dest = _free(cfg.vault / "Courses" / course.folder / "Books" / notes.safe_name(book) / "Clipped" / src.name)
+            page = str(fm.get("page") or "").strip()
+            fm["type"] = "textbook"
+            if page and not body.lstrip().startswith("## p."):
+                body = f"## p. {page}\n\n{body.lstrip()}"
+            changed = True
+        else:
+            dest = _free(cfg.vault / "Courses" / course.folder / "Readings" / src.name)
+        if changed:
             src.write_text(notes.with_front_matter(fm, body), encoding="utf-8")
         src.replace(dest)
         moved += 1

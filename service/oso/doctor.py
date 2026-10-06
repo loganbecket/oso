@@ -109,6 +109,16 @@ def run(fix: bool = False) -> list[tuple[str, str]]:
     elif not secrets.get(secrets.CANVAS_TOKEN):
         out.append(("warn", "Canvas grades and coursework are not connected; only due dates come in. Run 'oso connect-canvas' to sign in."))
 
+    from . import books
+
+    for b in books.progress(cfg):
+        if b["error"]:
+            out.append(("warn", f"{b['book']}: {b['error']} Run 'oso books --reprocess \"{b['book']}\"' after replacing the file."))
+        elif not b["total"] or b["done"] < b["total"]:
+            out.append(("ok", f"Reading {b['book']}: {b['done']} of {b['total'] or '?'} pages so far; it continues on each check"))
+        else:
+            out.append(("ok", f"{b['book']} is read" + (f" ({b['poor']} pages are mostly equations or figures; Claude reads those when asked)" if b["poor"] else "")))
+
     from . import search
 
     si = search.status()

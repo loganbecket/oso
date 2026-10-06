@@ -148,7 +148,7 @@ def update(cfg: Config, path: Path | None = None) -> dict[str, int]:
             except OSError:
                 continue
             fm, body = notes.read_front_matter(text)
-            title = str(fm.get("title") or f.stem)
+            title = str(fm.get("title") or (f"{fm['book']}, {fm['chapter']}" if fm.get("type") == "textbook" else f.stem))
             course = _course_for(cfg, rel, fm)
             conn.execute("DELETE FROM chunks WHERE path = ?", (rel,))
             for heading, chunk in notes.split_sections(body, max_chars=CHUNK_CHARS):
@@ -188,7 +188,8 @@ def _fts_query(q: str) -> str:
     return " OR ".join(f'"{w}"' for w in words if len(w) > 1)
 
 
-def query(cfg: Config, q: str, course: str | None = None, limit: int = 8, path: Path | None = None) -> list[dict]:
+def query(cfg: Config, q: str, course: str | None = None, limit: int = 8, path: Path | None = None,
+          source: str | None = None) -> list[dict]:
     """The best-matching sections, combining exact-word and meaning rankings (reciprocal rank fusion).
 
     With a course: that course plus the earlier courses it is related to. Without: every course not marked
@@ -202,6 +203,11 @@ def query(cfg: Config, q: str, course: str | None = None, limit: int = 8, path: 
         params: list = hidden
     else:
         where, params = f" AND LOWER(c.course) IN ({','.join('?' * len(codes))})", sorted(codes)
+    book = "(c.path LIKE '%/Books/%' AND c.path NOT LIKE '%/Highlights/%')"  # his exported highlights are his notes
+    if source == "book":
+        where += f" AND {book}"
+    elif source == "notes":
+        where += f" AND NOT {book}"
     pool = max(50, limit * 6)
     ranks: dict[int, float] = {}
     with connect(path) as conn:
@@ -227,7 +233,8 @@ def query(cfg: Config, q: str, course: str | None = None, limit: int = 8, path: 
             return []
         found = {r["id"]: r for r in conn.execute(
             f"SELECT id, path, course, title, heading, text FROM chunks WHERE id IN ({','.join('?' * len(best))})", best)}
-    return [{"path": found[i]["path"], "course": found[i]["course"], "heading": found[i]["heading"], "text": found[i]["text"]} for i in best if i in found]
+    return [{"path": found[i]["path"], "course": found[i]["course"], "title": found[i]["title"], "heading": found[i]["heading"],
+             "text": found[i]["text"]} for i in best if i in found]
 
 
 def scope(cfg: Config, course: str | None) -> set[str] | None:

@@ -1,6 +1,6 @@
 # Summarize
 
-1. Find the material in as few steps as possible. If the student names a note, a day, or a lecture, call `list_notes` on that course's folder (for example `Courses/Physics/Notes`) and pick the match by name or date. For a topic rather than a named note, use `search_notes`.
+1. Find the material in as few steps as possible. If the student names a note, a day, or a lecture, call `list_notes` on that course's folder (for example `Courses/Physics/Notes`) and pick the match by name or date. For a book chapter, the chapter notes are in the course's `Books/<title>/` folder (`list_notes` on it). For a topic rather than a named note, use `search_notes`.
 2. Read it with `read_note` (keep calling with `next_start` if it comes back in pieces).
 3. Answer in the chat, at the length the student asked for. "Three sentences" means three sentences. With no length given, a short paragraph or five bullets at most.
 

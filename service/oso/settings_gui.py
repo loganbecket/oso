@@ -244,6 +244,8 @@ def open_settings(cfg: cfgmod.Config) -> None:
     ttk.Button(btns, text="Update Oso", command=lambda: show(_update_now())).grid(row=1, column=0, padx=4, pady=4)
     ttk.Button(btns, text="Connect Google Calendar…", command=lambda: show(_connect_calendar(cfg))).grid(row=0, column=4, padx=4)
     ttk.Button(btns, text="Connect Canvas…", command=lambda: show(_connect_canvas())).grid(row=1, column=1, padx=4, pady=4)
+    ttk.Button(btns, text="Books", command=lambda: show(_books(cfg))).grid(row=1, column=3, padx=4, pady=4)
+    ttk.Button(btns, text="Read a book again…", command=lambda: show(_reread_book(cfg, root))).grid(row=1, column=4, padx=4, pady=4)
     ttk.Button(btns, text="Disconnect Canvas", command=lambda: show(_disconnect_canvas())).grid(row=1, column=2, padx=4, pady=4)
     ttk.Button(btns, text="Close", command=root.destroy).grid(row=0, column=5, padx=4)
 
@@ -269,6 +271,28 @@ def _update_now() -> str:
     from . import update
 
     return update.run(cfgmod.load())
+
+
+def _books(cfg) -> str:
+    from . import books
+
+    rows = books.progress(cfg)
+    if not rows:
+        return "No books yet. Put a book's PDF or EPUB in a course's Books folder, or its scans in Books/<title>/Scans."
+    lines = []
+    for b in rows:
+        state = b["error"] or ("read" if b["total"] and b["done"] >= b["total"] else f"{b['done']} of {b['total'] or '?'} pages read so far")
+        lines.append(f"{b['book']} ({b['course']}): {state}" + (f"; {b['poor']} pages are mostly equations or figures" if b["poor"] else ""))
+    return "\n".join(lines)
+
+
+def _reread_book(cfg, root) -> str:
+    from tkinter import simpledialog
+
+    from . import books
+
+    title = simpledialog.askstring("Read a book again", "Which book? (its title or folder name)", parent=root)
+    return books.reprocess(cfg, title) if title else "Nothing changed."
 
 
 def _connect_canvas() -> str:

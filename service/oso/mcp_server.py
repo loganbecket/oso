@@ -359,11 +359,28 @@ def recent_quizzes(course: str | None = None, limit: int = 10) -> list[dict]:
 
 
 @mcp.tool()
-def search_notes(query: str, course: str | None = None, limit: int = 8) -> list[dict]:
-    """Best-matching sections of the student's notes and materials, by meaning and exact words. With a course: it and its related earlier courses; without: all current courses. Returns path, heading, text."""
+def search_notes(query: str, course: str | None = None, limit: int = 8, source: str | None = None) -> list[dict]:
+    """Best-matching sections of the student's notes and materials, by meaning and exact words. source: "book" (textbooks only; headings are "p. N") | "notes" (everything else) | omit for both. With a course: it and its related earlier courses."""
     from . import search
 
-    return search.query(_cfg(), query, course=course, limit=limit)
+    return search.query(_cfg(), query, course=course, limit=limit, source=source)
+
+
+@mcp.tool()
+def book_page(book: str, page: str) -> dict:
+    """One textbook page: its text, whether it was read poorly, and its page image path (look at the image for equations, tables, figures)."""
+    from . import books
+
+    return books.page(_cfg(), book, page)
+
+
+@mcp.tool()
+def save_page_reading(book: str, page: str, text: str) -> str:
+    """Save your reading of a textbook page that was read poorly (from its image), so it never needs reading again."""
+    from . import books
+
+    with db.connect() as conn:
+        return books.save_page_reading(_cfg(), book, page, text, conn)
 
 
 @mcp.tool()

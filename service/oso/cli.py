@@ -57,6 +57,8 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--client-file", required=True, help="the OAuth client file downloaded from Google Cloud")
     sub.add_parser("connect-canvas", help="sign in to Canvas so Oso can read your grades and coursework")
     sub.add_parser("disconnect-canvas", help="forget the Canvas sign-in")
+    s = sub.add_parser("books", help="show how far Oso has read each textbook")
+    s.add_argument("--reprocess", metavar="TITLE", help="read a book again from the start")
     s = sub.add_parser("canvas", help="show what Oso has read from Canvas")
     s.add_argument("--raw", action="store_true", help="every course and assignment with its score")
     sub.add_parser("disconnect-calendar", help="stop Oso writing to Google Calendar and forget its access")
@@ -206,6 +208,20 @@ def _dispatch(args: argparse.Namespace) -> int:
         print("Oso forgot your Canvas sign-in. Due dates still come from the calendar feed.")
         return 0
 
+    if args.cmd == "books":
+        from . import books
+
+        if args.reprocess:
+            print(books.reprocess(cfg, args.reprocess))
+            return 0
+        rows = books.progress(cfg)
+        if not rows:
+            print("No books yet. Put a book's PDF or EPUB in a course's Books folder, or its scans in Books/<title>/Scans.")
+        for b in rows:
+            state = b["error"] or ("done" if b["total"] and b["done"] >= b["total"] else f"{b['done']} of {b['total'] or '?'} pages read")
+            print(f"{b['book']} ({b['course']}): {state}" + (f"; {b['poor']} pages read poorly" if b["poor"] else ""))
+        return 0
+
     if args.cmd == "canvas":
         from . import canvas_store
 
@@ -260,7 +276,7 @@ def _dispatch(args: argparse.Namespace) -> int:
         except fresh.NotAVault as e:
             print(f"Stopped: {e} Nothing was deleted.")
             return 1
-        print(f"This deletes everything in {cfg.vault} except Obsidian's settings, plus every course, deadline,")
+        print(f"This deletes everything in {cfg.vault} except Obsidian's settings and your textbooks, plus every course, deadline,")
         print("grade, quiz result, and transcription Oso has recorded. There is no backup. Your settings and connections are kept.")
         print("Quit the Claude app first.")
         if input("Type yes to start fresh: ").strip().lower() != "yes":

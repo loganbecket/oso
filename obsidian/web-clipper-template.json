@@ -6,12 +6,46 @@
   "path": "Clippings",
   "noteContentFormat": "{{content}}",
   "properties": [
-    { "name": "type", "value": "reading", "type": "text" },
-    { "name": "course", "value": "", "type": "text" },
-    { "name": "title", "value": "{{title}}", "type": "text" },
-    { "name": "source", "value": "{{url}}", "type": "text" },
-    { "name": "author", "value": "{{author}}", "type": "text" },
-    { "name": "clipped", "value": "{{date}}", "type": "date" }
+    {
+      "name": "type",
+      "value": "reading",
+      "type": "text"
+    },
+    {
+      "name": "course",
+      "value": "",
+      "type": "text"
+    },
+    {
+      "name": "book",
+      "value": "",
+      "type": "text"
+    },
+    {
+      "name": "page",
+      "value": "",
+      "type": "text"
+    },
+    {
+      "name": "title",
+      "value": "{{title}}",
+      "type": "text"
+    },
+    {
+      "name": "source",
+      "value": "{{url}}",
+      "type": "text"
+    },
+    {
+      "name": "author",
+      "value": "{{author}}",
+      "type": "text"
+    },
+    {
+      "name": "clipped",
+      "value": "{{date}}",
+      "type": "date"
+    }
   ],
   "triggers": []
 }

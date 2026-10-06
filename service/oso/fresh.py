@@ -2,7 +2,8 @@
 
 Kept: the settings (vault location, time zone, check schedule, urgency and quiet hours, models, update
 channel), the Canvas feed and token and the Google Calendar connection in the credential store, the
-scheduled check, the Canvas sign-in, Obsidian's own settings and plugins (`.obsidian`), and the downloaded
+scheduled check, the Canvas sign-in, Obsidian's own settings and plugins (`.obsidian`), the courses' textbooks
+(each course's `Books` folder, with what Oso has read of them), and the downloaded
 search model. Everything read from Canvas is cleared and read again on the next check.
 
 Deleted, with no backup: everything else in the vault, the courses and anything tied to them (muted
@@ -22,6 +23,7 @@ from . import db, search
 from .config import Config
 
 KEEP_IN_VAULT = {".obsidian"}
+BOOKS = "Books"  # a course's textbooks are purchases, not Oso's records: kept, with what Oso has read of them
 
 
 class NotAVault(Exception):
@@ -40,8 +42,29 @@ def check_vault(vault: Path) -> None:
 
 
 def plan(cfg: Config) -> list[Path]:
-    """What would be deleted from the vault."""
-    return sorted(p for p in cfg.vault.iterdir() if p.name not in KEEP_IN_VAULT)
+    """What would be deleted from the vault: everything except Obsidian's settings and the courses' Books
+    folders (the folders around a Books folder are kept only as far as needed to hold it)."""
+    keep = {p.resolve() for p in (cfg.vault / "Courses").rglob(BOOKS) if p.is_dir()} if (cfg.vault / "Courses").is_dir() else set()
+    out: list[Path] = []
+
+    def walk(folder: Path) -> None:
+        for p in folder.iterdir():
+            r = p.resolve()
+            if r in keep:
+                continue
+            if p.is_dir() and any(k.is_relative_to(r) for k in keep):
+                walk(p)  # holds a Books folder somewhere inside: look deeper
+            else:
+                out.append(p)
+
+    for p in cfg.vault.iterdir():
+        if p.name in KEEP_IN_VAULT:
+            continue
+        if p.is_dir() and any(k.is_relative_to(p.resolve()) for k in keep):
+            walk(p)
+        else:
+            out.append(p)
+    return sorted(out)
 
 
 def run(cfg: Config) -> list[str]:
@@ -56,7 +79,7 @@ def run(cfg: Config) -> list[str]:
             removed += 1
         except OSError as e:
             problems.append(f"Could not delete {p.name} ({e.strerror or type(e).__name__}); close any program using it and run this again.")
-    lines.append(f"Deleted {removed} item{'s' if removed != 1 else ''} from the vault (kept Obsidian's settings).")
+    lines.append(f"Deleted {removed} item{'s' if removed != 1 else ''} from the vault (kept Obsidian's settings and your textbooks).")
 
     cfg.courses = []
     cfg.muted_courses = []

@@ -1,7 +1,7 @@
 # Check my work
 
 1. Read the attempt (text, or the image they attach) and find the first point where it goes wrong, if any.
-2. If the course's notation or method matters, call `search_notes` for it. Skip this when the mistake is plain.
+2. If the course's notation or method matters, call `search_notes` for it, the book first (`source` "book"), then his notes. Skip this when the mistake is plain. If his notes taught him the wrong method, say so and go with the book.
 3. Reply briefly:
    - if correct: say so, plus one tip if there is a useful one
    - if not: what is right so far, the first mistake named precisely (cite the notes as `[[path]]` if you used them), and a hint for the next step, not the answer

@@ -9,6 +9,7 @@ when any of these hold:
 - his last quiz on those topics scored below `quiz_warning_percent`
 - his scores on those topics dropped across his last two quizzes on them
 - his graded Canvas work on those topics averages below `quiz_warning_percent`, or some of it is missing
+- chapters the syllabus assigns as reading before the exam have no notes of his at all
 
 If no topic is mapped to the exam, the whole course's topics stand in, and the line says so.
 The flags go into a "Readiness" section of `Today.md`, one line per exam.
@@ -16,6 +17,7 @@ The flags go into a "Readiness" section of `Today.md`, one line per exam.
 
 from __future__ import annotations
 
+import re
 import sqlite3
 from datetime import datetime
 
@@ -51,6 +53,46 @@ def _quizzes_on(conn: sqlite3.Connection, course: str, topics: list[str]) -> lis
             ORDER BY z.finished_at, z.id""",
         (course, *topics),
     ).fetchall()
+
+
+_CHAPTERS = re.compile(r"\bch(?:apter|apters|s|\.)?\s*(\d+)(?:\s*(?:-|–|to|through)\s*(\d+))?", re.IGNORECASE)
+
+
+def chapter_numbers(text: str) -> list[int]:
+    out: list[int] = []
+    for m in _CHAPTERS.finditer(text or ""):
+        a = int(m.group(1))
+        b = int(m.group(2)) if m.group(2) else a
+        out += list(range(a, min(b, a + 30) + 1))
+    return out
+
+
+def chapters_without_notes(conn: sqlite3.Connection, cfg: Config, course, exam_due: datetime) -> list[int]:
+    """Chapters the syllabus assigns as reading since the previous exam (up to this one) that none of his
+    notes mention, by title or opening lines ("ch. 5", "Chapter 5")."""
+    from .db import EFFECTIVE
+
+    rows = conn.execute(
+        f"""SELECT kind, {EFFECTIVE} FROM items WHERE deleted_at IS NULL AND merged_into IS NULL
+            AND COALESCE(user_course, course_code) = ? AND kind IN ('reading', 'exam') AND COALESCE(user_due_at, due_at) IS NOT NULL
+            ORDER BY COALESCE(user_due_at, due_at)""",
+        (course.code,),
+    ).fetchall()
+    due = exam_due.isoformat(timespec="minutes")
+    previous = max((r["due_at"] for r in rows if r["kind"] == "exam" and r["due_at"] < due), default="")
+    assigned = sorted({n for r in rows if r["kind"] == "reading" and previous < r["due_at"] <= due for n in chapter_numbers(r["title"])})
+    if not assigned:
+        return []
+    folder = cfg.vault / "Courses" / course.folder / "Notes"
+    covered: set[int] = set()
+    if folder.is_dir():
+        for f in folder.rglob("*.md"):
+            try:
+                head = f.read_text(encoding="utf-8", errors="replace")[:600]
+            except OSError:
+                continue
+            covered.update(chapter_numbers(f.stem + "\n" + head))
+    return [n for n in assigned if n not in covered]
 
 
 def _names(topics: list[str]) -> str:
@@ -96,6 +138,9 @@ def flags(conn: sqlite3.Connection, cfg: Config, now: datetime) -> list[dict]:
             gone = canvas_store.missing_on(conn, c.code, topics)
             if gone:
                 reasons.append(f"missing: {_names(gone)}")
+        unread = chapters_without_notes(conn, cfg, c, item["due"])
+        if unread:
+            reasons.append("no notes yet on assigned " + ", ".join(f"ch. {n}" for n in unread))
         if len(quizzes) >= 2 and None not in (quizzes[-1]["score"], quizzes[-2]["score"]) \
                 and quizzes[-2]["score"] - quizzes[-1]["score"] >= SLIP_POINTS:
             reasons.append(f"scores dropping ({quizzes[-2]['score']:.0f}% then {quizzes[-1]['score']:.0f}%)")

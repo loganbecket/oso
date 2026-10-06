@@ -35,7 +35,7 @@ GOOGLE = {".gdoc": "document", ".gsheet": "spreadsheets", ".gslides": "presentat
 CONVERTIBLE = MARKITDOWN | OPENDOCUMENT | LEGACY | set(GOOGLE)
 
 _LO_TARGET = {".odt": "docx", ".doc": "docx", ".rtf": "docx", ".ods": "xlsx", ".odp": "pptx", ".ppt": "pptx"}
-SKIP_FOLDERS = {"Handwriting", "Quizzes", "pages", ".obsidian", ".trash"}
+SKIP_FOLDERS = {"Handwriting", "Quizzes", "Books", "pages", ".obsidian", ".trash"}  # books are read by books.py
 
 
 def convert_vault(cfg: Config) -> list[Path]:
@@ -47,8 +47,9 @@ def convert_vault(cfg: Config) -> list[Path]:
         for src in root.rglob("*"):
             if not src.is_file() or src.suffix.lower() not in CONVERTIBLE:
                 continue
-            if SKIP_FOLDERS & set(src.relative_to(cfg.vault).parts):
-                continue
+            parts = set(src.relative_to(cfg.vault).parts)
+            if SKIP_FOLDERS & parts and not ("Books" in parts and "Highlights" in parts and not (SKIP_FOLDERS - {"Books"}) & parts):
+                continue  # but highlights exported from a reader app are converted like any document
             out = src.with_name(src.name + ".md")
             if out.exists() and out.stat().st_mtime >= src.stat().st_mtime:
                 continue
@@ -90,8 +91,33 @@ def _markitdown(path: Path) -> str:
     result = MarkItDown(enable_plugins=False).convert(str(path))
     text = (getattr(result, "markdown", None) or result.text_content or "").strip()
     if not text and path.suffix.lower() == ".pdf":
-        return "(No text layer found. If this is a scan or handwriting, move it to the course's Handwriting folder to have it transcribed.)"
+        return _recognize_scan(path)
     return text
+
+
+def _recognize_scan(path: Path) -> str:
+    """A scanned handout or worksheet: read each page with the computer's own text recognition."""
+    import tempfile
+
+    import pypdfium2 as pdfium
+
+    from . import ocr
+
+    if not ocr.available():
+        return "(This is a scan, and this computer has no text recognizer for it. If it is handwriting, move it to the course's Handwriting folder to have it transcribed.)"
+    doc = pdfium.PdfDocument(str(path))
+    parts = []
+    with tempfile.TemporaryDirectory() as tmp:
+        for i in range(len(doc)):
+            image = Path(tmp) / f"p{i + 1}.png"
+            page = doc[i]
+            page.render(scale=max(1.0, min(4.0, 1800 / (page.get_height() or 1)))).to_pil().save(image)
+            try:
+                text = ocr.read_image(image).strip()
+            except ocr.OcrUnavailable:
+                text = ""
+            parts.append(f"## p. {i + 1}\n\n{text or '(No text recognized on this page.)'}")
+    return "(Scanned; text recognized by the computer, so check equations against the original.)\n\n" + "\n\n".join(parts)
 
 
 def libreoffice() -> str | None:

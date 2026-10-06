@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from . import alerts, canvas_session, canvas_store, convert, dashboard, db, drive, filing, handwriting, instructions, mastery, merge, search, secrets, skillsync, today, update
+from . import alerts, books, canvas_session, canvas_store, convert, dashboard, db, drive, filing, handwriting, instructions, mastery, merge, search, secrets, skillsync, today, update
 from .config import Config
 from .connectors import Connector
 from .connectors.canvas_api import CanvasApi, SessionExpired
@@ -73,6 +73,7 @@ def run(cfg: Config, now: datetime | None = None) -> dict[str, object]:
         results["filed"] = _safe(lambda: filing.file_clippings(cfg), 0)
         results["drive_mirrored"] = _safe(lambda: drive.mirror(cfg), 0)
         results["converted"] = len(_safe(lambda: convert.convert_vault(cfg), []))
+        results["books"] = _safe(lambda: books.process(cfg, conn), {})
         results["search"] = _safe(lambda: search.update(cfg), {})
         results["profiles"] = len(_safe(lambda: mastery.write_all(conn, cfg, now), []))
         results["remarkable"] = _pull_tablet(conn, cfg)

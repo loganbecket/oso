@@ -5,7 +5,8 @@ channel), the Canvas feed and token and the Google Calendar connection in the cr
 scheduled check, Obsidian's own settings and plugins (`.obsidian`), and the downloaded search model.
 
 Deleted, with no backup: everything else in the vault, the courses and anything tied to them (muted
-courses, Drive folder links), and Oso's database (deadlines, grades, alerts, transcription history), its
+courses, Drive folder links), and Oso's database (deadlines, grades, alerts, transcription history, and the
+learner profile: every quiz, check, and topic rating), its
 search index, and its record of the command instructions. A sync then rebuilds the starting folders,
 `Today.md`, and the command instructions, and pulls the Canvas deadlines back in.
 """

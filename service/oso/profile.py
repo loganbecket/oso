@@ -277,6 +277,46 @@ def record_check(conn: sqlite3.Connection, cfg: Config, course: str, topic: str,
     return {"check_id": cur.lastrowid, "course": c.code, "topic": name}
 
 
+def correct(conn: sqlite3.Connection, quiz_id: int | None = None, number: int | None = None, check_id: int | None = None,
+            result: str | None = None, mistake: str | None = None, remove: bool = False) -> str:
+    """Fix a recorded result the student says is wrong: regrade one quiz question (the quiz's score is
+    recomputed), or change or remove one check. Returns a plain sentence saying what changed."""
+    ensure(conn)
+    if check_id is not None:
+        row = conn.execute("SELECT * FROM checks WHERE id = ?", (check_id,)).fetchone()
+        if row is None:
+            raise ProfileError(f"There is no check {check_id}.")
+        if remove:
+            conn.execute("DELETE FROM checks WHERE id = ?", (check_id,))
+            return f"Removed check {check_id} ({row['topic']})."
+        ok = _pick(result, ("right", "wrong"), "A check's result") == "right"
+        kind = None if ok else _pick(mistake, MISTAKES, "The mistake")
+        conn.execute("UPDATE checks SET correct = ?, mistake = ? WHERE id = ?", (1 if ok else 0, kind, check_id))
+        return f"Check {check_id} ({row['topic']}) is now recorded as {'right' if ok else 'wrong'}."
+    if quiz_id is None or number is None:
+        raise ProfileError("Say which quiz and question, or which check, to correct.")
+    q = conn.execute("SELECT id, topic FROM quiz_questions WHERE quiz_id = ? AND number = ?", (quiz_id, number)).fetchone()
+    if q is None:
+        raise ProfileError(f"Quiz {quiz_id} has no question {number}.")
+    if remove:
+        conn.execute("DELETE FROM quiz_answers WHERE question_id = ?", (q["id"],))
+        verdict = "not graded"
+    else:
+        res = _pick(result, RESULTS, "The result")
+        kind = _pick(mistake, MISTAKES, "The mistake") if res in ("partly_right", "wrong") else None
+        if conn.execute("SELECT 1 FROM quiz_answers WHERE question_id = ?", (q["id"],)).fetchone():
+            conn.execute("UPDATE quiz_answers SET result = ?, mistake = ? WHERE question_id = ?", (res, kind, q["id"]))
+        else:
+            when = _now()
+            conn.execute("INSERT INTO quiz_answers (question_id, result, mistake, attempts, hint, first_answered_at, answered_at) VALUES (?, ?, ?, 1, 0, ?, ?)",
+                         (q["id"], res, kind, when, when))
+        verdict = res.replace("_", " ")
+    quiz = conn.execute("SELECT finished_at FROM quizzes WHERE id = ?", (quiz_id,)).fetchone()
+    if quiz["finished_at"]:
+        conn.execute("UPDATE quizzes SET score = ? WHERE id = ?", (_progress(conn, quiz_id)["score"], quiz_id))
+    return f"Quiz {quiz_id}, question {number} ({q['topic']}) is now {verdict}."
+
+
 def recent_checks(conn: sqlite3.Connection, course: str | None = None, limit: int = 20) -> list[dict]:
     ensure(conn)
     sql, params = "SELECT * FROM checks", []
@@ -525,6 +565,6 @@ def raw_dump(conn: sqlite3.Connection, limit: int = 10) -> str:
             theme = f" / {k['theme']}" if k["theme"] else ""
             res = "right" if k["correct"] else f"mistake: {k['mistake']}" + (f" ({k['mistake_at']})" if k["mistake_at"] else "")
             extra = (f", {k['hints']} hint{'s' if k['hints'] != 1 else ''}" if k["hints"] else "") + (", asked for the full solution" if k["full_solution"] else "")
-            lines.append(f"  {k['checked_at']} | {k['course']} | {k['topic']}{theme}: {res}{extra}")
+            lines.append(f"  Check {k['id']} | {k['checked_at']} | {k['course']} | {k['topic']}{theme}: {res}{extra}")
         lines.append("")
     return "\n".join(lines) if lines else "Nothing recorded yet."

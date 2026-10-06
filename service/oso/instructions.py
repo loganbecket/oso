@@ -30,7 +30,7 @@ This is a student's course vault managed by Oso. Use the Oso tools (`list_deadli
 - Set up a course from a syllabus: create-course. Morning briefing: oso-briefing. Recent urgent changes: oso-alerts (the service puts them on the calendar itself).
 - Explain a topic: oso-explain. Summarize: oso-summarize. Study guide: oso-study-guide. Quiz or practice test: oso-quiz. Check an attempt: oso-check. Flashcards: oso-flashcards.
 - The instructions behind each Oso command are in `Oso/Skills/`; the student may edit them. New versions that clash with their edits: oso-skill-updates.
-- What the student knows per topic (shaky, untested, strong, from quiz and check results): `get_profile`; summaries are in `Oso/Profile/`.
+- What the student knows per topic (shaky, untested, strong, from quiz and check results), and fixing a result recorded wrong: oso-profile; summaries are in `Oso/Profile/`.
 - Finish, reopen, or relate courses: oso-courses.
 - Grades and what-if: oso-grades. Study plan: oso-plan. Handwriting: run `oso transcribe` (or oso-transcribe). Something broken: oso-doctor.
 

@@ -48,6 +48,10 @@ One list of every assignment, quiz, exam, and reading across all courses, with d
 
 Every 15 minutes (adjustable) the service checks each source against its last snapshot. A moved due date, a rescheduled exam, or a new graded item due within the urgent window is urgent: the service puts it straight on the Oso Google calendar with reminders, without involving Claude. Everything else waits for the morning. Quiet hours and per-course muting are available. A broken connector or an expired login shows up in the briefing as a sentence.
 
+### Knowing what the student knows
+
+Every quiz (taken in Oso's quiz window, timed per question, with written work from the reMarkable or a scan) and every check of the student's own work is recorded: topic, result, kind of mistake, attempts, hints, and time. Each course's topic list comes from its syllabus, so a topic with no results is untested, never assumed known. From those results Oso rates each topic strong, shaky, or untested, aims quizzes and study guides at the weak ones, flags exams within a week that the student isn't ready for, and once a week describes practice habits (lead time before exams, follow-through on missed topics, trends, where practice goes) in behavior, never character. Summaries live in `Oso/Profile/`; the records live in SQLite. Oso does not read chats: test results are the evidence.
+
 ### The morning briefing
 
 The service writes the day's facts into `Today.md` in the vault on every check: due today, due this week, overnight changes, exam countdowns, connector problems, pages that transcribed badly. A scheduled Cowork task each morning reads it through Google Drive and delivers the briefing in the Claude app on the phone, which works while the laptop sleeps. A local Claude Code run is the fallback. A Sunday review covers the week behind and the week ahead.

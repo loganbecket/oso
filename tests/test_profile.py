@@ -182,3 +182,21 @@ def test_checks_recorded(env):
         profile.record_check(conn, cfg, "PHYS-110", "Kinematics", correct=False)
     with pytest.raises(profile.ProfileError, match="no course"):
         profile.record_check(conn, cfg, "BIO", "x", correct=True)
+
+
+def test_corrections(env):
+    conn, cfg = env
+    qid = profile.start_quiz(conn, cfg, "PHYS-110", QUESTIONS[:2])
+    profile.record_answers(conn, qid, [{"number": 1, "result": "wrong", "mistake": "concept_gap"}, {"number": 2, "result": "right"}])
+    assert profile.finish_quiz(conn, qid)["score"] == 50.0
+    assert "is now right" in profile.correct(conn, quiz_id=qid, number=1, result="right")
+    assert profile.summary(conn, qid)["score"] == 100.0 and profile.summary(conn, qid)["questions"][0]["mistake"] is None
+    assert "not graded" in profile.correct(conn, quiz_id=qid, number=2, remove=True)
+    assert profile.summary(conn, qid)["score"] == 50.0
+    c = profile.record_check(conn, cfg, "PHYS-110", "Forces", correct=True)
+    assert "now recorded as wrong" in profile.correct(conn, check_id=c["check_id"], result="wrong", mistake="misread question")
+    assert profile.recent_checks(conn)[0]["mistake"] == "misread_question"
+    assert "Removed check" in profile.correct(conn, check_id=c["check_id"], remove=True)
+    assert profile.recent_checks(conn) == []
+    with pytest.raises(profile.ProfileError, match="Say which"):
+        profile.correct(conn, result="right")

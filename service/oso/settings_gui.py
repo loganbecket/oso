@@ -103,6 +103,34 @@ def open_settings(cfg: cfgmod.Config) -> None:
     ttk.Combobox(frm, textvariable=channel_var, values=["stable", "latest"], width=12, state="readonly").grid(row=row, column=1, sticky="w", **pad)
     row += 1
 
+    # Learner profile
+    ttk.Separator(frm).grid(row=row, column=0, columnspan=3, sticky="we", pady=8)
+    row += 1
+    label("A topic is strong at", "percent or better, from quiz and check results")
+    strong_var = tk.IntVar(value=cfg.strong_percent)
+    ttk.Spinbox(frm, from_=50, to=100, increment=5, textvariable=strong_var, width=6).grid(row=row, column=1, sticky="w", **pad)
+    row += 1
+    label("...over at least", "results in the last 60 days")
+    strong_n_var = tk.IntVar(value=cfg.strong_min_results)
+    ttk.Spinbox(frm, from_=1, to=50, textvariable=strong_n_var, width=6).grid(row=row, column=1, sticky="w", **pad)
+    row += 1
+    label("A topic counts as untested with fewer than", "results")
+    untested_var = tk.IntVar(value=cfg.untested_below)
+    ttk.Spinbox(frm, from_=1, to=20, textvariable=untested_var, width=6).grid(row=row, column=1, sticky="w", **pad)
+    row += 1
+    label("A result this old counts half as much", "days")
+    half_var = tk.IntVar(value=cfg.half_life_days)
+    ttk.Spinbox(frm, from_=3, to=180, textvariable=half_var, width=6).grid(row=row, column=1, sticky="w", **pad)
+    row += 1
+    label("Check readiness for exams within", "days")
+    ready_var = tk.IntVar(value=cfg.readiness_days)
+    ttk.Spinbox(frm, from_=1, to=30, textvariable=ready_var, width=6).grid(row=row, column=1, sticky="w", **pad)
+    row += 1
+    label("Warn when the last quiz on an exam's topics is below", "percent")
+    warn_var = tk.IntVar(value=cfg.quiz_warning_percent)
+    ttk.Spinbox(frm, from_=0, to=100, increment=5, textvariable=warn_var, width=6).grid(row=row, column=1, sticky="w", **pad)
+    row += 1
+
     # reMarkable folder
     label("Tablet folder holding the course folders", "leave empty if course folders are at the tablet's top level")
     rm_var = tk.StringVar(value=cfg.remarkable_folder or "")
@@ -173,6 +201,12 @@ def open_settings(cfg: cfgmod.Config) -> None:
             cfg.read_cap_chars = max(0, int(cap_var.get()))
             cfg.write_vault_instructions = bool(instr_var.get())
             cfg.channel = channel_var.get() or "stable"
+            cfg.strong_percent = min(100, max(50, int(strong_var.get())))
+            cfg.strong_min_results = max(1, int(strong_n_var.get()))
+            cfg.untested_below = max(1, int(untested_var.get()))
+            cfg.half_life_days = max(3, int(half_var.get()))
+            cfg.readiness_days = max(1, int(ready_var.get()))
+            cfg.quiz_warning_percent = min(100, max(0, int(warn_var.get())))
             cfg.muted_courses = [code for code, v in mute_vars.items() if v.get()]
             cfgmod.save(cfg)
             if feed_var.get().strip():

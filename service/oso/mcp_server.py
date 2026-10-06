@@ -269,6 +269,16 @@ def get_profile(course: str) -> dict:
 
 
 @mcp.tool()
+def correct_result(quiz_id: int | None = None, number: int | None = None, check_id: int | None = None,
+                   result: str | None = None, mistake: str | None = None, remove: bool = False) -> str:
+    """Fix a recorded result the student says is wrong: a quiz question (quiz_id + number) or a check (check_id); new result and mistake kind, or remove."""
+    from . import profile
+
+    with db.connect() as conn:
+        return profile.correct(conn, quiz_id, number, check_id, result, mistake, remove)
+
+
+@mcp.tool()
 def practice_habits() -> dict:
     """Practice-habit numbers from quiz and check results: lead time before exams, follow-through on missed topics, score trends, practice share per course, pace. enough_data says whether there is enough to describe."""
     from . import habits

@@ -224,7 +224,7 @@ def _dispatch(args: argparse.Namespace) -> int:
             print(f"Stopped: {e} Nothing was deleted.")
             return 1
         print(f"This deletes everything in {cfg.vault} except Obsidian's settings, plus every course, deadline,")
-        print("grade, and transcription Oso has recorded. There is no backup. Your settings and connections are kept.")
+        print("grade, quiz result, and transcription Oso has recorded. There is no backup. Your settings and connections are kept.")
         print("Quit the Claude app first.")
         if input("Type yes to start fresh: ").strip().lower() != "yes":
             print("Nothing was deleted.")

@@ -1,5 +1,6 @@
-# Oso installer for Windows. Paste this into PowerShell:
-#   powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/loganbecket/oso/master/install.ps1 | iex"
+# Oso installer for Windows. Paste these into PowerShell, one line at a time:
+#   irm https://raw.githubusercontent.com/loganbecket/oso/master/install.ps1 -OutFile $env:TEMP\oso-install.ps1
+#   powershell -ExecutionPolicy Bypass -File $env:TEMP\oso-install.ps1
 
 $ErrorActionPreference = "Stop"
 $Repo = if ($env:OSO_REPO) { $env:OSO_REPO } else { "loganbecket/oso" }

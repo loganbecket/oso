@@ -20,6 +20,6 @@ Read `docs/spec.md` for what Oso does and why, and `docs/plan.md` for what to bu
 
 - `service/` Python service and connectors
 - `plugin/` Claude plugin: skills and MCP server configuration
-- `install.ps1`, `install.sh` one-line installers that download from GitHub (no Git needed)
+- `install.ps1`, `install.sh` installers that download from GitHub (no Git needed)
 - `obsidian/` the Web Clipper template
 - `docs/` spec and plan

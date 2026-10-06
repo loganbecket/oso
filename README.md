@@ -92,12 +92,16 @@ Canvas is your school's course website where assignments and grades are posted. 
 
 ### 2.2 Run the installer
 
-Copy the line for your platform into the command window from step 1.7 and press Enter.
+Copy the lines for your platform into the command window from step 1.7, one at a time, pressing Enter after each.
 
-- **Windows** (PowerShell):
+- **Windows** (PowerShell), two lines:
 
   ```
-  powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/loganbecket/oso/master/install.ps1 | iex"
+  irm https://raw.githubusercontent.com/loganbecket/oso/master/install.ps1 -OutFile $env:TEMP\oso-install.ps1
+  ```
+
+  ```
+  powershell -ExecutionPolicy Bypass -File $env:TEMP\oso-install.ps1
   ```
 
 - **macOS and Linux**:

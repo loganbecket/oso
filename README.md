@@ -289,7 +289,7 @@ oso set-drive-folder MATH-101-001 "<path to that folder>"
 | `oso install-task` says `Access is denied` | You have a version older than v0.1.1. Run the installer lines again (step 2.2). |
 | A handwritten page came out wrong | The original page image is linked at the bottom of the note. Fix the text in Obsidian; Oso never overwrites your edits. |
 | The tablet does not sync | Check **USB web interface** is on, the cable is in, and the tablet software is current. Check the notebook is inside a folder named after the course. Run `oso sync` while it is plugged in. |
-| I want to start over | Delete the vault folder and the Oso data folder (`oso doctor` prints where it is). Run the installer lines again. |
+| I want to start over | Quit the Claude app and run `oso fresh-start`. It deletes everything in the vault (except Obsidian's settings) and everything Oso has recorded, with no backup, keeps all your settings and connections, and pulls your Canvas deadlines back in. Then set up each course again with `/create-course`. |
 
 ## Commands
 
@@ -306,6 +306,7 @@ oso install-task          schedule the sync (every 15 minutes by default)
 oso update                install the newest Oso on your update channel
 oso update --version V    install an exact earlier version
 oso reset-skills [NAME]   put back Oso's version of its commands (all, or the ones named)
+oso fresh-start           start over as if newly installed, keeping your settings (deletes the vault's contents)
 oso connect-calendar      let Oso put urgent changes on its own Google calendar
 oso disconnect-calendar   stop that and forget the access
 ```

@@ -41,6 +41,7 @@ jobs:
         run: |
           uv tool install --python 3.12 .
           $env:Path = "$env:USERPROFILE\.local\bin;$env:Path"
+          New-Item -ItemType Directory "$env:RUNNER_TEMP\vault" | Out-Null
           oso init --vault "$env:RUNNER_TEMP\vault" --timezone America/New_York --canvas-feed-url ""
           # Hold Oso's files open the way the Claude app's copy does.
           $py = Join-Path (uv tool dir) "oso\Scripts\python.exe"

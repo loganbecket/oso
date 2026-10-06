@@ -55,6 +55,9 @@ def test_window_steps_through_and_submits(tmp_path: Path, monkeypatch):
 
     monkeypatch.setattr(tk.Tk, "mainloop", lambda self, n=0: drive(self))
     quizwin.run(qid)
+    import gc
+
+    gc.collect()  # free the window's Tcl objects here, on the main thread; Tcl aborts if a later test's thread frees them
     assert seen == ["Question 2 of 2", "Answers submitted."]
     with db.connect() as conn:
         view = profile.grading_view(conn, cfg, qid)

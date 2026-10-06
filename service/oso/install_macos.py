@@ -25,6 +25,25 @@ _PLIST = """<?xml version="1.0" encoding="UTF-8"?>
 """
 
 
+WATCH_LABEL = "com.oso.watch"
+
+_WATCH_PLIST = """<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>{label}</string>
+  <key>ProgramArguments</key>
+  <array><string>{python}</string><string>-m</string><string>oso.watch</string></array>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ProcessType</key><string>Background</string>
+  <key>StandardOutPath</key><string>{log}</string>
+  <key>StandardErrorPath</key><string>{log}</string>
+</dict>
+</plist>
+"""
+
+
 def install_agent(every_minutes: int = 60) -> str:
     exe = shutil.which("oso") or sys.argv[0]
     agents = Path.home() / "Library" / "LaunchAgents"
@@ -38,7 +57,12 @@ def install_agent(every_minutes: int = 60) -> str:
     except (subprocess.CalledProcessError, FileNotFoundError) as e:
         detail = getattr(e, "stderr", "") or str(e)
         return f"Wrote {plist} but could not start it: {detail.strip()}"
-    return f"Installed the {LABEL} agent: runs every {every_minutes} minutes and on login. Missed runs are made up when the Mac wakes."
+    watch = agents / f"{WATCH_LABEL}.plist"
+    watch.write_text(_WATCH_PLIST.format(label=WATCH_LABEL, python=sys.executable, log=log.with_name("oso-watch.log")), encoding="utf-8")
+    subprocess.run(["launchctl", "unload", str(watch)], capture_output=True)
+    subprocess.run(["launchctl", "load", str(watch)], capture_output=True)
+    return (f"Installed the {LABEL} agent: runs every {every_minutes} minutes and on login. Missed runs are made up when the Mac wakes. "
+            "New files in your course folders are taken in as soon as they arrive.")
 
 
 def installed() -> bool:

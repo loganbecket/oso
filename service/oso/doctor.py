@@ -82,6 +82,18 @@ def run(fix: bool = False) -> list[tuple[str, str]]:
         unit = Path.home() / ".config" / "systemd" / "user" / "oso-sync.timer"
         out.append(("ok", "systemd timer installed") if unit.exists() else _schedule_missing(cfg, fix, "Timer"))
 
+    from . import watch
+
+    if watch.alive():
+        out.append(("ok", "Folder watcher is running: new files are taken in as soon as they arrive"))
+    elif fix:
+        from .update import _reschedule
+
+        _reschedule(cfg)
+        out.append(("ok", "Folder watcher was not running; restarted it"))
+    else:
+        out.append(("warn", "The folder watcher isn't running, so new files wait for the next check. Run 'oso doctor --fix'."))
+
     from . import gcal
 
     if gcal.connected():

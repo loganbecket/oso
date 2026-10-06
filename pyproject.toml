@@ -18,6 +18,7 @@ dependencies = [
     "google-auth-oauthlib>=1.5.0",
     "fastembed>=0.8",
     "pywebview>=5.0",
+    "watchdog>=4.0",
     "winotify>=1.1; sys_platform == 'win32'",
     "winrt-runtime>=2.0; sys_platform == 'win32'",
     "winrt-Windows.Media.Ocr>=2.0; sys_platform == 'win32'",

@@ -12,7 +12,7 @@ There is no Oso server. Your notes stay on your computer and in your own Google 
 
 ## How Oso works, at a glance
 
-**What happens on its own.** Every 15 minutes Oso checks Canvas for new or changed deadlines, picks up new files and scans in your course folders, makes searchable text copies of documents, and updates `Today.md` (what's due soon) and `Dashboard.md` (everything) in your vault. Urgent changes, like a moved due date, go straight onto an **Oso** calendar in Google Calendar. Each morning a briefing appears in the Claude app on your phone.
+**What happens on its own.** Files you put in your course folders (notes, scans, handouts, books, clippings) are taken in within about half a minute of arriving. Every 15 minutes Oso also checks Canvas for new or changed deadlines, catches any files it missed, makes searchable text copies of documents, and updates `Today.md` (what's due soon) and `Dashboard.md` (everything) in your vault. Urgent changes, like a moved due date, go straight onto an **Oso** calendar in Google Calendar. Each morning a briefing appears in the Claude app on your phone.
 
 **Where things live in your vault.**
 
@@ -333,6 +333,7 @@ oso profile --raw         show every recorded quiz, question by question
 oso connect-canvas        sign in to Canvas so Oso can read grades and coursework
 oso canvas --raw          show what Oso has read from Canvas
 oso books                 how far Oso has read each textbook (--reprocess TITLE reads one again)
+oso watch                 take in new files as they arrive (runs on its own from sign-in)
 oso fresh-start           start over as if newly installed, keeping your settings (deletes the vault's contents)
 oso connect-calendar      let Oso put urgent changes on its own Google calendar
 oso disconnect-calendar   stop that and forget the access

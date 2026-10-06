@@ -50,6 +50,7 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("profile", help="show what the learner profile has recorded")
     s.add_argument("--raw", action="store_true", help="every recent quiz with each question and answer")
     s.add_argument("--delete-quiz", type=int, metavar="N", help="delete quiz N completely (asks first)")
+    sub.add_parser("watch", help="take in new course files as soon as they arrive (started automatically at sign-in)")
     sub.add_parser("fresh-start", help="delete everything in the vault and Oso's records and start fresh, keeping your settings")
     s = sub.add_parser("reset-skills", help="put back Oso's version of its commands' instructions (all, or the ones named), discarding your edits")
     s.add_argument("names", nargs="*", help="commands to reset, e.g. oso-summarize (default: all)")
@@ -266,6 +267,12 @@ def _dispatch(args: argparse.Namespace) -> int:
             return 0
         with db.connect() as conn:
             print(profile.raw_dump(conn))
+        return 0
+
+    if args.cmd == "watch":
+        from . import watch
+
+        watch.main()
         return 0
 
     if args.cmd == "fresh-start":

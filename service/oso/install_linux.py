@@ -28,6 +28,20 @@ WantedBy=timers.target
 """
 
 
+_WATCH = """[Unit]
+Description=Oso: take in new course files as soon as they arrive
+
+[Service]
+ExecStart={python} -m oso.watch
+Restart=always
+RestartSec=30
+Nice=10
+
+[Install]
+WantedBy=default.target
+"""
+
+
 def install_timer(every_minutes: int = 60) -> str:
     exe = shutil.which("oso") or sys.argv[0]
     unit_dir = Path.home() / ".config" / "systemd" / "user"
@@ -37,6 +51,9 @@ def install_timer(every_minutes: int = 60) -> str:
     try:
         subprocess.run(["systemctl", "--user", "daemon-reload"], check=True, capture_output=True, text=True)
         subprocess.run(["systemctl", "--user", "enable", "--now", "oso-sync.timer"], check=True, capture_output=True, text=True)
+        (unit_dir / "oso-watch.service").write_text(_WATCH.format(python=sys.executable), encoding="utf-8")
+        subprocess.run(["systemctl", "--user", "daemon-reload"], capture_output=True, text=True)
+        subprocess.run(["systemctl", "--user", "enable", "--now", "oso-watch.service"], capture_output=True, text=True)
     except (subprocess.CalledProcessError, FileNotFoundError) as e:
         detail = getattr(e, "stderr", "") or str(e)
         return f"Wrote the units to {unit_dir} but could not start the timer: {detail.strip()}"

@@ -33,6 +33,38 @@ def connectors(cfg: Config, conn=None) -> list[Connector]:
 
 
 def run(cfg: Config, now: datetime | None = None) -> dict[str, object]:
+    from . import lock
+
+    with lock.held() as got:  # never at the same time as the folder watcher taking in files
+        if not got:
+            return {"skipped": "another Oso task was still running"}
+        return _run(cfg, now)
+
+
+def ingest(cfg: Config, now: datetime | None = None) -> dict[str, object]:
+    """The local part of a check, for files that just arrived (watch.py): no Canvas, calendar, tablet, or
+    update check. Each step only does what is new."""
+    from . import lock
+
+    now = now or datetime.now(cfg.tz)
+    results: dict[str, object] = {}
+    with lock.held() as got:
+        if not got:
+            return {"skipped": "another Oso task was still running"}
+        with db.connect() as conn:
+            results["filed"] = _safe(lambda: filing.file_clippings(cfg), 0)
+            results["converted"] = len(_safe(lambda: convert.convert_vault(cfg), []))
+            results["books"] = _safe(lambda: books.process(cfg, conn), {})
+            results["handwriting_queued"] = _safe(lambda: handwriting.queue_new(conn, cfg), 0)
+            results["search"] = _safe(lambda: search.update(cfg), {})
+            results["read_by_claude"] = _safe(lambda: reader.run(cfg, conn, now), {})
+            results["search_after_reading"] = _safe(lambda: search.update(cfg), {})
+            results["profiles"] = len(_safe(lambda: mastery.write_all(conn, cfg, now), []))
+            _safe(lambda: today.write(conn, cfg, now), None)
+    return results
+
+
+def _run(cfg: Config, now: datetime | None = None) -> dict[str, object]:
     now = now or datetime.now(cfg.tz)
     results: dict[str, object] = {}
     with db.connect() as conn:

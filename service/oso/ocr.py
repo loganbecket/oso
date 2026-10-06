@@ -26,8 +26,9 @@ class OcrUnavailable(Exception):
 def available() -> bool:
     try:
         if sys.platform == "win32":
-            import winrt.windows.media.ocr  # noqa: F401
-            return True
+            import importlib.util
+
+            return importlib.util.find_spec("winrt.windows.media.ocr") is not None  # checked without loading it
         if sys.platform == "darwin":
             import Vision  # noqa: F401
             return True
@@ -38,6 +39,26 @@ def available() -> bool:
 
 def read_image(path: Path) -> str:
     """The text on one page image."""
+    return read_images([path])[0]
+
+
+def read_images(paths: list[Path]) -> list[str]:
+    """The text on several page images. On Windows the recognizer runs in a separate process: loaded in the
+    same process as the search model (ONNX Runtime), it crashes Python."""
+    if not paths:
+        return []
+    if sys.platform == "win32":
+        import json
+
+        r = subprocess.run([sys.executable, "-m", "oso.ocr", *map(str, paths)], capture_output=True, text=True, encoding="utf-8",
+                           timeout=60 + 30 * len(paths), creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        if r.returncode != 0:
+            raise OcrUnavailable("Windows text recognition is not available.")
+        return json.loads(r.stdout)
+    return [_read_here(p) for p in paths]
+
+
+def _read_here(path: Path) -> str:
     if sys.platform == "win32":
         return _windows(path)
     if sys.platform == "darwin":
@@ -103,3 +124,13 @@ def poor(text: str) -> bool:
     words = re.findall(r"[A-Za-z]{3,}", stripped)
     letters = sum(len(w) for w in words)
     return letters / max(1, len(re.sub(r"\s", "", stripped))) < 0.55
+
+
+if __name__ == "__main__":  # the Windows worker: page images in, their text out as JSON
+    import json
+
+    try:
+        print(json.dumps([_read_here(Path(p)) for p in sys.argv[1:]]))
+    except OcrUnavailable as e:
+        print(str(e), file=sys.stderr)
+        sys.exit(2)

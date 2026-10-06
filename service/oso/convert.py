@@ -108,15 +108,19 @@ def _recognize_scan(path: Path) -> str:
     doc = pdfium.PdfDocument(str(path))
     parts = []
     with tempfile.TemporaryDirectory() as tmp:
+        images = []
         for i in range(len(doc)):
             image = Path(tmp) / f"p{i + 1}.png"
             page = doc[i]
             page.render(scale=max(1.0, min(4.0, 1800 / (page.get_height() or 1)))).to_pil().save(image)
-            try:
-                text = ocr.read_image(image).strip()
-            except ocr.OcrUnavailable:
-                text = ""
-            parts.append(f"## p. {i + 1}\n\n{text or '(No text recognized on this page.)'}")
+            images.append(image)
+        doc.close()
+        try:
+            texts = ocr.read_images(images)
+        except ocr.OcrUnavailable:
+            texts = [""] * len(images)
+        for i, text in enumerate(texts):
+            parts.append(f"## p. {i + 1}\n\n{text.strip() or '(No text recognized on this page.)'}")
     return "(Scanned; text recognized by the computer, so check equations against the original.)\n\n" + "\n\n".join(parts)
 
 

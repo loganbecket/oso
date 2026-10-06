@@ -110,6 +110,7 @@ def _pdf_pages(path: Path, start: int, deadline: float) -> tuple[list[dict], int
         except Exception:  # noqa: BLE001
             label = str(i + 1)
         pages.append({"index": i, "label": label, "text": _clean(text), "file": path.name})
+    doc.close()  # Windows keeps an open file locked
     return pages, total, meta
 
 
@@ -130,6 +131,8 @@ def _pdf_toc(path: Path) -> list[dict]:
                 out.append({"level": item.level, "title": (title or "").strip(), "index": index})
     except Exception:  # noqa: BLE001
         return []
+    finally:
+        doc.close()
     return out
 
 
@@ -144,29 +147,36 @@ def _scan_pages(cfg: Config, book: dict, start: int, deadline: float) -> tuple[l
         if f.suffix.lower() == ".pdf":
             import pypdfium2 as pdfium
 
-            n = len(pdfium.PdfDocument(str(f)))
-            plan += [(f, i) for i in range(n)]
+            doc = pdfium.PdfDocument(str(f))
+            plan += [(f, i) for i in range(len(doc))]
+            doc.close()
         else:
             plan.append((f, None))
     out = []
-    for idx in range(start, len(plan)):
-        if time.monotonic() > deadline:
-            break
-        f, i = plan[idx]
-        image = pages_dir / f"p{idx + 1:04d}.png"
-        if i is None:
-            from PIL import Image
+    idx = start
+    while idx < len(plan) and time.monotonic() <= deadline:
+        batch = []
+        for idx in range(idx, min(idx + 8, len(plan))):  # recognized eight pages at a time
+            f, i = plan[idx]
+            image = pages_dir / f"p{idx + 1:04d}.png"
+            if i is None:
+                from PIL import Image
 
-            with Image.open(f) as im:
-                im.convert("RGB").save(image)
-        else:
-            import pypdfium2 as pdfium
+                with Image.open(f) as im:
+                    im.convert("RGB").save(image)
+            else:
+                import pypdfium2 as pdfium
 
-            page = pdfium.PdfDocument(str(f))[i]
-            page.render(scale=max(1.0, min(4.0, 1800 / (page.get_height() or 1)))).to_pil().save(image)
-        text = _clean(ocr.read_image(image))
-        out.append({"index": idx, "label": _printed_number(text) or str(idx + 1), "text": text, "file": f.name,
-                    "image": image.relative_to(cfg.vault).as_posix(), "poor": ocr.poor(text)})
+                doc = pdfium.PdfDocument(str(f))
+                page = doc[i]
+                page.render(scale=max(1.0, min(4.0, 1800 / (page.get_height() or 1)))).to_pil().save(image)
+                doc.close()
+            batch.append((idx, f, image))
+        idx += 1
+        for (n, f, image), raw in zip(batch, ocr.read_images([b[2] for b in batch])):
+            text = _clean(raw)
+            out.append({"index": n, "label": _printed_number(text) or str(n + 1), "text": text, "file": f.name,
+                        "image": image.relative_to(cfg.vault).as_posix(), "poor": ocr.poor(text)})
     return out, len(plan)
 
 
@@ -500,8 +510,10 @@ def page(cfg: Config, book: str, label: str) -> dict:
         out = b["folder"] / "pages" / f"p{p['index'] + 1:04d}.png"
         if not out.exists():
             out.parent.mkdir(parents=True, exist_ok=True)
-            pg = pdfium.PdfDocument(str(b["files"][0]))[p["index"]]
+            doc = pdfium.PdfDocument(str(b["files"][0]))
+            pg = doc[p["index"]]
             pg.render(scale=max(1.0, min(4.0, 1800 / (pg.get_height() or 1)))).to_pil().save(out)
+            doc.close()
         image = out.relative_to(cfg.vault).as_posix()
     return {"book": s.get("title"), "page": p["label"], "text": p.get("claude_text") or p["text"],
             "read_poorly": bool(p.get("poor") and not p.get("claude_text")),

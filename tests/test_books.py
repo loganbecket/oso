@@ -43,7 +43,9 @@ def make_pdf(path: Path, page_texts: list[str], toc: list[tuple[str, int]] | Non
         from pypdf import PdfReader, PdfWriter
         from pypdf.constants import PageLabelStyle
 
-        w = PdfWriter(clone_from=PdfReader(str(path)))
+        import io
+
+        w = PdfWriter(clone_from=PdfReader(io.BytesIO(path.read_bytes())))  # not holding the file open (Windows)
         for title, idx in toc or []:
             w.add_outline_item(title, idx)
         if labels_from:
@@ -151,7 +153,7 @@ def test_epub_chapters_and_page_marks(env):
 def test_scans_recognized_join_later_and_poor_pages(env, monkeypatch):
     cfg = env
     texts = {"a.png": "12\n" + LOREM * 3, "b.png": "x = (a+b)/2 ; ∫ dx", "c.png": "14\n" + LOREM * 3}
-    monkeypatch.setattr(ocr, "read_image", lambda p: texts[books_order[int(p.stem[1:]) - 1]])
+    monkeypatch.setattr(ocr, "read_images", lambda ps: [texts[books_order[int(p.stem[1:]) - 1]] for p in ps])
     scans = books_dir(cfg) / "Mechanics" / "Scans"
     scans.mkdir(parents=True)
     books_order = ["a.png", "b.png"]
@@ -232,7 +234,7 @@ def test_scanned_handout_is_recognized(env, monkeypatch, tmp_path):
     from oso import convert
 
     monkeypatch.setattr(ocr, "available", lambda: True)
-    monkeypatch.setattr(ocr, "read_image", lambda p: "Worksheet 3: projectile problems")
+    monkeypatch.setattr(ocr, "read_images", lambda ps: ["Worksheet 3: projectile problems" for _ in ps])
     blank = tmp_path / "handout.pdf"
     Image.new("L", (600, 800), 255).save(blank)
     text = convert._recognize_scan(blank)

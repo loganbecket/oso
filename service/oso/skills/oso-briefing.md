@@ -10,11 +10,13 @@ Turn the facts in `Today.md` into a short briefing the student can read on a pho
 ## Shape
 
 1. One line: the date and the single most important thing today.
-2. **Due today**, then **Due this week**, each item as one line: course, item, time or day, weight if known. Overdue items first, marked plainly.
-3. **Changes** since yesterday, if any. Urgent ones (a moved due date, a rescheduled exam) go first.
-4. **Exams**: a countdown for each upcoming exam.
-5. **Focus**: one or two sentences on what to work on today and why, judged from weight and proximity. Do not pad.
-6. Any **connection** problem from `Today.md`, in the same plain words it uses.
+2. **Due today**, each item as one line: course, item, time or day, weight if known. Overdue items first, marked plainly.
+3. **Readiness**, right after Due today, if `Today.md` has that section: each exam line as written, then one sentence on the single most useful thing to do about it (for example a quiz on the shaky topics). Offer to start that quiz.
+4. **Due this week**, in the same one-line form.
+5. **Changes** since yesterday, if any. Urgent ones (a moved due date, a rescheduled exam) go first.
+6. **Exams**: a countdown for each upcoming exam.
+7. **Focus**: one or two sentences on what to work on today and why, judged from weight, proximity, and readiness. Do not pad.
+8. Any **connection** problem from `Today.md`, in the same plain words it uses.
 
 ## Rules
 

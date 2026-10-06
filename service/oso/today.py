@@ -45,6 +45,7 @@ def render(conn: sqlite3.Connection, cfg: Config, now: datetime) -> str:
 
     lines += _section("Overdue", overdue, cfg, now)
     lines += _section("Due today", due_today, cfg, now)
+    lines += _readiness(conn, cfg, now)
     lines += _section("Due this week", this_week, cfg, now)
 
     lines.append("## Exams")
@@ -106,6 +107,15 @@ def _section(heading: str, rows: list[dict], cfg: Config, now: datetime) -> list
         lines.append(f"- {_course_label(r, cfg)}{r['title']} ({r['kind']}), {when}{extra}{link}")
     lines.append("")
     return lines
+
+
+def _readiness(conn: sqlite3.Connection, cfg: Config, now: datetime) -> list[str]:
+    from . import readiness
+
+    try:
+        return readiness.section(conn, cfg, now)
+    except sqlite3.Error:
+        return []
 
 
 def _course_label(r: dict, cfg: Config) -> str:

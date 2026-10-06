@@ -138,6 +138,8 @@ Turn the records into a per-topic picture.
 
 ## Phase 4: Readiness in the briefing
 
+**Status:** built and tested; unreleased. New settings: `readiness_days` (7) and `quiz_warning_percent` (70). An exam's topics come from the topic list's exam names; if none match, the whole course stands in and the line says so. Scores "dropping" means 10 points or more between the last two quizzes on the exam's topics.
+
 Combine the profile with the deadlines Oso already knows.
 
 **Rules (thresholds in settings)**

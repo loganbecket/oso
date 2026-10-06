@@ -64,6 +64,8 @@ class Config:
     strong_min_results: int = 6  # ...over at least this many results in the last 60 days
     untested_below: int = 3  # fewer results than this and a topic counts as untested
     half_life_days: int = 21  # a result this old counts half as much as one from today
+    readiness_days: int = 7  # exams this close get readiness checks in Today.md
+    quiz_warning_percent: int = 70  # a last quiz below this on an exam's topics is flagged
 
     @property
     def tz(self) -> ZoneInfo:
@@ -131,6 +133,8 @@ def load(path: Path | None = None) -> Config:
         strong_min_results=int(raw.get("strong_min_results", 6)),
         untested_below=int(raw.get("untested_below", 3)),
         half_life_days=int(raw.get("half_life_days", 21)),
+        readiness_days=int(raw.get("readiness_days", 7)),
+        quiz_warning_percent=int(raw.get("quiz_warning_percent", 70)),
     )
 
 
@@ -159,6 +163,8 @@ def save(cfg: Config, path: Path | None = None) -> Path:
         f"strong_min_results = {cfg.strong_min_results}",
         f"untested_below = {cfg.untested_below}",
         f"half_life_days = {cfg.half_life_days}",
+        f"readiness_days = {cfg.readiness_days}",
+        f"quiz_warning_percent = {cfg.quiz_warning_percent}",
         "",
     ]
     for c in cfg.courses:

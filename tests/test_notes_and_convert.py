@@ -123,3 +123,14 @@ def test_handwriting_queue_and_mark(tmp_path: Path):
         assert handwriting.pending(conn) == []
         low = handwriting.low_confidence(conn)
         assert len(low) == 1 and low[0]["page"] == 1
+
+
+def test_handwriting_without_extension_is_recognized(tmp_path: Path):
+    cfg = make_cfg(tmp_path)
+    hw = cfg.vault / "Inbox" / "Handwriting"
+    inked_pdf(hw / "scan.pdf")
+    (hw / "scan.pdf").rename(hw / "3f9a1c0e7b2d4a8f")
+    (hw / "notes.txt").write_text("not a scan")
+    (hw / "a1b2c3").write_text("not a scan either")
+    with db.connect(tmp_path / "t.sqlite") as conn:
+        assert handwriting.queue_new(conn, cfg) == 1

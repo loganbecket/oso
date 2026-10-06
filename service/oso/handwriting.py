@@ -73,11 +73,34 @@ def queue_new(conn: sqlite3.Connection, cfg: Config, scale: float | None = None)
             if not src.is_file() or "pages" in src.relative_to(folder).parts or "Transcripts" in src.relative_to(folder).parts:
                 continue
             pages_dir = src.parent / "pages"
-            if src.suffix.lower() == ".pdf":
+            kind = _kind(src)
+            if kind == "pdf":
                 queued += _queue_pdf(conn, cfg, src, pages_dir, scale, course)
-            elif src.suffix.lower() in IMAGE_EXT:
+            elif kind == "image":
                 queued += _queue_image(conn, cfg, src, course)
     return queued
+
+
+def _kind(src: Path) -> str | None:
+    """'pdf', 'image', or None. Files with no extension (some phone share sheets save scans that way)
+    are recognized by their first bytes."""
+    ext = src.suffix.lower()
+    if ext == ".pdf":
+        return "pdf"
+    if ext in IMAGE_EXT:
+        return "image"
+    if ext:
+        return None
+    try:
+        with src.open("rb") as f:
+            head = f.read(8)
+    except OSError:
+        return None
+    if head.startswith(b"%PDF"):
+        return "pdf"
+    if head.startswith(b"\x89PNG") or head.startswith(b"\xff\xd8\xff"):
+        return "image"
+    return None
 
 
 def is_blank(png: Path, ink_fraction: float = 0.002) -> bool:

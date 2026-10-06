@@ -235,6 +235,60 @@ def read_section(path: str, heading: str) -> dict:
 
 
 @mcp.tool()
+def list_notes(folder: str = "Inbox", limit: int = 50) -> list[dict]:
+    """Files under a vault folder (e.g. Inbox, Courses/Physics/Notes), newest first, with title and type."""
+    from .notes import read_front_matter
+
+    cfg = _cfg()
+    root = cfg.vault.resolve() if folder.strip("/. ") == "" else _vault_file(cfg, folder)
+    if not root.is_dir():
+        return []
+    files = [f for f in root.rglob("*") if f.is_file() and not any(p.startswith(".") or p == "pages" for p in f.relative_to(root).parts)]
+    files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
+    out = []
+    for f in files[:limit]:
+        fm = {}
+        if f.suffix.lower() == ".md":
+            fm, _ = read_front_matter(f.read_text(encoding="utf-8", errors="replace")[:4000])
+        out.append({
+            "path": f.relative_to(cfg.vault.resolve()).as_posix(),
+            "modified": datetime.fromtimestamp(f.stat().st_mtime, cfg.tz).isoformat(timespec="minutes"),
+            "title": fm.get("title"),
+            "type": fm.get("type"),
+            "course": fm.get("course"),
+        })
+    return out
+
+
+@mcp.tool()
+def file_syllabus(course: str, path: str) -> dict:
+    """Move a syllabus (vault path, usually in Inbox) to Courses/<folder>/Syllabus and tag it with the course."""
+    from .notes import read_front_matter, with_front_matter
+
+    cfg = _cfg()
+    c = cfg.course_for(course)
+    if c is None:
+        raise ValueError(f"no course {course!r}; call add_course first")
+    src = _vault_file(cfg, path)
+    if not src.is_file():
+        raise ValueError(f"{path} is not a file in the vault")
+    dest = cfg.vault / "Courses" / c.folder / f"Syllabus{src.suffix.lower()}"
+    if dest.resolve() == src:
+        return {"path": dest.relative_to(cfg.vault).as_posix()}
+    n = 2
+    while dest.exists():
+        dest = dest.with_name(f"Syllabus ({n}){src.suffix.lower()}")
+        n += 1
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    if src.suffix.lower() == ".md":
+        fm, body = read_front_matter(src.read_text(encoding="utf-8", errors="replace"))
+        fm.update({"type": "syllabus", "course": c.code})
+        src.write_text(with_front_matter(fm, body), encoding="utf-8")
+    src.replace(dest)
+    return {"path": dest.relative_to(cfg.vault).as_posix()}
+
+
+@mcp.tool()
 def vault_path() -> str:
     """Absolute path of the vault."""
     return str(_cfg().vault)

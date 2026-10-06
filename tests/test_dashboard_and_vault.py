@@ -104,3 +104,27 @@ def test_read_note_cap_and_section(tmp_path: Path, monkeypatch):
         raise AssertionError("expected ValueError")
     except ValueError:
         pass
+
+
+def test_create_course_tools_list_and_file_syllabus(tmp_path: Path, monkeypatch):
+    from oso import mcp_server
+    from oso.config import Config
+
+    cfg = Config(vault=tmp_path / "vault")
+    (cfg.vault / "Inbox").mkdir(parents=True)
+    clip = cfg.vault / "Inbox" / "EGR 1301 Syllabus.md"
+    clip.write_text("---\ntitle: EGR 1301 Syllabus\ntype: reading\ncourse: ''\n---\n\n# Intro to Engineering\n", encoding="utf-8")
+    monkeypatch.setattr(mcp_server, "_cfg", lambda: cfg)
+    monkeypatch.setattr(mcp_server.cfgmod, "save", lambda c, path=None: None)
+    real_connect = db.connect
+    monkeypatch.setattr(mcp_server.db, "connect", lambda *a, **k: real_connect(tmp_path / "t.sqlite"))
+
+    listed = mcp_server.list_notes("Inbox")
+    assert listed[0]["path"] == "Inbox/EGR 1301 Syllabus.md" and listed[0]["title"] == "EGR 1301 Syllabus"
+
+    mcp_server.add_course("EGR-1301-001", "Intro to Engineering")
+    out = mcp_server.file_syllabus("EGR-1301-001", "Inbox/EGR 1301 Syllabus.md")
+    assert out["path"] == "Courses/Intro to Engineering/Syllabus.md" and not clip.exists()
+    text = (cfg.vault / out["path"]).read_text(encoding="utf-8")
+    assert "type: syllabus" in text and "course: EGR-1301-001" in text and "# Intro to Engineering" in text
+    assert [n["path"] for n in mcp_server.list_notes("Courses/Intro to Engineering")] == ["Courses/Intro to Engineering/Syllabus.md"]

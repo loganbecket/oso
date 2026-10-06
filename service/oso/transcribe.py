@@ -46,6 +46,7 @@ def run(conn: sqlite3.Connection, cfg: Config, limit: int = 200, model: str | No
     if not exe:
         raise ClaudeMissing("Claude Code is not installed or not on PATH. Install it from claude.ai/code and sign in.")
     model = model or cfg.transcribe_model
+    handwriting.queue_new(conn, cfg)  # scans saved since the last sync
     pages = handwriting.pending(conn, limit=limit)
     counts = {"pages": 0, "notes": 0, "low_confidence": 0, "failed": 0}
     by_notebook: dict[tuple[str | None, str, str], list[dict]] = {}

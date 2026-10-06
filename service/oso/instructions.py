@@ -27,7 +27,7 @@ This is a student's course vault managed by Oso. Use the Oso tools (`list_deadli
 
 ## Which skill
 
-- Set up a course from a syllabus: oso-setup. Morning briefing: oso-briefing. Recent urgent changes: oso-alerts (the service puts them on the calendar itself).
+- Set up a course from a syllabus: create-course. Morning briefing: oso-briefing. Recent urgent changes: oso-alerts (the service puts them on the calendar itself).
 - Explain a topic: oso-explain. Summarize: oso-summarize. Study guide: oso-study-guide. Practice test: oso-quiz. Check an attempt: oso-check. Flashcards: oso-flashcards.
 - Grades and what-if: oso-grades. Study plan: oso-plan. Handwriting: run `oso transcribe` (or oso-transcribe). Something broken: oso-doctor.
 

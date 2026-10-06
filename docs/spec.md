@@ -72,7 +72,7 @@ The vault is the center. The service fills it and keeps the SQLite facts file be
 | Skills and tools | One Claude plugin installed in Cowork and Claude Code |
 | Service | Python 3.12; every 15 minutes on Windows Task Scheduler, a macOS launch agent, or a Linux systemd timer, with catch-up after sleep |
 | Facts | One SQLite file |
-| Search | Claude's own file search over the Markdown in the vault |
+| Search | A local index built at ingestion: exact-word (SQLite FTS5) plus meaning (a 65 MB embedding model run by Oso itself), queried through one Oso tool |
 | Canvas | Calendar feed; REST API with a token where allowed |
 | reMarkable | Built-in USB web interface: notebooks downloaded as PDFs when plugged in, pages rendered to PNG, transcribed by a Claude Code run on the laptop |
 | Office, LibreOffice, PDF | MarkItDown; LibreOffice headless for OpenDocument and legacy formats; pointer notes for Google Docs |

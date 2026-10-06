@@ -97,6 +97,16 @@ def run(fix: bool = False) -> list[tuple[str, str]]:
     else:
         out.append(("ok", st["message"]))
 
+    from . import search
+
+    si = search.status()
+    if si["sections"] == 0:
+        out.append(("warn", "The search index is empty. It fills in on the next check; run 'oso sync' to build it now."))
+    elif si["without_meaning"]:
+        out.append(("warn", f"Search covers {si['notes']} notes, but {si['without_meaning']} sections still wait for the search model, which downloads on the next check with an internet connection."))
+    else:
+        out.append(("ok", f"Search covers {si['notes']} notes ({si['sections']} sections)"))
+
     if not shutil.which("oso-mcp"):
         out.append(("warn", "The 'oso-mcp' command is not on PATH, so Cowork and Claude Code cannot reach Oso's tools. Run the installer again."))
     return out

@@ -1,7 +1,7 @@
 # Study guide
 
 1. Find the exam with `list_deadlines` (60 days) and what it covers from the course's `Course.md`. If the scope is not written down, ask for the lecture or chapter range.
-2. Read the notes in scope (`list_notes` on the course folder, then `read_note` or `read_section`). Delegate the writing to the `oso-examiner` agent, passing the scope and these notes so it does not search again.
+2. Gather the notes in scope: `search_notes` once per topic, and `list_notes` on the course folder for named lectures. Delegate the writing to the `oso-examiner` agent, passing the scope and these notes so it does not search again.
 3. Show the guide in the chat:
    - the exam date and days left
    - one short section per topic, in the order taught: key ideas, formulas with symbols named, problem types and their method, with `[[path]]` citations

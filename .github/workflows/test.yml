@@ -30,6 +30,8 @@ jobs:
         run: choco install libreoffice-fresh -y --no-progress
 
       - name: Run tests
+        env:
+          OSO_REAL_SEARCH_MODEL: "1"
         run: uv run --python 3.12 --extra dev pytest -q
 
       - name: Install the way students do and start it

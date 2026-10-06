@@ -11,7 +11,7 @@ from .config import Config
 
 TEMPLATE = """# This vault
 
-This is a student's course vault managed by Oso. Use the Oso tools (`list_deadlines`, `read_section`, `read_note`, `grade_summary`, and the rest) and the Oso skills. To find a named note, call `list_notes` on the course folder; to find a topic, search the course's folder for the key terms; the Markdown copies next to Office, LibreOffice, and PDF files are what make those searchable.
+This is a student's course vault managed by Oso. Use the Oso tools (`list_deadlines`, `read_section`, `read_note`, `grade_summary`, and the rest) and the Oso skills. To find a topic, call `search_notes` (it matches by meaning and exact words across every course and returns the sections themselves); to find a named note, call `list_notes` on the course folder. The Markdown copies next to Office, LibreOffice, and PDF files are what make those searchable.
 
 ## Courses
 
@@ -36,7 +36,7 @@ This is a student's course vault managed by Oso. Use the Oso tools (`list_deadli
 
 - Cite notes as `[[path]]`. Say so when the notes have nothing relevant; never invent course content.
 - Match the size of the request and answer in the chat. Write a file only when the student asks (flashcards are the exception). Never produce submittable answers to graded work; mention the course's AI policy only when it forbids what was asked.
-- Search within `Courses/<course folder>/`, then read the matching section (`read_section`) or bounded pieces (`read_note`); whole textbooks do not belong in context.
+- Prefer `search_notes` results over opening whole files; read more with `read_section` or bounded pieces of `read_note` only when needed. Whole textbooks do not belong in context.
 - A note of `type: google-file` is only a pointer; read the Google Doc it links through the Google Drive connector.
 - Never edit a note the student wrote by hand.
 """

@@ -1,6 +1,6 @@
 # Explain from the student's materials
 
-1. Find what the notes say: search the course folder (`Courses/<folder>/`) for the key term, and open the best match with `read_section` (`read_note` only when the whole note is needed). If the first search finds nothing, try one other phrasing, then stop looking.
+1. Find what the notes say: call `search_notes` with the question (and the course, if known). It returns the best-matching sections with their text, which is usually all you need; open more with `read_section` or `read_note` only if a section is cut short.
 2. Answer in the chat, as briefly as the question allows, building on what the notes say and in the course's notation. Cite what came from the vault as `[[path]]`. Where you add general knowledge, say "Not in your notes:". Equations in LaTeX.
 3. If the notes have nothing, say so in one sentence and give a general explanation, marked as not from the notes.
 

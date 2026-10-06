@@ -208,6 +208,14 @@ def health() -> list[dict]:
 
 
 @mcp.tool()
+def search_notes(query: str, course: str | None = None, limit: int = 8) -> list[dict]:
+    """Best-matching sections of the student's notes and course materials, by meaning and exact words. Returns path, heading, and the section text."""
+    from . import search
+
+    return search.query(_cfg(), query, course=course, limit=limit)
+
+
+@mcp.tool()
 def read_note(path: str, start: int = 0, max_chars: int | None = None) -> dict:
     """Read a vault file (path relative to the vault) from `start`. Long files are capped (see `truncated`, `next_start`); prefer read_section."""
     cfg = _cfg()
@@ -346,7 +354,17 @@ def _parse_due(value: str, cfg: cfgmod.Config) -> str:
     return dt.isoformat(timespec="minutes")
 
 
+def _warm_search_model() -> None:
+    """Load the search model in the background so the first question does not wait for it."""
+    import threading
+
+    from . import search
+
+    threading.Thread(target=search._embedder, daemon=True).start()
+
+
 def main() -> None:
+    _warm_search_model()
     mcp.run(transport="stdio")
 
 

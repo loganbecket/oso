@@ -7,8 +7,8 @@ Read `docs/spec.md` for what Oso does and why, and `docs/plan.md` for what to bu
 ## Rules for working in this repo
 
 - No direct model API usage anywhere. Everything intelligent runs inside Cowork or Claude Code through the skills in `plugin/`.
-- The service is plain Python with no model in the path: connectors, SQLite, change detection, file conversion, and writing generated notes into the vault.
-- The vault is the source of truth for knowledge; SQLite is the source of truth for deadlines and grades. Never duplicate one into the other.
+- The service is plain Python with no generative model in the path: connectors, SQLite, change detection, file conversion, search, and writing generated notes into the vault. The one model it runs is the small local embedding model behind search (`search.py`), which Oso downloads itself; nothing for the student to install.
+- The vault is the source of truth for knowledge; SQLite is the source of truth for deadlines and grades. The search index is a disposable copy of the vault, rebuilt from it on every sync.
 - The service writes only into `Oso/`, generated files (`Today.md`, `Dashboard.md`), and the course folders it fills (Canvas, Drive, Handwriting, filed clippings). In `Oso/Skills/` it replaces a command's instructions only when the student has not edited them (`skillsync.py`). It never edits a note the student wrote.
 - Skill instructions live in `service/oso/skills/`; each plugin skill is a one-line pointer to them. Edit the instructions there, not in `plugin/`.
 - Read-only toward every school system. The only external write is one dedicated Google Calendar.

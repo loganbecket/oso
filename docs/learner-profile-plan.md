@@ -4,37 +4,30 @@ Temporary planning document. Delete it when the last phase ships.
 
 ## Goal
 
-Oso is a tutor, so it has to know what the student knows, what he doesn't, and how he studies. Today it knows his deadlines and grades but nothing about his understanding or habits. This plan adds a learner profile: a record built from what actually happens when he studies, used to aim practice at his weak spots, to warn him in the morning briefing when an exam is coming and he isn't ready, and to describe his study habits over time.
+Oso is a tutor, so it has to know what the student knows, what he doesn't, and how he studies. Today it knows his deadlines and grades but nothing about his understanding or habits. This plan adds a learner profile built from the two concrete sources Oso has: his notes and his test results (practice quizzes and checks of his own work). It is used to aim practice at his weak spots, to warn him in the morning briefing when an exam is coming and he isn't ready, and to describe his practice habits over time.
+
+Oso does not mine his chats. How long he studied or how often he asked about something is not evidence of understanding; test results are. Topics he never raises are not mistaken for mastery: every course's topic list comes from its syllabus, so a topic with no test results is "untested" and goes to the front of the next quiz.
 
 This is not a "second brain" for course content. Oso does not rewrite or synthesize his notes. The profile is about the student, not the material.
 
 ## Principles
 
-- **Facts first, conclusions second.** Everything starts as a dated, factual record (a quiz answer, a check of his work, a topic studied). Summaries are computed from those records, and every claim in a summary points back to the records behind it.
+- **Facts first, conclusions second.** Everything starts as a dated, factual record (a quiz answer or a check of his work). Summaries are computed from those records, and every claim in a summary points back to the records behind it.
 - **Describe behavior, never character.** "Started the last three problem sets the night before they were due," not "procrastinates."
 - **His to read and correct.** Readable summaries live in his vault under `Oso/Profile/`. Raw records live in Oso's database. If a summary is wrong, he can say so and Claude corrects the underlying record.
 - **Measured, not guessed.** Numbers (scores, timings, counts) are computed by the service in plain Python. Claude is used only where judgment is unavoidable: tagging a question's topic and classifying a mistake, and writing the weekly habits summary from computed numbers.
-- **Cheap on his plan.** Recording happens inside commands he is already running; nothing re-reads whole chats unless Phase 0 shows that is possible and worthwhile.
+- **Cheap on his plan.** Recording happens inside the quiz and check commands he is already running; nothing re-reads chats.
 - **Fresh start clears it.** `oso fresh-start` deletes the profile along with everything else.
 
 ## Where things live
 
 | What | Where | Who writes it |
 | --- | --- | --- |
-| Raw records: quizzes, questions, answers, checks, study events | Oso database (`oso.sqlite`), new tables | Oso tools called by the skills |
-| Topic list per course | Oso database, seeded from the syllabus at `/create-course` | `/create-course`, then quizzes as new topics appear |
+| Raw records: quizzes, questions, answers, checks | Oso database (`oso.sqlite`), new tables | Oso tools called by the skills |
+| Topic list per course | Oso database, seeded from the syllabus at `/create-course` | `/create-course`, then quizzes and checks as new topics appear |
 | Per-course understanding summary | `Oso/Profile/<course>.md` in the vault | The service, regenerated on every check |
-| Weekly habits summary | `Oso/Profile/Habits.md` in the vault | A weekly Claude run, from computed numbers |
+| Weekly practice-habits summary | `Oso/Profile/Habits.md` in the vault | A weekly Claude run, from computed numbers |
 | Readiness flags | `Today.md` (new section) and the morning briefing | The service |
-
-## Phase 0: Can a scheduled task read past chats?
-
-A test, not a build. It decides whether Phase 4 includes a nightly review of the day's chats.
-
-- In the School project in Cowork, create a scheduled task with: "List the topics and courses I worked on in today's chats, with any quiz scores."
-- Run it once at the end of a day with real study chats.
-- **Pass:** it lists real topics from that day's chats. **Fail:** it says it cannot see other chats, or invents content.
-- Record the result in this document before starting Phase 4.
 
 ## Phase 1: Quiz records
 
@@ -65,35 +58,42 @@ The foundation. Every quiz Oso gives is recorded in detail.
 - Tests cover recording, retakes, partial results, and a quiz abandoned halfway (handed out, never answered).
 - A real quiz in Cowork produces correct rows (checked with a small `oso profile --raw` dump).
 
-## Phase 2: Other study records
+## Phase 2: Check-my-work records and topic lists
 
-Quizzes are the richest signal, but not the only one.
+Checks of his own work are the second scored source.
 
-**Recorded**
-- **Check my work:** course, topic and theme, result (correct, first mistake found), mistake kind, whether he asked for the full solution.
-- **Explain, summarize, flashcards, study guide:** a light study event (course, topic, command, time). No scoring.
-- Topic tagging uses the course's topic list, adding a topic only when nothing fits.
+**Recorded per check**
+- course, topic and theme
+- result: correct, or where the first mistake was
+- the kind of mistake (same categories as quizzes)
+- hints given before he got it right, and whether he asked for the full solution
+- time
+
+**Topic list per course**
+- Seeded by `/create-course` from the syllabus schedule (week-by-week topics are usually listed) and shown to the student for confirmation with the rest of the syllabus facts, including which exam covers which topics when the syllabus says so.
+- Quizzes and checks tag against this list, adding a topic only when nothing fits.
 
 **Built**
-- One `record_study` tool for these events, called by each skill in one line.
-- Topic list per course, seeded by `/create-course` from the syllabus schedule (week-by-week topics are usually listed) and shown to the student for confirmation with the rest of the syllabus facts.
+- A `record_check` tool, called by the check skill after it responds.
+- Topic tables, the `/create-course` step that fills them, and topic matching shared by quizzes and checks.
 
 **Done when**
-- Each skill records its event; tests cover topic matching and new-topic creation.
+- Tests cover check recording, topic matching, and new-topic creation.
+- `/create-course` on a real syllabus produces a sensible topic list with exam coverage.
 
 ## Phase 3: What he knows
 
 Turn the records into a per-topic picture.
 
 **Computed per topic (plain Python, no model)**
-- accuracy, weighted toward recent attempts
+- accuracy across quizzes and checks, weighted toward recent attempts
 - number of questions seen, last practiced date
 - trend (improving, steady, slipping)
 - most common mistake kind
 - state: **strong**, **shaky**, or **untested**, with thresholds in settings (starting point: strong at 80% or better over at least 6 recent questions; untested below 3 questions)
 
 **Built**
-- `Oso/Profile/<course>.md` regenerated on every check: topics grouped by state, each with its numbers and links to the quizzes behind them.
+- `Oso/Profile/<course>.md` regenerated on every check: topics grouped by state, each with its numbers and links to the quizzes and checks behind them.
 - `get_profile` tool returning the same for a course.
 - Quiz and study-guide skills read it and aim at shaky and untested topics first, with a few strong ones for retention. Default quiz mix: about 60% shaky, 25% untested, 15% strong.
 
@@ -107,30 +107,28 @@ Combine the profile with the deadlines Oso already knows.
 
 **Rules (thresholds in settings)**
 - An exam within 7 days, and any of:
-  - no study records for that course in the last 3 days
   - no practice quiz on the exam's topics yet
   - exam topics still shaky or untested
   - last quiz on those topics below 70%
-- A graded assignment due within 2 days with no study records for that course since it was posted.
+  - scores on the exam's topics slipping over the last two quizzes
 
 **Built**
-- A "Readiness" section in `Today.md`, one line per flag, specific: "Physics exam Friday (3 days). No physics practice this week; last kinematics quiz 55%; projectile motion untested."
+- A "Readiness" section in `Today.md`, one line per flag, specific: "Physics exam Friday (3 days). Last kinematics quiz 55%; projectile motion untested."
 - The briefing skill puts readiness flags right after "Due today."
-- If Phase 0 passed: a nightly scheduled task in the School project that lists the day's study topics from chats not already recorded, saved through `record_study` (marked as from the nightly review so they can be told apart).
 
 **Done when**
 - Tests cover each rule firing and not firing.
 
-## Phase 5: Study habits
+## Phase 5: Practice habits
 
-The slow-moving picture. Weekly, once there are a few weeks of records.
+The slow-moving picture, from test records only. Weekly, once there are a few weeks of records.
 
 **Computed weekly (plain Python)**
-- **Lead time:** for each graded item, how many days before the deadline his first study record for it appeared.
-- **Rhythm:** study records per day across the week; how much falls in the last 48 hours before deadlines.
-- **Fade:** activity per course in each week of the semester compared to the first weeks.
-- **Allocation:** share of study time per course next to the course's current grade and upcoming weight. Flags heavy time on a strong course while a weaker one is neglected.
-- **Practice follow-through:** how often a shaky topic gets practiced again within a week.
+- **Lead time:** for each exam, how many days before it his first practice quiz on its topics came.
+- **Follow-through:** how often a topic he missed gets retested within a week, and whether the retest improves.
+- **Trend:** score trend per course across the semester; whether early strength holds or fades.
+- **Allocation:** practice per course next to the course's current grade and upcoming weight. Flags heavy practice on a strong course while a weaker one goes untested.
+- **Pace:** completion time per question over time, by topic.
 
 **Built**
 - `Oso/Profile/Habits.md`, rewritten weekly: a short narrative written by Claude from the computed numbers (each sentence citing the number behind it), followed by the numbers themselves.
@@ -151,4 +149,3 @@ The slow-moving picture. Weekly, once there are a few weeks of records.
 
 1. **Who sees the profile.** Only your son, in his vault, or should a weekly summary also reach you?
 2. **Thresholds.** The starting numbers above (80% strong, 70% quiz warning, 7-day exam window) are placeholders.
-3. **Phase 0 timing.** Run the test now, so Phase 4's design is settled early?

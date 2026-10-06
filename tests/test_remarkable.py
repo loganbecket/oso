@@ -9,7 +9,7 @@ from oso import db, handwriting
 from oso.config import Config, Course
 from oso.connectors.remarkable_usb import NotConnected, RemarkableUsb, last_pull
 
-from test_phase2 import inked_pdf  # noqa: E402
+from test_notes_and_convert import inked_pdf  # noqa: E402
 
 _tmp = Path(__file__).parent / ".inked.pdf"
 inked_pdf(_tmp)

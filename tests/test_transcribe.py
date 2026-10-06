@@ -30,7 +30,7 @@ def test_blank_pages_are_skipped(tmp_path: Path):
 
 
 def test_render_height_setting(tmp_path: Path):
-    from test_phase2 import inked_pdf
+    from test_notes_and_convert import inked_pdf
 
     cfg = make_cfg(tmp_path)
     cfg.render_height_px = 600

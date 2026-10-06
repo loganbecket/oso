@@ -28,7 +28,7 @@ At the start of each semester, feed Oso the syllabus and course materials for ev
 8. Low noise. Only urgent changes interrupt; the rest waits for the morning briefing.
 9. Fail visibly, in plain language, to the student.
 10. Owned by the student. No backend, no administrator.
-11. Respect each course's AI policy. Stored per course, shown at the start of every tutoring session.
+11. Respect each course's AI policy. Stored per course, and raised whenever it forbids what the student asked.
 
 ## What Oso does
 
@@ -54,7 +54,7 @@ The service writes the day's facts into `Today.md` in the vault on every check: 
 
 ### Studying
 
-In Cowork the student asks anything about their courses and gets an answer built from their own notes, with a citation to the note or page. Available on request: a study guide scoped to an exam, a practice test with the key held back until attempted, a lecture or chapter summary, flashcards into Obsidian, a review of their own attempt at a problem that teaches the method before showing the answer, and a study plan placed on the calendar working back from exam dates. Oso tracks which topics go wrong and leans practice toward them. Every session opens with the course's AI policy.
+In Cowork the student asks anything about their courses and gets an answer built from their own notes, with a citation to the note or page. Available on request: a study guide scoped to an exam, a practice test with the key held back until attempted, a lecture or chapter summary, flashcards into Obsidian, a review of their own attempt at a problem that teaches the method before showing the answer, and a study plan placed on the calendar working back from exam dates. Answers come back in the chat at the size asked for; Oso writes a file only when asked (flashcards excepted).
 
 ### Where the student uses it
 
@@ -82,7 +82,7 @@ The vault is the center. The service fills it and keeps the SQLite facts file be
 
 ## Privacy and integrity
 
-Course content reaches Anthropic only when the student asks Cowork or Claude Code something, under the consumer terms of their subscription. The account's data-use setting is reviewed and set deliberately at install. The cloud briefing reads only `Today.md` and what the briefing needs. Logs hold no credentials and no note content. Export is copying a folder; wipe is deleting it. The tutor teaches and checks work; it never produces submittable answers, and each course's AI policy is shown at every session.
+Course content reaches Anthropic only when the student asks Cowork or Claude Code something, under the consumer terms of their subscription. The account's data-use setting is reviewed and set deliberately at install. The cloud briefing reads only `Today.md` and what the briefing needs. Logs hold no credentials and no note content. Export is copying a folder; wipe is deleting it. The tutor teaches and checks work; it never produces submittable answers, and each course's AI policy is raised whenever it forbids what was asked.
 
 ## Open questions
 

@@ -5,15 +5,11 @@ description: Review the student's own attempt at a problem, find where it goes w
 
 # Check my work
 
-1. Identify the course and state its `ai_policy` in one line. If the policy forbids AI help on this kind of work, say so and stop.
-2. Read the attempt fully (text, or the image they attach). Find the first point where it goes wrong, if any.
-3. Search the course folder (`Courses/<folder>/`) with your file search for the method and open that section with `read_section`, so the correction uses the course's own notation and approach.
-4. Respond in this order:
-   - What is right so far, in one line.
-   - The first mistake, named precisely ("the chain rule was applied to the outer function only"), with the relevant rule quoted from the notes and cited as `[[path]]`.
-   - A nudge: the next step they should take, as a question or a hint, not the answer.
-   - Only if they ask again, or say they are done trying: the full worked solution.
-5. If the attempt is correct, say so, and point out one thing that would make it clearer or faster.
-6. Add a line to `Courses/<folder>/Notes/Practice log.md`: `- YYYY-MM-DD | <topic> | <right or wrong> | check`.
+1. Read the attempt (text, or the image they attach) and find the first point where it goes wrong, if any.
+2. If the course's notation or method matters, search the course folder for it and open that section with `read_section`. Skip this when the mistake is plain.
+3. Reply briefly:
+   - if correct: say so, plus one tip if there is a useful one
+   - if not: what is right so far, the first mistake named precisely (cite the notes as `[[path]]` if you used them), and a hint for the next step, not the answer
+   - the full worked solution only if they ask again or say they are done trying
 
-Never rewrite the attempt for them. Never produce a submittable answer to graded work.
+Never rewrite the attempt for them or produce a submittable answer to graded work. If this is graded work, check the course's AI policy with `list_courses` once and stop if it forbids help. Do not write any file.

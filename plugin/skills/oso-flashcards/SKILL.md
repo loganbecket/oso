@@ -5,9 +5,9 @@ description: Make flashcards from course notes for spaced repetition in Obsidian
 
 # Flashcards
 
-1. Settle the scope (a lecture, a topic, an exam) and state the course's `ai_policy` in one line.
-2. Search the course folder (`Courses/<folder>/`) with your file search and open the relevant sections with `read_section` (whole notes with `read_note` only when needed). Cards come only from the materials.
-3. Write to `Courses/<folder>/Notes/Flashcards <scope>.md` with front matter `type: flashcards`, `course`, `scope`, `generated`, using the format the Obsidian Spaced Repetition plugin reads:
+1. Find the notes for the scope the student named (`list_notes` on the course folder, or a search for the topic) and read them. Cards come only from the materials.
+2. Make as many cards as the student asked for; with no number, about one card per key fact, at most 20. Each card tests one thing: a definition, a formula with its symbols named, when a method applies, or a mistake the notes call out.
+3. Save them to `Courses/<folder>/Notes/Flashcards <scope>.md` (the Spaced Repetition plugin reads cards from the vault, so this is the one skill that always writes a file), in this format:
 
    ```
    #flashcards/<course folder>
@@ -19,9 +19,6 @@ description: Make flashcards from course notes for spaced repetition in Obsidian
    The chain rule states that::$\frac{d}{dx} f(g(x)) = f'(g(x)) g'(x)$
    ```
 
-   One blank line between cards. Use `?` for question-and-answer cards and `::` for one-line definition cards.
-4. Aim for 15 to 40 cards: definitions, formulas with every symbol named, the conditions under which a method applies, and the common mistakes the notes call out. Each card tests one thing.
-5. Prefer topics that appear in `Courses/<folder>/Notes/Practice log.md` as weak.
-6. Tell the student the file name and that the Spaced Repetition plugin will pick it up; offer to install it if they have not.
+4. Reply with the file name and the number of cards, in one line.
 
-Never invent a fact for a card. If the notes are thin, make fewer cards and say so.
+Never invent a fact for a card. If the notes are thin, make fewer cards.

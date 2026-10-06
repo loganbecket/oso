@@ -269,6 +269,15 @@ def get_profile(course: str) -> dict:
 
 
 @mcp.tool()
+def delete_quiz(quiz_id: int) -> str:
+    """Delete a quiz completely (a test run, or one given by mistake) after the student confirms; its results stop counting anywhere."""
+    from . import profile
+
+    with db.connect() as conn:
+        return profile.delete_quiz(conn, _cfg(), quiz_id)
+
+
+@mcp.tool()
 def canvas_info(course: str, what: str = "summary") -> dict:
     """What Oso read from Canvas for a course. what: summary (grade, recent scores, missing and late work) | assignments (each with score and topics) | comments (instructor feedback) | untagged (assignments awaiting topics)."""
     from . import canvas_store

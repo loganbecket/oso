@@ -317,6 +317,52 @@ def correct(conn: sqlite3.Connection, quiz_id: int | None = None, number: int | 
     return f"Quiz {quiz_id}, question {number} ({q['topic']}) is now {verdict}."
 
 
+def delete_quiz(conn: sqlite3.Connection, cfg: Config, quiz_id: int) -> str:
+    """Remove a quiz completely, as if it was never given: its questions, answers, window responses, and
+    written-work pages. Retakes of it stay but no longer point to it. Topics that only this quiz had added
+    (not from the syllabus, not used anywhere else) are removed too. Returns a plain sentence."""
+    import shutil
+
+    ensure(conn)
+    quiz = conn.execute("SELECT * FROM quizzes WHERE id = ?", (quiz_id,)).fetchone()
+    if quiz is None:
+        raise ProfileError(f"There is no quiz {quiz_id}.")
+    qids = [r["id"] for r in conn.execute("SELECT id FROM quiz_questions WHERE quiz_id = ?", (quiz_id,))]
+    topics = {r["topic"] for r in conn.execute("SELECT topic FROM quiz_questions WHERE quiz_id = ?", (quiz_id,))}
+    for page in [r["page"] for r in conn.execute("SELECT page FROM quiz_work WHERE quiz_id = ?", (quiz_id,))]:
+        (cfg.vault / page).unlink(missing_ok=True)
+    from .quizwin import work_folder
+
+    folder = work_folder(cfg, dict(quiz))
+    if folder.exists():
+        shutil.rmtree(folder, ignore_errors=True)
+    marks = ",".join("?" * len(qids))
+    if qids:
+        conn.execute(f"DELETE FROM quiz_answers WHERE question_id IN ({marks})", qids)
+        conn.execute(f"DELETE FROM quiz_responses WHERE question_id IN ({marks})", qids)
+    conn.execute("DELETE FROM quiz_work WHERE quiz_id = ?", (quiz_id,))
+    conn.execute("DELETE FROM quiz_questions WHERE quiz_id = ?", (quiz_id,))
+    conn.execute("UPDATE quizzes SET retake_of = NULL WHERE retake_of = ?", (quiz_id,))
+    conn.execute("DELETE FROM quizzes WHERE id = ?", (quiz_id,))
+    for t in topics:
+        used = conn.execute("SELECT 1 FROM quiz_questions q JOIN quizzes z ON z.id = q.quiz_id WHERE z.course = ? AND q.topic = ?",
+                            (quiz["course"], t)).fetchone() or \
+            conn.execute("SELECT 1 FROM checks WHERE course = ? AND topic = ?", (quiz["course"], t)).fetchone() or \
+            _canvas_uses(conn, quiz["course"], t)
+        if not used:
+            conn.execute("DELETE FROM course_topics WHERE course = ? AND name = ? AND origin = 'added'", (quiz["course"], t))
+    return f"Deleted quiz {quiz_id} and everything recorded with it."
+
+
+def _canvas_uses(conn: sqlite3.Connection, course: str, topic: str) -> bool:
+    try:
+        return conn.execute(
+            "SELECT 1 FROM canvas_assignment_topics t JOIN canvas_assignments a ON a.canvas_id = t.assignment_id WHERE a.course = ? AND t.topic = ?",
+            (course, topic)).fetchone() is not None
+    except sqlite3.OperationalError:
+        return False  # Canvas never connected
+
+
 def recent_checks(conn: sqlite3.Connection, course: str | None = None, limit: int = 20) -> list[dict]:
     ensure(conn)
     sql, params = "SELECT * FROM checks", []

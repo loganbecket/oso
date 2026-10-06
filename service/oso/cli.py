@@ -49,6 +49,7 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("quiz_id", nargs="?", type=int, help="the quiz number (default: the latest one not yet submitted)")
     s = sub.add_parser("profile", help="show what the learner profile has recorded")
     s.add_argument("--raw", action="store_true", help="every recent quiz with each question and answer")
+    s.add_argument("--delete-quiz", type=int, metavar="N", help="delete quiz N completely (asks first)")
     sub.add_parser("fresh-start", help="delete everything in the vault and Oso's records and start fresh, keeping your settings")
     s = sub.add_parser("reset-skills", help="put back Oso's version of its commands' instructions (all, or the ones named), discarding your edits")
     s.add_argument("names", nargs="*", help="commands to reset, e.g. oso-summarize (default: all)")
@@ -236,6 +237,17 @@ def _dispatch(args: argparse.Namespace) -> int:
     if args.cmd == "profile":
         from . import profile
 
+        if args.delete_quiz is not None:
+            if input(f"Delete quiz {args.delete_quiz} and all its results for good? Type yes: ").strip().lower() != "yes":
+                print("Nothing was deleted.")
+                return 0
+            with db.connect() as conn:
+                try:
+                    print(profile.delete_quiz(conn, cfg, args.delete_quiz))
+                except profile.ProfileError as e:
+                    print(e)
+                    return 1
+            return 0
         with db.connect() as conn:
             print(profile.raw_dump(conn))
         return 0

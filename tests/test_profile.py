@@ -200,3 +200,37 @@ def test_corrections(env):
     assert profile.recent_checks(conn) == []
     with pytest.raises(profile.ProfileError, match="Say which"):
         profile.correct(conn, result="right")
+
+
+def test_delete_quiz_removes_everything(env, tmp_path: Path):
+    from PIL import Image
+
+    from oso import mastery, quizwin
+
+    conn, cfg = env
+    profile.set_topics(conn, cfg, "PHYS-110", [{"name": "Kinematics"}])
+    keep = profile.start_quiz(conn, cfg, "PHYS-110", [{"topic": "Kinematics", "type": "conceptual", "difficulty": "easy"}])
+    profile.record_answers(conn, keep, [{"number": 1, "result": "right"}])
+    trial = profile.start_quiz(conn, cfg, "PHYS-110", [
+        {"number": 1, "topic": "Kinematics", "type": "multiple_choice", "difficulty": "easy", "question": "?", "choices": ["a", "b"], "answer": "A"},
+        {"number": 2, "topic": "Dummy topic", "type": "worked_problem", "difficulty": "easy", "question": "Solve"},
+    ], window=True)
+    profile.window_submit(conn, trial, {1: {"response": "B", "seconds": 5, "changes": 0}, 2: {"response": None, "seconds": 9, "changes": 0}})
+    photo = tmp_path / "w.png"
+    Image.new("RGB", (100, 100), "white").save(photo)
+    quiz, _ = quizwin.load_questions(conn, trial)
+    quizwin.import_work(conn, cfg, quiz, [photo], "file")
+    folder = quizwin.work_folder(cfg, quiz)
+    assert folder.exists()
+    retake = profile.start_quiz(conn, cfg, "PHYS-110", [{"topic": "Kinematics", "type": "conceptual", "difficulty": "easy"}], retake_of=trial)
+
+    assert "Deleted quiz" in profile.delete_quiz(conn, cfg, trial)
+    assert not folder.exists()
+    assert [q["quiz_id"] for q in profile.recent_quizzes(conn)] == [retake, keep]
+    assert profile.recent_quizzes(conn)[0]["retake_of"] is None
+    for table in ("quiz_answers", "quiz_responses", "quiz_work"):
+        assert conn.execute(f"SELECT COUNT(*) FROM {table} WHERE rowid IN (SELECT rowid FROM {table})").fetchone()[0] == (1 if table == "quiz_answers" else 0)
+    assert [t["name"] for t in profile.list_topics(conn, "PHYS-110")] == ["Kinematics"]  # the trial's made-up topic is gone
+    assert mastery.topic_states(conn, cfg, "PHYS-110")[0]["results"] == 1
+    with pytest.raises(profile.ProfileError, match="no quiz"):
+        profile.delete_quiz(conn, cfg, trial)

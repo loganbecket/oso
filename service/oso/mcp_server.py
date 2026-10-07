@@ -411,6 +411,15 @@ def finish_quiz(quiz_id: int) -> dict:
 
 
 @mcp.tool()
+def show_quiz(quiz_id: int) -> str:
+    """Open a past quiz on his computer in the quiz window, exactly as he took it, read-only, with his answers, the right
+    answers, his grades, and your notes. Find the id with `recent_quizzes`."""
+    from . import actions
+
+    return actions.open_quiz(quiz_id)
+
+
+@mcp.tool()
 def record_second_grade(quiz_id: int, answers: list[dict]) -> dict:
     """The second grader's results ({number, result, mistake}) for a quiz's Claude-graded questions. Where they differ, the second grade counts."""
     from . import tutor

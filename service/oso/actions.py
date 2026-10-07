@@ -136,6 +136,27 @@ def disconnect_groupme() -> str:
     return "Oso forgot the GroupMe connection."
 
 
+def quizzes(limit: int = 200) -> list[dict]:
+    """Every quiz, newest first, for the Quizzes tab."""
+    from . import profile
+
+    with db.connect() as conn:
+        return profile.recent_quizzes(conn, limit=limit)
+
+
+def open_quiz(quiz_id: int) -> str:
+    """Open a quiz in the quiz window: to take it if he hasn't, or read-only with the answers if he has."""
+    from . import profile, quizwin
+
+    with db.connect() as conn:
+        profile.ensure(conn)
+        quiz = conn.execute("SELECT submitted_at FROM quizzes WHERE id = ?", (quiz_id,)).fetchone()
+    if quiz is None:
+        return f"There is no quiz {quiz_id}."
+    quizwin.launch(quiz_id)
+    return "The quiz is opening, read-only, with the right answers shown." if quiz["submitted_at"] else "The quiz is opening for you to take."
+
+
 def books() -> str:
     from . import books as bk
 

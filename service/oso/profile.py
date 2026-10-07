@@ -119,7 +119,8 @@ COLUMNS = {
                        "criteria": "TEXT",            # JSON: how Claude will grade it, fixed before he answers; never shown to him
                        "misconception_id": "INTEGER"},  # the open misconception this question is aimed at
     "quiz_responses": {"confidence": "TEXT"},         # sure, think_so, or guessing, from the quiz window
-    "quiz_answers": {"criterion": "TEXT"},            # which grading criterion the answer met or missed
+    "quiz_answers": {"criterion": "TEXT",            # which grading criterion the answer met or missed
+                     "note": "TEXT"},                # Claude's short feedback, shown when he reviews the quiz
 }
 CONFIDENCE = ("sure", "think_so", "guessing")
 
@@ -455,16 +456,17 @@ def record_answers(conn: sqlite3.Connection, quiz_id: int, answers: list[dict], 
             mistake = _pick(a.get("mistake"), MISTAKES, f"Question {n}'s mistake")
         hint = 1 if a.get("hint") else 0
         criterion = (str(a.get("criterion")).strip() or None) if a.get("criterion") else None
+        note = (str(a.get("note")).strip() or None) if a.get("note") else None
         prior = conn.execute("SELECT attempts, hint, first_answered_at FROM quiz_answers WHERE question_id = ?", (q["id"],)).fetchone()
         if prior is None:
             conn.execute(
-                "INSERT INTO quiz_answers (question_id, result, mistake, attempts, hint, first_answered_at, answered_at, criterion) VALUES (?, ?, ?, 1, ?, ?, ?, ?)",
-                (q["id"], result, mistake, hint, when, when, criterion),
+                "INSERT INTO quiz_answers (question_id, result, mistake, attempts, hint, first_answered_at, answered_at, criterion, note) VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?)",
+                (q["id"], result, mistake, hint, when, when, criterion, note),
             )
         else:
             conn.execute(
-                "UPDATE quiz_answers SET result = ?, mistake = ?, attempts = ?, hint = ?, answered_at = ?, criterion = COALESCE(?, criterion) WHERE question_id = ?",
-                (result, mistake, prior["attempts"] + 1, max(prior["hint"], hint), when, criterion, q["id"]),
+                "UPDATE quiz_answers SET result = ?, mistake = ?, attempts = ?, hint = ?, answered_at = ?, criterion = COALESCE(?, criterion), note = COALESCE(?, note) WHERE question_id = ?",
+                (result, mistake, prior["attempts"] + 1, max(prior["hint"], hint), when, criterion, note, q["id"]),
             )
         aimed = conn.execute("SELECT misconception_id FROM quiz_questions WHERE id = ?", (q["id"],)).fetchone()["misconception_id"]
         if aimed and result == "right" and not hint and (prior is None):

@@ -97,6 +97,136 @@ def load_questions(conn, quiz_id: int) -> tuple[dict, list[dict]]:
     return dict(quiz), qs
 
 
+RESULT_WORDS = {"right": "Right", "partly_right": "Partly right", "wrong": "Wrong", "skipped": "Skipped"}
+RESULT_COLORS = {"right": "#2e7d32", "partly_right": "#b26a00", "wrong": "#c62828", "skipped": "#c62828"}
+CONFIDENCE_WORDS = {"sure": "Sure", "think_so": "Think so", "guessing": "Guessing"}
+
+
+def review_data(conn, quiz_id: int) -> tuple[dict, list[dict], list[str]]:
+    """A submitted quiz as he took it, with his answers, the right answers, the grades, and Claude's notes."""
+    profile.ensure(conn)
+    quiz = conn.execute("SELECT * FROM quizzes WHERE id = ?", (quiz_id,)).fetchone()
+    if quiz is None:
+        raise profile.ProfileError(f"There is no quiz {quiz_id}.")
+    qs = []
+    for r in conn.execute(
+        """SELECT q.number, q.question, q.qtype, q.choices, q.answer_key, q.criteria, r.response, r.confidence,
+                  a.result, a.note, a.criterion
+           FROM quiz_questions q LEFT JOIN quiz_responses r ON r.question_id = q.id LEFT JOIN quiz_answers a ON a.question_id = q.id
+           WHERE q.quiz_id = ? ORDER BY q.number""",
+        (quiz_id,),
+    ):
+        expected = None
+        if r["criteria"]:
+            crit = json.loads(r["criteria"])
+            expected = crit.get("expected") or crit.get("full_credit") if isinstance(crit, dict) else str(crit)
+        qs.append({"number": r["number"], "question": r["question"] or "", "type": r["qtype"],
+                   "choices": json.loads(r["choices"]) if r["choices"] else [], "key": r["answer_key"],
+                   "response": r["response"], "confidence": r["confidence"], "result": r["result"],
+                   "note": r["note"], "criterion": r["criterion"], "expected": expected})
+    pages = [w["page"] for w in conn.execute("SELECT page FROM quiz_work WHERE quiz_id = ? ORDER BY id", (quiz_id,))]
+    return dict(quiz), qs, pages
+
+
+def _open_file(path: Path) -> None:
+    if sys.platform == "win32":
+        import os
+
+        os.startfile(str(path))  # noqa: S606
+    else:
+        subprocess.Popen(["open" if sys.platform == "darwin" else "xdg-open", str(path)],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def review(quiz_id: int) -> None:
+    """The quiz in the same window he took it in, read-only, with the right answers and his grades shown."""
+    import tkinter as tk
+    from tkinter import ttk
+
+    cfg = cfgmod.load()
+    with db.connect() as conn:
+        quiz, questions, pages = review_data(conn, quiz_id)
+    c = cfg.course_for(quiz["course"])
+    root = tk.Tk()
+    root.title(f"Oso quiz review: {c.name if c else quiz['course']}")
+    root.geometry("760x600")
+    frm = ttk.Frame(root, padding=16)
+    frm.pack(fill="both", expand=True)
+    big = ("Segoe UI", 12) if sys.platform == "win32" else ("TkDefaultFont", 12)
+    day = datetime.fromisoformat(quiz["handed_out_at"]).astimezone(cfg.tz).strftime("%a %b %d, %Y")
+    score = f"{quiz['score']:g}%" if quiz["score"] is not None else "not graded yet"
+    ttk.Label(frm, text=f"Review (read-only) · {day} · score {score}", foreground="#666").pack(anchor="w")
+    header = ttk.Label(frm, font=("TkDefaultFont", 11, "bold"))
+    header.pack(anchor="w")
+    text = tk.Text(frm, height=8, wrap="word", relief="flat", background=root.cget("background"), font=big)
+    text.pack(fill="x", pady=(8, 8))
+    body = ttk.Frame(frm)
+    body.pack(fill="both", expand=True)
+    nav = ttk.Frame(frm)
+    nav.pack(fill="x", pady=(8, 0))
+    state = {"i": 0}
+
+    def show() -> None:
+        q = questions[state["i"]]
+        header.config(text=f"Question {state['i'] + 1} of {len(questions)}")
+        text.config(state="normal")
+        text.delete("1.0", "end")
+        text.insert("1.0", q["question"])
+        text.config(state="disabled")
+        for w in body.winfo_children():
+            w.destroy()
+        if q["type"] == "multiple_choice" and q["choices"]:
+            picked = tk.StringVar(value=q["response"] or "")
+            for i, opt in enumerate(q["choices"]):
+                letter = chr(ord("A") + i)
+                mark, color = "", "#000000"
+                if letter == q["key"]:
+                    mark, color = "   ✓ correct answer", RESULT_COLORS["right"]
+                elif letter == (q["response"] or "").upper():
+                    mark, color = "   ✗ your answer", RESULT_COLORS["wrong"]
+                tk.Radiobutton(body, text=f"{letter}. {opt}{mark}", value=letter, variable=picked, state="disabled",
+                               disabledforeground=color, anchor="w", justify="left", wraplength=680).pack(anchor="w", pady=2)
+            if not q["response"]:
+                ttk.Label(body, text="You left this blank.", foreground=RESULT_COLORS["wrong"]).pack(anchor="w", pady=(4, 0))
+        else:
+            ttk.Label(body, text="Your answer:", foreground="#444").pack(anchor="w")
+            box = tk.Text(body, height=5, wrap="word")
+            box.insert("1.0", q["response"] or ("(on your written pages)" if q["type"] == "worked_problem" and pages else "(blank)"))
+            box.config(state="disabled")
+            box.pack(fill="x")
+            if q["expected"]:
+                ttk.Label(body, text=f"Correct answer: {q['expected']}", foreground=RESULT_COLORS["right"], wraplength=700,
+                          justify="left").pack(anchor="w", pady=(8, 0))
+        verdict = RESULT_WORDS.get(q["result"] or "", "Not graded yet")
+        line = verdict + (f" · you said: {CONFIDENCE_WORDS[q['confidence']]}" if q["confidence"] in CONFIDENCE_WORDS else "")
+        ttk.Label(body, text=line, foreground=RESULT_COLORS.get(q["result"] or "", "#666"),
+                  font=("TkDefaultFont", 10, "bold")).pack(anchor="w", pady=(10, 0))
+        if q["note"]:
+            ttk.Label(body, text=q["note"], wraplength=700, justify="left").pack(anchor="w", pady=(4, 0))
+        if q["type"] == "worked_problem" and pages:
+            row = ttk.Frame(body)
+            row.pack(anchor="w", pady=(8, 0))
+            ttk.Label(row, text="Your written work:").pack(side="left", padx=(0, 6))
+            for n, page in enumerate(pages, start=1):
+                ttk.Button(row, text=f"Page {n}", command=lambda p=page: _open_file(cfg.vault / p)).pack(side="left", padx=2)
+        prev_btn.state(["!disabled"] if state["i"] > 0 else ["disabled"])
+        next_btn.config(text="Next" if state["i"] < len(questions) - 1 else "Close")
+
+    def move(delta: int) -> None:
+        if state["i"] + delta >= len(questions):
+            root.destroy()
+            return
+        state["i"] = max(0, state["i"] + delta)
+        show()
+
+    prev_btn = ttk.Button(nav, text="Previous", command=lambda: move(-1))
+    prev_btn.pack(side="left")
+    next_btn = ttk.Button(nav, command=lambda: move(1))
+    next_btn.pack(side="right")
+    show()
+    root.mainloop()
+
+
 def work_folder(cfg: Config, quiz: dict) -> Path:
     c = cfg.course_for(quiz["course"])
     base = cfg.vault / "Courses" / c.folder if c else cfg.vault / "Oso"
@@ -180,6 +310,9 @@ def run(quiz_id: int) -> None:
     cfg = cfgmod.load()
     with db.connect() as conn:
         quiz, questions = load_questions(conn, quiz_id)
+    if quiz["submitted_at"]:
+        review(quiz_id)  # already taken: the same window, read-only, with the answers
+        return
     c = cfg.course_for(quiz["course"])
     title = f"Oso quiz: {c.name if c else quiz['course']}"
 
@@ -188,13 +321,6 @@ def run(quiz_id: int) -> None:
     root.geometry("760x560")
     frm = ttk.Frame(root, padding=16)
     frm.pack(fill="both", expand=True)
-
-    if quiz["submitted_at"]:
-        ttk.Label(frm, text="This quiz has already been submitted. Go back to the chat and ask Claude to grade it.",
-                  wraplength=700).pack(anchor="w")
-        ttk.Button(frm, text="Close", command=root.destroy).pack(anchor="e", pady=12)
-        root.mainloop()
-        return
 
     session = QuizSession(questions)
     header = ttk.Label(frm, font=("TkDefaultFont", 11, "bold"))

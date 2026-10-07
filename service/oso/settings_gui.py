@@ -41,6 +41,8 @@ def open_settings(cfg: cfgmod.Config) -> None:
     status_tab = ttk.Frame(notebook, padding=12)
     settings_outer = ttk.Frame(notebook)
     notebook.add(status_tab, text="Status")
+    quizzes_tab = ttk.Frame(notebook, padding=12)
+    notebook.add(quizzes_tab, text="Quizzes")
     notebook.add(settings_outer, text="Settings")
 
     # One window at a time: record ours, and come to the front when Claude asks for the window again.
@@ -191,6 +193,39 @@ def open_settings(cfg: cfgmod.Config) -> None:
         for text, cmd in items:
             ttk.Button(group, text=text, command=cmd).pack(fill="x", pady=3)
     refresh()
+
+    # ---- Quizzes: every quiz, opened in the quiz window (read-only once taken) ------------------------
+    qtop = ttk.Frame(quizzes_tab)
+    qtop.pack(fill="x")
+    ttk.Label(qtop, text="Your quizzes", font=("TkDefaultFont", 12, "bold")).pack(side="left")
+    quiz_rows = _scrolling(quizzes_tab, padding=(0, 8, 0, 0))
+    quiz_rows.columnconfigure(1, weight=1)
+
+    def list_quizzes() -> None:
+        from datetime import datetime as _dt
+
+        for w in quiz_rows.winfo_children():
+            w.destroy()
+        try:
+            rows = actions.quizzes()
+        except Exception as e:  # noqa: BLE001
+            ttk.Label(quiz_rows, text=f"Oso couldn't list the quizzes ({e}).").grid(row=0, column=0, sticky="w")
+            return
+        if not rows:
+            ttk.Label(quiz_rows, text="No quizzes yet. Ask Claude to quiz you.", foreground="#666").grid(row=0, column=0, sticky="w")
+        for i, q in enumerate(rows):
+            c = cfg.course_for(q["course"])
+            day = _dt.fromisoformat(q["handed_out_at"]).astimezone(cfg.tz).strftime("%a %b %d")
+            score = f"{q['score']:g}%" if q["score"] is not None else {"handed_out": "not taken yet"}.get(q["status"], "not graded yet")
+            ttk.Label(quiz_rows, text=day, width=11).grid(row=i, column=0, sticky="w", pady=2)
+            ttk.Label(quiz_rows, text=f"{c.name if c else q['course']}: {', '.join(q['topics'][:4])} ({q['questions']} questions)",
+                      wraplength=560, justify="left").grid(row=i, column=1, sticky="w", pady=2)
+            ttk.Label(quiz_rows, text=score, width=14).grid(row=i, column=2, sticky="w", pady=2)
+            ttk.Button(quiz_rows, text="Take" if q["status"] == "handed_out" else "Review",
+                       command=lambda n=q["quiz_id"]: show(actions.open_quiz(n))).grid(row=i, column=3, sticky="e", padx=(8, 16), pady=2)
+
+    ttk.Button(qtop, text="Refresh", command=list_quizzes).pack(side="right", padx=(0, 16))
+    list_quizzes()
 
     # ---- Settings (scrolls: there are many) -----------------------------------------------------------
     frm = _scrolling(settings_outer, padding=12)

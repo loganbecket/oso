@@ -15,7 +15,8 @@ He clips pages with the Obsidian clipper and moves on. Oso works out which cours
 
 ## What stays put
 
-- A syllabus for a course that isn't set up yet stays in Clippings, where course setup looks for it, so it can't be filed into a similar existing course (Calculus III's syllabus into Calculus II).
+- **Syllabi.** Before filing a clip, Oso checks whether it looks like a syllabus ("syllabus", "grading", "office hours", "course schedule" in its title or headings). If it does, it stays in Clippings for `/create-course` to find, so a syllabus can't be filed into a similar existing course (Calculus III's into Calculus II).
+- **Backup search during course setup.** Only when `/create-course` runs and finds no syllabus in Clippings, it also looks through clips Oso filed recently; if the syllabus is there, it uses it and moves it into the new course. At no other time does this search run.
 - Anything that matches no course at all.
 
 ## Fixing a wrong guess
@@ -24,7 +25,7 @@ He tells Claude ("that article was for history, not physics"), and Claude moves 
 
 ## Done when
 
-- Tests: clips filed to the right course from sample course material; an ambiguous clip and an unrelated clip left in Clippings; a syllabus for an unset course left alone; finished courses skipped; moving a clip on request.
+- Tests: clips filed to the right course from sample course material; an ambiguous clip and an unrelated clip left in Clippings; a syllabus left in Clippings; course setup finding a syllabus that was filed anyway; finished courses skipped; moving a clip on request.
 - A real run on his laptop with a handful of clips across his courses.
 
 ## Decisions (Logan's, 2026-10-07)

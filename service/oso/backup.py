@@ -229,7 +229,11 @@ def restore(cfg: Config, folder: Path, day: str | None = None, overwrite: bool =
         dbfile = src_oso / "history" / f"oso-{day}.sqlite"
         if not dbfile.exists():
             raise BackupError(f"There is no backup of Oso's records from {day}.")
-    _copy(dbfile, db.db_path())
+    try:
+        _copy(dbfile, db.db_path())
+    except PermissionError as e:
+        raise BackupError("Oso's records are in use. Quit the Claude app, wait a minute, and run the restore again; "
+                          "the notes already restored are in place.") from e
     lines.append("Restored Oso's records" + (f" from {day}." if day else "."))
     if (src_oso / "config.toml").exists():
         old = cfgmod.load(src_oso / "config.toml")

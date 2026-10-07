@@ -42,7 +42,7 @@ def test_nightly_copy_changed_files_and_records(env):
         r = backup.run(cfg, conn, NIGHT)
         assert r["copied"] == 2 and r["finished"] == 1
         assert (nas / "Vault/Courses/2026 Fall/Physics/Notes/Day 1.md").read_text() == "first"
-        copy = sqlite3.connect(nas / "Oso" / "oso.sqlite")
+        copy = sqlite3.connect(nas / "Oso" / "oso.sqlite")  # closed below
         assert copy.execute("SELECT x FROM marks").fetchone() == (42,)
         copy.close()
         assert (nas / "Oso/history/oso-2026-11-02.sqlite").exists() and (nas / "Oso/config.toml").exists()
@@ -115,7 +115,9 @@ def test_restore_into_a_fresh_install(env, tmp_path):
     lines = backup.restore(new, nas)
     assert "Restored 2 files" in lines[0]
     assert (new.vault / "Courses/2026 Fall/Physics/Notes/Day 2.md").read_text() == "second"
-    assert sqlite3.connect(db.db_path()).execute("SELECT x FROM marks").fetchone() == (7,)
+    check = sqlite3.connect(db.db_path())
+    assert check.execute("SELECT x FROM marks").fetchone() == (7,)
+    check.close()  # Windows won't replace a file that is open
     restored = cfgmod.load(cfgmod.config_path())
     assert restored.vault == new.vault and [c.code for c in restored.courses] == ["PHYS-110"]
     with pytest.raises(backup.BackupError, match="already has notes"):

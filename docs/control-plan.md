@@ -1,6 +1,6 @@
 # Managing Oso from Claude: phased plan
 
-Temporary planning document. Delete it when the last phase ships. This is a feature release: it ships as **v0.6.0**.
+Temporary planning document. Delete it when the last phase ships. This is a feature release: it ships as **v0.7.0**.
 
 ## Goal
 
@@ -82,7 +82,7 @@ The health-check command's instructions change from "run it in a terminal" to th
 ## Phase 5: Wrap-up
 
 - README: "open my settings" and "Oso status" in Cowork as the way to look after Oso; the shortcut; PowerShell commands kept as a reference at the end.
-- Release v0.6.0. Delete this document.
+- Release v0.7.0. Delete this document.
 
 ## Decisions
 

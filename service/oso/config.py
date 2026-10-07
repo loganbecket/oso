@@ -34,6 +34,7 @@ class Course:
     term: str | None = None  # e.g. "2026 Fall"
     finished: bool = False  # out of the briefing, deadlines, alerts, and default search; still searchable by name
     related: list[str] = field(default_factory=list)  # codes of earlier courses whose notes this course's searches include
+    sites: list[str] = field(default_factory=list)  # instructor web pages followed for new materials (sites.py)
 
     @property
     def folder_name(self) -> str:
@@ -71,6 +72,7 @@ class Config:
     auto_read_per_day: int = 0  # optional daily limit on those pages (0 = no limit)
     backup_folder: str | None = None  # where the nightly backup goes (a NAS share, a drive); none = no backup
     backup_hour: int = 2  # the backup runs on the first check after this hour each day
+    site_check_hours: int = 6  # how often instructors' websites are checked for new materials
 
     @property
     def tz(self) -> ZoneInfo:
@@ -113,7 +115,8 @@ def load(path: Path | None = None) -> Config:
     courses = [
         Course(code=c["code"], name=c.get("name", c["code"]), folder=c.get("folder", c.get("name", c["code"])),
                drive_folder=c.get("drive_folder") or None, term=c.get("term") or None,
-               finished=bool(c.get("finished", False)), related=[str(x) for x in c.get("related", [])])
+               finished=bool(c.get("finished", False)), related=[str(x) for x in c.get("related", [])],
+               sites=[str(x) for x in c.get("sites", [])])
         for c in raw.get("courses", [])
     ]
     return Config(
@@ -145,6 +148,7 @@ def load(path: Path | None = None) -> Config:
         auto_read_per_day=int(raw.get("auto_read_per_day", 0)),
         backup_folder=raw.get("backup_folder") or None,
         backup_hour=int(raw.get("backup_hour", 2)),
+        site_check_hours=int(raw.get("site_check_hours", 6)),
     )
 
 
@@ -180,6 +184,7 @@ def save(cfg: Config, path: Path | None = None) -> Path:
         f"auto_read_per_day = {cfg.auto_read_per_day}",
         *([f'backup_folder = "{_toml_str(cfg.backup_folder)}"'] if cfg.backup_folder else []),
         f"backup_hour = {cfg.backup_hour}",
+        f"site_check_hours = {cfg.site_check_hours}",
         "",
     ]
     for c in cfg.courses:
@@ -192,6 +197,7 @@ def save(cfg: Config, path: Path | None = None) -> Path:
             *([f'term = "{_toml_str(c.term)}"'] if c.term else []),
             *(["finished = true"] if c.finished else []),
             *(["related = [" + ", ".join(f'"{_toml_str(r)}"' for r in c.related) + "]"] if c.related else []),
+            *(["sites = [" + ", ".join(f'"{_toml_str(u)}"' for u in c.sites) + "]"] if c.sites else []),
             "",
         ]
     path.write_text("\n".join(lines), encoding="utf-8")

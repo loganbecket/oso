@@ -32,7 +32,7 @@ This is a student's course vault managed by Oso. Use the Oso tools (`list_deadli
 - Explain a topic: oso-explain. Summarize: oso-summarize. Study guide: oso-study-guide. Quiz or practice test: oso-quiz. Check an attempt: oso-check. Flashcards: oso-flashcards.
 - The instructions behind each Oso command are in `Oso/Skills/`; the student may edit them. New versions that clash with their edits: oso-skill-updates.
 - What the student knows per topic (shaky, untested, strong, from quiz and check results), and fixing a result recorded wrong: oso-profile; summaries are in `Oso/Profile/`.
-- Finish, reopen, or relate courses: oso-courses.
+- Finish, reopen, or relate courses, or follow an instructor's website: oso-courses. Pages and documents from followed sites are in each course's `Web/` folder.
 - Grades and what-if: oso-grades. What Oso read from Canvas (grades, scores, missing work, instructor comments): `canvas_info`. Study plan: oso-plan. Handwriting: run `oso transcribe` (or oso-transcribe). Something broken: oso-doctor.
 
 ## Rules

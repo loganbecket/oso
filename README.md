@@ -41,6 +41,8 @@ There is no Oso server. Your notes stay on your computer and in your own Google 
 
 **Keeping Oso up to date.** When a new version is out, your briefing says so. Run `oso update` in your command window, wait about a minute, and restart the Claude app.
 
+**Instructors' websites.** If an instructor posts materials on their own site, tell Claude ("Dr. Lee posts physics materials at …"), or mention it during `/create-course`. Oso checks the site a few times a day, saves new and changed pages and the documents they link to (PDFs, slides, worksheets) into the course's `Web` folder, where they're searchable like anything else, and the briefing lists what's new. Sites that need a sign-in can't be followed; Oso says so. `oso sites` shows what's followed.
+
 **Backups.** If you set a backup folder in `oso settings` (a network share, an external drive, any folder), Oso copies your vault and its records there every night, keeping deleted files for 30 days. `oso backup` runs one now; `oso restore --from <folder>` brings everything back on a new computer.
 
 **When something seems wrong.** Run `oso doctor` in your command window. It checks every part of Oso and says in plain words what to fix. Part 6 below lists common problems.
@@ -335,6 +337,7 @@ oso profile --raw         show every recorded quiz, question by question
 oso connect-canvas        sign in to Canvas so Oso can read grades and coursework
 oso canvas --raw          show what Oso has read from Canvas
 oso books                 how far Oso has read each textbook (--reprocess TITLE reads one again)
+oso sites                 instructor websites Oso follows (--add COURSE URL, --check)
 oso backup                back up now (--set-folder PATH sets the backup folder)
 oso restore --from PATH   bring the vault and Oso's records back from a backup
 oso watch                 take in new files as they arrive (runs on its own from sign-in)

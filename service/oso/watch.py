@@ -28,7 +28,7 @@ log = logging.getLogger("oso.watch")
 
 SETTLE_SECONDS = 20     # quiet time after the last change before taking files in
 HEARTBEAT_SECONDS = 300
-IGNORED_PARTS = {"pages", ".obsidian", ".trash", "Quizzes", "Canvas", "Announcements"}
+IGNORED_PARTS = {"pages", ".obsidian", ".trash", "Quizzes", "Canvas", "Announcements", "Web"}  # Oso fills these itself
 _CONVERTED = re.compile(r"\.(pdf|docx?|pptx?|xlsx?|odt|odp|ods|rtf|epub|gdoc|gsheet|gslides|html?)\.md$", re.IGNORECASE)
 _CHAPTER = re.compile(r"^\d\d .+\.md$")
 _TEMP = re.compile(r"(^~\$|^\.~lock|\.part$|\.tmp$|\.crdownload$|\.download$|^\.)", re.IGNORECASE)

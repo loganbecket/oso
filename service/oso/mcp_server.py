@@ -57,12 +57,13 @@ def add_course(code: str, name: str, term: str | None = None, related: list[str]
 
 
 @mcp.tool()
-def update_course(code: str, finished: bool | None = None, related: list[str] | None = None) -> dict:
-    """Mark a course finished (or current again), or set the earlier courses it builds on."""
+def update_course(code: str, finished: bool | None = None, related: list[str] | None = None,
+                  add_site: str | None = None, remove_site: str | None = None) -> dict:
+    """Mark a course finished (or current again), set the earlier courses it builds on, or add/remove an instructor web page Oso follows for new materials."""
     from . import courses
 
-    c = courses.update(_cfg(), code, finished=finished, related=related)
-    return {"code": c.code, "finished": c.finished, "related": c.related}
+    c = courses.update(_cfg(), code, finished=finished, related=related, add_site=add_site, remove_site=remove_site)
+    return {"code": c.code, "finished": c.finished, "related": c.related, "sites": c.sites}
 
 
 @mcp.tool()

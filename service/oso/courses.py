@@ -57,7 +57,8 @@ def register(cfg: Config, code: str, name: str, term: str | None = None, related
     return course
 
 
-def update(cfg: Config, code: str, finished: bool | None = None, related: list[str] | None = None) -> Course:
+def update(cfg: Config, code: str, finished: bool | None = None, related: list[str] | None = None,
+           add_site: str | None = None, remove_site: str | None = None) -> Course:
     course = cfg.course_for(code)
     if course is None:
         raise ValueError(f"no course {code!r}")
@@ -65,6 +66,14 @@ def update(cfg: Config, code: str, finished: bool | None = None, related: list[s
         course.finished = finished
     if related is not None:
         course.related = _codes(cfg, related, code)
+    if add_site:
+        from .sites import normalize
+
+        url = normalize(add_site)
+        if url not in course.sites:
+            course.sites.append(url)
+    if remove_site:
+        course.sites = [u for u in course.sites if u.rstrip("/") != remove_site.strip().rstrip("/") and remove_site.strip() not in u]
     cfgmod.save(cfg)
     return course
 
@@ -83,7 +92,8 @@ def _codes(cfg: Config, refs: list[str], own: str) -> list[str]:
 
 def describe(cfg: Config) -> list[dict]:
     return [
-        {"code": c.code, "name": c.name, "term": c.term, "folder": f"Courses/{c.folder}", "finished": c.finished, "related": c.related}
+        {"code": c.code, "name": c.name, "term": c.term, "folder": f"Courses/{c.folder}", "finished": c.finished, "related": c.related,
+         "sites": c.sites}
         for c in sorted(cfg.courses, key=lambda c: (c.finished, c.term or "", c.name))
     ]
 

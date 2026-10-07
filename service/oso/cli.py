@@ -50,6 +50,10 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("profile", help="show what the learner profile has recorded")
     s.add_argument("--raw", action="store_true", help="every recent quiz with each question and answer")
     s.add_argument("--delete-quiz", type=int, metavar="N", help="delete quiz N completely (asks first)")
+    s = sub.add_parser("sites", help="instructors' websites Oso follows for new materials")
+    s.add_argument("--add", nargs=2, metavar=("COURSE", "URL"), help="follow a page for a course")
+    s.add_argument("--remove", nargs=2, metavar=("COURSE", "URL"), help="stop following a page")
+    s.add_argument("--check", action="store_true", help="check every followed page now")
     s = sub.add_parser("backup", help="back up the vault and Oso's records now (to the folder in settings)")
     s.add_argument("--set-folder", metavar="PATH", help="set the backup folder (checked first); '' turns backups off")
     s = sub.add_parser("restore", help="bring the vault and Oso's records back from a backup folder")
@@ -272,6 +276,31 @@ def _dispatch(args: argparse.Namespace) -> int:
             return 0
         with db.connect() as conn:
             print(profile.raw_dump(conn))
+        return 0
+
+    if args.cmd == "sites":
+        from . import courses, sites
+
+        try:
+            if args.add:
+                courses.update(cfg, args.add[0], add_site=args.add[1])
+                print(f"Following {sites.normalize(args.add[1])} for {args.add[0]}; it is checked on the next check (or run 'oso sites --check').")
+                return 0
+            if args.remove:
+                courses.update(cfg, args.remove[0], remove_site=args.remove[1])
+                print(f"No longer following {args.remove[1]}.")
+                return 0
+        except ValueError as e:
+            print(e)
+            return 1
+        with db.connect() as conn:
+            if args.check:
+                print(sites.check(cfg, conn, force=True))
+            rows = sites.status(conn, cfg)
+        if not rows:
+            print("No instructor websites followed yet. Tell Claude about one, or run: oso sites --add <course> <address>")
+        for r in rows:
+            print(f"{r['course']}: {r['site']} ({r['status']}; {r['pages']} pages, {r['files']} files)")
         return 0
 
     if args.cmd == "backup":

@@ -62,6 +62,7 @@ def render(conn: sqlite3.Connection, cfg: Config, now: datetime) -> str:
 
     lines += _changes(conn, cfg, now)
     lines += _canvas_events(conn, cfg, now)
+    lines += _site_lines(conn, cfg, now)
     lines += _handwriting(conn)
     lines += _update_note(conn)
     lines += _skill_note()
@@ -159,6 +160,25 @@ def _canvas_events(conn: sqlite3.Connection, cfg: Config, now: datetime) -> list
         lines.append("")
     if untagged:
         lines += ["## Oso", f"- {untagged} Canvas assignment{'s' if untagged != 1 else ''} not yet matched to course topics; Claude does this during the briefing.", ""]
+    return lines
+
+
+def _site_lines(conn: sqlite3.Connection, cfg: Config, now: datetime) -> list[str]:
+    from . import sites
+
+    try:
+        events = sites.recent_events(conn, now)
+        trouble = sites.problems(conn, cfg)
+    except sqlite3.Error:
+        return []
+    lines = []
+    if events or trouble:
+        lines.append("## From instructors' websites")
+        for r in events:
+            c = cfg.course_for(r["course"])
+            lines.append(f"- **{c.name if c else r['course']}**: {r['text']}.")
+        lines += [f"- {t}" for t in trouble]
+        lines.append("")
     return lines
 
 

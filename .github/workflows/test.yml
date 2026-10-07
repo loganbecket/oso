@@ -1,8 +1,10 @@
 name: Test
 
-# Every push gets a quick check on Linux (about a minute). The full check on Windows, macOS, and Linux,
-# with LibreOffice, the real search model, text recognition, and a live Windows update, runs on release
-# tags, and on demand from the Actions tab.
+# Every push gets a quick check on Linux (about a minute), and warms the Windows and macOS download caches
+# so release checks start with Oso's packages and the search model already in hand. The full check on
+# Windows, macOS, and Linux (LibreOffice on Linux, the real search model, text recognition, and a live
+# Windows update) runs on release tags, and on demand from the Actions tab. When it passes on a tag, the
+# GitHub release is published from the tag's message.
 on:
   push:
     branches: [master]
@@ -22,6 +24,28 @@ jobs:
       - name: Run tests
         run: uv run --python 3.12 --extra dev pytest -q -x
 
+  warm:
+    # Caches made on master are the ones release tags can use.
+    if: ${{ github.ref == 'refs/heads/master' && github.event_name == 'push' }}
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - uses: actions/cache@v4
+        with:
+          path: ~/oso-models
+          key: search-model-${{ runner.os }}-bge-small-en-v1.5
+      - name: Download Oso's packages and the search model
+        shell: bash
+        run: |
+          uv sync --python 3.12 --extra dev
+          uv run --python 3.12 python -c "from fastembed import TextEmbedding; import os; TextEmbedding('BAAI/bge-small-en-v1.5', cache_dir=os.path.expanduser('~/oso-models'))"
+
   test:
     if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
     strategy:
@@ -36,29 +60,29 @@ jobs:
         with:
           enable-cache: true
 
+      - uses: actions/cache@v4
+        with:
+          path: ~/oso-models
+          key: search-model-${{ runner.os }}-bge-small-en-v1.5
+
+      # LibreOffice only on Linux: a few document-conversion tests use it, and installing it on Windows and
+      # macOS cost over a minute each.
       - name: Install LibreOffice (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libreoffice-writer
 
-      - name: Install LibreOffice (macOS)
-        if: runner.os == 'macOS'
-        run: brew install --cask libreoffice
-
-      - name: Install LibreOffice (Windows)
-        if: runner.os == 'Windows'
-        run: choco install libreoffice-fresh -y --no-progress
-
       - name: Run tests
         if: runner.os != 'Linux'
+        shell: bash
         env:
           OSO_REAL_SEARCH_MODEL: "1"
-        run: uv run --python 3.12 --extra dev pytest -q -rs
+        run: OSO_MODEL_CACHE=~/oso-models uv run --python 3.12 --extra dev pytest -q -rs
 
       - name: Run tests (Linux, with a virtual display for the quiz window)
         if: runner.os == 'Linux'
         env:
           OSO_REAL_SEARCH_MODEL: "1"
-        run: xvfb-run -a uv run --python 3.12 --extra dev pytest -q -rs
+        run: OSO_MODEL_CACHE=~/oso-models xvfb-run -a uv run --python 3.12 --extra dev pytest -q -rs
 
       - name: Install the way students do and start it
         run: uvx --python 3.12 --from . oso --help
@@ -108,3 +132,22 @@ jobs:
           except Exception as e:
               print("::warning title=Text recognition::" + str(e)[:300])
           PY
+
+  release:
+    # Publish the release once every system passed, with the tag's message as its notes.
+    needs: test
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          git fetch --force origin "refs/tags/$TAG:refs/tags/$TAG"
+          git for-each-ref "refs/tags/$TAG" --format='%(contents:body)' > notes.md
+          if [ ! -s notes.md ]; then git for-each-ref "refs/tags/$TAG" --format='%(contents)' > notes.md; fi
+          gh release create "$TAG" --title "$TAG" --notes-file notes.md --latest

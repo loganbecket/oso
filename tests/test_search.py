@@ -78,6 +78,11 @@ def test_exact_words_without_the_model(tmp_path: Path, monkeypatch):
 @pytest.mark.skipif(not os.environ.get("OSO_REAL_SEARCH_MODEL"), reason="downloads the real model")
 def test_real_model(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(search.cfgmod, "data_dir", lambda: tmp_path)
+    cached = os.environ.get("OSO_MODEL_CACHE")
+    if cached and Path(cached).expanduser().is_dir():  # the release check's cached download, so it isn't fetched every time
+        import shutil
+
+        shutil.copytree(Path(cached).expanduser(), tmp_path / "models")
     cfg = vault(tmp_path)
     db = tmp_path / "s.sqlite"
     assert search.update(cfg, db)["embedded"] == 3

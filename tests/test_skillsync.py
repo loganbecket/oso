@@ -89,3 +89,11 @@ def test_every_plugin_skill_points_at_a_shipped_file():
             assert "skill_instructions" not in text
         else:
             assert d.name in names and f"name `{d.name}`" in text
+
+
+def test_plugin_skill_front_matter_has_no_angle_brackets():
+    """The Claude app skips a skill whose description contains angle brackets (it reads them as XML tags)."""
+    plugin = Path(__file__).parent.parent / "plugin" / "skills"
+    for d in plugin.iterdir():
+        head = (d / "SKILL.md").read_text(encoding="utf-8").split("---")[1]
+        assert "<" not in head and ">" not in head, d.name

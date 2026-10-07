@@ -62,18 +62,24 @@ def open_settings(cfg: cfgmod.Config) -> None:
     actions_tab = ttk.Frame(notebook, padding=12)
     notebook.insert(settings_outer, actions_tab, text="Actions")
     results = []
+    from tkinter import font as tkfont
 
-    def result_box(parent) -> None:
-        box = tk.Text(parent, height=6, wrap="word", state="disabled", relief="solid", borderwidth=1)
-        box.pack(side="bottom", fill="x", pady=(10, 0))
-        results.append(box)
+    bold = tkfont.nametofont("TkDefaultFont").copy()
+    bold.configure(weight="bold")
 
-    def show(text: str) -> None:
-        for box in results:
-            box.configure(state="normal")
-            box.delete("1.0", "end")
-            box.insert("1.0", text)
-            box.configure(state="disabled")
+    def result_box(parent, above) -> None:
+        """Where a button's reply appears: plain text under a line, shown once there is something to say."""
+        box = ttk.Frame(parent)
+        ttk.Separator(box).pack(fill="x", pady=(0, 8))
+        text = ttk.Label(box, wraplength=920, justify="left", font=bold)
+        text.pack(anchor="w")
+        results.append((box, text, above))
+
+    def show(message: str) -> None:
+        for box, text, above in results:
+            text.configure(text=message)
+            if not box.winfo_ismapped():
+                box.pack(side="bottom", fill="x", pady=(10, 0), before=above)
 
     busy = {"on": False}
 
@@ -104,12 +110,15 @@ def open_settings(cfg: cfgmod.Config) -> None:
         "connect_canvas": ("Opening the Canvas sign-in", actions.connect_canvas),
         "backup": ("Backing up", actions.backup_now),
     }
-    result_box(status_tab)
     top = ttk.Frame(status_tab)
     top.pack(fill="x")
+    result_box(status_tab, top)
     ttk.Label(top, text="How Oso is doing", font=("TkDefaultFont", 12, "bold")).pack(side="left")
-    ttk.Button(top, text="Refresh", command=lambda: (show("Up to date."), refresh())).pack(side="right", padx=(0, 16))
+    refresh_button = ttk.Button(top, text="Refresh", command=lambda: (show("Up to date."), refresh()))
+    refresh_button.pack(side="right", padx=(0, 16))
     lines_frame = _scrolling(status_tab, padding=(0, 8, 0, 0))
+    # Line Refresh up with the fix buttons below it, which sit left of the scroll bar.
+    lines_frame.scrollbar.bind("<Configure>", lambda e: refresh_button.pack_configure(padx=(0, 16 + e.width)))
     lines_frame.columnconfigure(1, weight=1)
 
     def refresh() -> None:
@@ -121,8 +130,12 @@ def open_settings(cfg: cfgmod.Config) -> None:
             checks = [{"status": "fail", "text": f"Oso couldn't check itself: {e}", "action": None}]
         order = {"fail": 0, "warn": 1, "ok": 2}
         for i, c in enumerate(sorted(checks, key=lambda c: order.get(c["status"], 3))):
-            tk.Label(lines_frame, text="●", fg=DOT.get(c["status"], "#666")).grid(row=i, column=0, sticky="nw", padx=(0, 6))
-            ttk.Label(lines_frame, text=c["text"], wraplength=660, justify="left").grid(row=i, column=1, sticky="w", pady=1)
+            # The light and the text share a frame, so the light sits on the text's first line even when a button
+            # makes the row taller.
+            line = ttk.Frame(lines_frame)
+            line.grid(row=i, column=1, sticky="w", pady=1)
+            ttk.Label(line, text="●", foreground=DOT.get(c["status"], "#666")).pack(side="left", anchor="n", padx=(0, 6))
+            ttk.Label(line, text=c["text"], wraplength=660, justify="left").pack(side="left", anchor="n")
             action = c.get("action")
             if action == "connect_calendar":
                 ttk.Button(lines_frame, text=ACTIONS[action], command=lambda: show(_connect_calendar(cfg))).grid(row=i, column=2, sticky="ew", padx=(16, 16), pady=3)
@@ -154,9 +167,9 @@ def open_settings(cfg: cfgmod.Config) -> None:
     ]
     ttk.Label(actions_tab, text="Starting over (fresh start) is only in PowerShell, on purpose: run 'oso fresh-start'.",
               foreground="#666").pack(side="bottom", anchor="w", pady=(6, 0))
-    result_box(actions_tab)
     acts = ttk.Frame(actions_tab)
     acts.pack(anchor="nw", fill="x")
+    result_box(actions_tab, acts)
     for col, (title, items) in enumerate(groups):
         acts.columnconfigure(col, weight=1, uniform="groups")
         group = ttk.LabelFrame(acts, text=title, padding=10)
@@ -164,7 +177,6 @@ def open_settings(cfg: cfgmod.Config) -> None:
         for text, cmd in items:
             ttk.Button(group, text=text, command=cmd).pack(fill="x", pady=3)
     refresh()
-    show("Ask Claude \"open my settings\" any time to come back here.")
 
     # ---- Settings (scrolls: there are many) -----------------------------------------------------------
     frm = _scrolling(settings_outer, padding=12)
@@ -391,14 +403,11 @@ def open_settings(cfg: cfgmod.Config) -> None:
     ttk.Button(btns, text="Save", command=lambda: save(False)).grid(row=0, column=0, padx=4)
     ttk.Button(btns, text="Save and check", command=lambda: save(True)).grid(row=0, column=1, padx=4)
     row += 1
-    settings_result = tk.Text(frm, height=8, width=90, state="disabled", wrap="word")
-    settings_result.grid(row=row, column=0, columnspan=3, sticky="we", **pad)
+    settings_result = ttk.Label(frm, wraplength=900, justify="left", font=bold)
+    settings_result.grid(row=row, column=0, columnspan=3, sticky="w", **pad)
 
     def show_saved(text: str) -> None:
-        settings_result.configure(state="normal")
-        settings_result.delete("1.0", "end")
-        settings_result.insert("1.0", text)
-        settings_result.configure(state="disabled")
+        settings_result.configure(text=text)
         refresh()
 
 
@@ -418,6 +427,7 @@ def _scrolling(parent, padding=0) -> ttk.Frame:
     canvas = tk.Canvas(outer, highlightthickness=0)
     bar = ttk.Scrollbar(outer, orient="vertical", command=canvas.yview)
     inner = ttk.Frame(canvas, padding=padding)
+    inner.scrollbar = bar
     inner.bind("<Configure>", lambda _e: canvas.configure(scrollregion=canvas.bbox("all")))
     window = canvas.create_window((0, 0), window=inner, anchor="nw")
     canvas.bind("<Configure>", lambda e: canvas.itemconfigure(window, width=e.width))

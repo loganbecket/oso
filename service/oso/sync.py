@@ -101,6 +101,7 @@ def _run(cfg: Config, now: datetime | None = None) -> dict[str, object]:
             results[connector.name] = counts
             log.info("%s: %s", connector.name, counts)
 
+        results.update(_read_messages(conn, cfg, now))
         _safe(lambda: filing.retire_inbox(cfg), 0)
         results["alerts"] = _safe(lambda: alerts.write_inbox(conn, cfg, now), 0)
         results["calendar"] = _deliver_calendar(conn, cfg, now)
@@ -141,14 +142,43 @@ def _deliver_calendar(conn, cfg: Config, now: datetime) -> str | int:
 
     if not gcal.connected():
         return "not connected"
+    from . import happenings
+
     run_id = db.record_sync(conn, "google_calendar")
     try:
-        n = gcal.deliver(conn, cfg, now)
+        session = gcal._session()
+        n = gcal.deliver(conn, cfg, now, session=session)
+        # Events from email and GroupMe go on the Oso calendar, and the whole calendar is read back for the schedule.
+        happenings.sync_calendar(conn, cfg, now, session, gcal.ensure_calendar(session, cfg))
     except Exception as e:  # noqa: BLE001
         db.finish_sync(conn, run_id, ok=False, error=plain_error(e))
         return plain_error(e)
     db.finish_sync(conn, run_id, ok=True, items_seen=n)
     return n
+
+
+def _read_messages(conn, cfg: Config, now: datetime) -> dict[str, object]:
+    """New school email and GroupMe messages, then Claude picking out what matters in them."""
+    from . import groupme, mail, messages
+
+    results: dict[str, object] = {}
+    for name, module in (("school_email", mail), ("groupme", groupme)):
+        if not module.connected():
+            continue
+        run_id = db.record_sync(conn, name)
+        try:
+            counts = module.fetch(conn, cfg, now)
+        except Exception as e:  # noqa: BLE001
+            db.finish_sync(conn, run_id, ok=False, error=plain_error(e))
+            results[name] = plain_error(e)
+            _record_failure(name)
+            continue
+        db.finish_sync(conn, run_id, ok=True, items_seen=int(counts.get("kept", 0)))
+        results[name] = counts
+        conn.commit()
+    if results:
+        results["messages"] = _safe(lambda: messages.read_new(conn, cfg, now), {})
+    return results
 
 
 def _pull_tablet(conn, cfg: Config) -> str | int:

@@ -1,14 +1,14 @@
 """`oso fresh-start`: back to a fresh installation without redoing setup.
 
 Kept: the settings (vault location, time zone, check schedule, urgency and quiet hours, models, update
-channel, backup folder; the backup itself is outside the vault and is not touched), the Canvas feed and token and the Google Calendar connection in the credential store, the
+channel, backup folder; the backup itself is outside the vault and is not touched), the Canvas feed and token and the Google Calendar, school email, and GroupMe connections in the credential store, the
 scheduled check, the Canvas sign-in, Obsidian's own settings and plugins (`.obsidian`), the courses' textbooks
 (each course's `Books` folder, with what Oso has read of them), and the downloaded
 search model. Everything read from Canvas is cleared and read again on the next check.
 
 Deleted, with no backup: everything else in the vault, the courses and anything tied to them (muted
 courses, Drive folder links), and Oso's database (deadlines, grades, alerts, transcription history, and the
-learner profile: every quiz, check, and topic rating), its
+learner profile: every quiz, check, and topic rating, and what was picked out of email and GroupMe), its
 search index, and its record of the command instructions. A sync then rebuilds the starting folders,
 `Today.md`, and the command instructions, and pulls the Canvas deadlines back in.
 """

@@ -73,6 +73,9 @@ class Config:
     backup_folder: str | None = None  # where the nightly backup goes (a NAS share, a drive); none = no backup
     backup_hour: int = 2  # the backup runs on the first check after this hour each day
     site_check_hours: int = 6  # how often instructors' websites are checked for new materials
+    muted_senders: list[str] = field(default_factory=list)  # email addresses, @domains, or mailing lists never read
+    muted_groups: list[str] = field(default_factory=list)  # GroupMe group ids (or names) never read
+    message_reads_per_day: int = 0  # optional daily limit on messages Claude reads (0 = no limit)
 
     @property
     def tz(self) -> ZoneInfo:
@@ -149,6 +152,9 @@ def load(path: Path | None = None) -> Config:
         backup_folder=raw.get("backup_folder") or None,
         backup_hour=int(raw.get("backup_hour", 2)),
         site_check_hours=int(raw.get("site_check_hours", 6)),
+        muted_senders=[str(x) for x in raw.get("muted_senders", [])],
+        muted_groups=[str(x) for x in raw.get("muted_groups", [])],
+        message_reads_per_day=int(raw.get("message_reads_per_day", 0)),
     )
 
 
@@ -197,6 +203,9 @@ def save(cfg: Config, path: Path | None = None) -> Path:
         *([f'backup_folder = "{_toml_str(cfg.backup_folder)}"'] if cfg.backup_folder else []),
         f"backup_hour = {cfg.backup_hour}",
         f"site_check_hours = {cfg.site_check_hours}",
+        "muted_senders = [" + ", ".join(f'"{_toml_str(x)}"' for x in cfg.muted_senders) + "]",
+        "muted_groups = [" + ", ".join(f'"{_toml_str(x)}"' for x in cfg.muted_groups) + "]",
+        f"message_reads_per_day = {cfg.message_reads_per_day}",
         "",
     ]
     for c in cfg.courses:

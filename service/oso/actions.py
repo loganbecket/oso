@@ -100,6 +100,42 @@ def disconnect_canvas() -> str:
     return "Oso forgot your Canvas sign-in. Due dates still come from the calendar feed."
 
 
+def connect_email(client_file=None) -> str:
+    from . import mail
+
+    try:
+        addr = mail.connect(client_file)
+    except Exception as e:  # noqa: BLE001
+        if "client file" in str(e):
+            return str(e)
+        return f"School email didn't connect ({e}). If the sign-in page said your school blocks the app, school email can't be read."
+    return f"Connected {addr}. Oso reads new school email on every check; nothing is ever sent or changed."
+
+
+def disconnect_email() -> str:
+    from . import mail
+
+    mail.disconnect()
+    return "Oso forgot the school email connection."
+
+
+def connect_groupme(token: str) -> str:
+    from . import groupme
+
+    try:
+        name = groupme.connect(token)
+    except Exception:  # noqa: BLE001
+        return "GroupMe didn't accept that access token. Copy it again from dev.groupme.com (Access Token, top right)."
+    return f"Connected GroupMe as {name}. Oso reads your groups on every check; mute any that never matter."
+
+
+def disconnect_groupme() -> str:
+    from . import groupme
+
+    groupme.disconnect()
+    return "Oso forgot the GroupMe connection."
+
+
 def books() -> str:
     from . import books as bk
 

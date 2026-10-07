@@ -72,6 +72,11 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("canvas", help="show what Oso has read from Canvas")
     s.add_argument("--raw", action="store_true", help="every course and assignment with its score")
     sub.add_parser("disconnect-calendar", help="stop Oso writing to Google Calendar and forget its access")
+    s = sub.add_parser("connect-email", help="let Oso read your school email (read-only), signing in with your school account")
+    s.add_argument("--client-file", help="the OAuth client file from Google Cloud (only if Oso asks for it)")
+    sub.add_parser("disconnect-email", help="stop reading school email and forget its access")
+    sub.add_parser("connect-groupme", help="let Oso read your GroupMe groups, with the access token from dev.groupme.com")
+    sub.add_parser("disconnect-groupme", help="stop reading GroupMe and forget the token")
     s = sub.add_parser("transcribe", help="turn queued handwritten pages into notes, one page per Claude Code call")
     s.add_argument("--model", help="override the model from settings (sonnet, opus, ...)")
     s.add_argument("--limit", type=int, default=200, help="at most this many pages")
@@ -202,6 +207,34 @@ def _dispatch(args: argparse.Namespace) -> int:
         print("A browser window will open. Sign in with your Google account and allow access.")
         gcal.connect(client, cfg)
         print("Connected. Oso created a calendar named 'Oso' and will put urgent changes on it.")
+        return 0
+
+    if args.cmd == "connect-email":
+        from . import actions
+
+        print("A browser window will open. Sign in with your SCHOOL account and allow Oso to read your email.")
+        print(actions.connect_email(Path(args.client_file).expanduser() if args.client_file else None))
+        return 0
+
+    if args.cmd == "disconnect-email":
+        from . import actions
+
+        print(actions.disconnect_email())
+        return 0
+
+    if args.cmd == "connect-groupme":
+        import getpass
+
+        from . import actions
+
+        print("Sign in at dev.groupme.com, click Access Token at the top right, and copy it.")
+        print(actions.connect_groupme(getpass.getpass("Paste the access token (it won't show): ")))
+        return 0
+
+    if args.cmd == "disconnect-groupme":
+        from . import actions
+
+        print(actions.disconnect_groupme())
         return 0
 
     if args.cmd == "connect-canvas":

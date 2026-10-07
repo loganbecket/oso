@@ -264,6 +264,99 @@ def backup_now() -> str:
     return actions.backup_now()
 
 
+# ---- his week: school email, GroupMe, and the Oso calendar --------------------------------------
+
+
+@mcp.tool()
+def schedule(days: int = 7) -> dict:
+    """His schedule for the coming days (the Oso calendar, plus events from school email and GroupMe), the actions he
+    needs to take, and conflicts worth raising. Each event has `happening` (Oso's id) and/or `event_id` (the calendar's)."""
+    from . import happenings
+
+    cfg = _cfg()
+    now = datetime.now(cfg.tz)
+    with db.connect() as conn:
+        return {
+            "schedule": happenings.schedule(conn, cfg, now, days),
+            "to_do": [h for h in happenings.upcoming(conn, cfg, now, max(days, 14)) if h["kind"] == "action"],
+            "heads_up": happenings.conflicts(conn, cfg, now, days),
+        }
+
+
+@mcp.tool()
+def add_to_calendar(title: str, start: str, end: str | None = None, location: str | None = None, notes: str | None = None,
+                    kind: str = "event") -> dict:
+    """Add an event (or, with kind "action", something he needs to do by a date) to his schedule and the Oso calendar,
+    when he asks ("add Saturday's tailgate, noon at the stadium"). start/end: local YYYY-MM-DDTHH:MM, or YYYY-MM-DD for all day."""
+    from . import happenings
+
+    cfg = _cfg()
+    now = datetime.now(cfg.tz)
+    with db.connect() as conn:
+        hid = happenings.add(conn, "action" if kind == "action" else "event", title, start[:16], ends_at=end[:16] if end else None,
+                             all_day=len(start) <= 10, location=location, source="chat", note=notes)
+        if hid is None:
+            return {"added": False, "note": "That is already on his schedule."}
+        conn.commit()
+        problem = happenings.push(conn, cfg, now) if kind != "action" else None
+    return {"added": True, "happening": hid, **({"note": problem} if problem else {})}
+
+
+@mcp.tool()
+def change_calendar(happening: int | None = None, event_id: str | None = None, cancel: bool = False, start: str | None = None,
+                    end: str | None = None, title: str | None = None, location: str | None = None) -> dict:
+    """Move, rename, relocate, or remove something on his schedule, only when he asks. Pass `happening` for anything Oso
+    keeps (from email, GroupMe, or added in chat), or `event_id` for an event he put on the Oso calendar himself."""
+    from . import happenings
+
+    cfg = _cfg()
+    now = datetime.now(cfg.tz)
+    with db.connect() as conn:
+        if happening is not None:
+            if not happenings.change(conn, happening, now, canceled=cancel, starts_at=start[:16] if start else None,
+                                     ends_at=end[:16] if end else None, location=location, title=title,
+                                     note="Canceled at his request." if cancel else "Changed at his request."):
+                return {"changed": False, "note": "No such item on his schedule."}
+            conn.commit()
+            problem = happenings.push(conn, cfg, now)
+            return {"changed": True, **({"note": problem} if problem else {})}
+        if event_id:
+            return {"changed": True, "note": happenings.change_calendar_event(conn, cfg, now, event_id, cancel=cancel, start=start,
+                                                                              end=end, title=title, location=location)}
+    return {"changed": False, "note": "Say which item: a happening id or an event_id from `schedule`."}
+
+
+@mcp.tool()
+def mute(group: str | None = None, sender: str | None = None, unmute: bool = False) -> dict:
+    """Stop (or, with unmute, resume) reading a GroupMe group (by name) or an email sender (an address, an @domain, or a
+    mailing list). Lists the groups and muted senders."""
+    from . import groupme
+
+    cfg = _cfg()
+    with db.connect() as conn:
+        groups = groupme.groups(conn)
+    note = ""
+    if group:
+        match = next((g for g in groups if g["name"].lower() == group.strip().lower()), None) or \
+            next((g for g in groups if group.strip().lower() in g["name"].lower()), None)
+        if match is None:
+            note = f"No GroupMe group called {group!r}."
+        else:
+            ids = [x for x in cfg.muted_groups if x != match["id"]]
+            cfg.muted_groups = ids if unmute else ids + [match["id"]]
+            note = f"{'Reading' if unmute else 'No longer reading'} {match['name']}."
+    if sender:
+        s = sender.strip().lower()
+        rest = [x for x in cfg.muted_senders if x.lower() != s]
+        cfg.muted_senders = rest if unmute else rest + [s]
+        note += f" {'Reading' if unmute else 'No longer reading'} email from {s}."
+    if group or sender:
+        cfgmod.save(cfg)
+    muted = set(cfg.muted_groups)
+    return {"note": note.strip(), "groups": [{"name": g["name"], "muted": g["id"] in muted} for g in groups],
+            "muted_senders": cfg.muted_senders}
+
+
 # ---- learner profile ---------------------------------------------------------------------------
 
 

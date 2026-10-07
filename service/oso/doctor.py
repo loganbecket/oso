@@ -23,6 +23,7 @@ ACTIONS = {
     "sync": "Sync now",
     "connect_canvas": "Sign in to Canvas",
     "connect_calendar": "Connect Google Calendar",
+    "connect_email": "Connect school email",
     "backup": "Back up now",
 }
 
@@ -146,6 +147,29 @@ def checks(fix: bool = False) -> list[dict]:
     else:
         out.append(("warn", "Google Calendar is not connected, so urgent changes only appear in Today.md and Oso/Alerts.md. See 'Connect the Oso calendar' in the README."), "connect_calendar")
 
+    from . import groupme, mail, messages
+
+    if mail.connected():
+        out.append(("ok", f"Reading school email ({mail.address() or 'connected'})"))
+    else:
+        out.append(("warn", "School email isn't connected, so Oso can't see moved deadlines or events announced by email. Run 'oso connect-email'."), "connect_email")
+    if groupme.connected():
+        with db.connect() as conn:
+            gs = groupme.groups(conn)
+        muted = sum(1 for g in gs if g["id"] in set(cfg.muted_groups))
+        out.append(("ok", f"Reading GroupMe ({len(gs) - muted} group{'s' if len(gs) - muted != 1 else ''}" + (f", {muted} muted)" if muted else ")")))
+    else:
+        out.append(("ok", "GroupMe isn't connected (optional; connect it on the Actions tab if you use GroupMe)"))
+    with db.connect() as conn:
+        unread = messages.waiting(conn)
+    if unread:
+        from . import reader
+
+        if reader._claude() is None:
+            out.append(("warn", f"{unread} messages are waiting for Claude, but Claude Code isn't installed. Install it from claude.ai/code."))
+        else:
+            out.append(("ok", f"Claude is reading {unread} new messages in the background"))
+
     from . import update
 
     st = update.status(cfg)
@@ -224,7 +248,7 @@ def _schedule_missing(cfg, fix: bool, what: str) -> tuple[str, str]:
 
 
 _NAMES = {"canvas_feed": "Canvas calendar feed", "canvas_api": "Canvas sign-in", "remarkable_usb": "reMarkable",
-          "google_calendar": "Google Calendar alerts"}
+          "google_calendar": "Google Calendar", "school_email": "School email", "groupme": "GroupMe"}
 
 
 def _name(connector: str) -> str:

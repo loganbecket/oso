@@ -55,6 +55,10 @@ def describe(r) -> str:
         return f"'{r['old_value']}' was renamed to '{r['new_value']}'"
     if r["field"] == "deleted":
         return f"{r['title']} was removed from its source"
+    if r["field"] == "new":
+        return f"New: {r['title']}, due {_fmt(r['new_value'])}"
+    if r["field"] == "canceled":
+        return f"{r['title']} was canceled: {r['new_value']}"
     return f"{r['title']}: {r['field']} changed"
 
 

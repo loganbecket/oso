@@ -47,6 +47,7 @@ def render(conn: sqlite3.Connection, cfg: Config, now: datetime) -> str:
     lines += _canvas_sign_in(conn)
     lines += _section("Due today", due_today, cfg, now)
     lines += _readiness(conn, cfg, now)
+    lines += _schedule(conn, cfg, now)
     lines += _missing(conn, cfg)
     lines += _section("Due this week", this_week, cfg, now)
 
@@ -191,6 +192,15 @@ def _readiness(conn: sqlite3.Connection, cfg: Config, now: datetime) -> list[str
         return []
 
 
+def _schedule(conn: sqlite3.Connection, cfg: Config, now: datetime) -> list[str]:
+    from . import happenings
+
+    try:
+        return happenings.today_sections(conn, cfg, now)
+    except (sqlite3.Error, ValueError) as e:  # never let the schedule stop the briefing
+        return ["## Today's schedule", f"- Oso couldn't put the schedule together ({e}).", ""]
+
+
 def _course_label(r: dict, cfg: Config) -> str:
     c = cfg.course_for(r["course_code"])
     name = c.name if c else (r["course_code"] or "")
@@ -200,7 +210,7 @@ def _course_label(r: dict, cfg: Config) -> str:
 def _changes(conn: sqlite3.Connection, cfg: Config, now: datetime) -> list[str]:
     since = (now - timedelta(hours=36)).isoformat(timespec="seconds")
     rows = conn.execute(
-        f"""SELECT c.field, c.old_value, c.new_value, c.urgency, c.detected_at, i.kind, i.url, {EFFECTIVE}
+        f"""SELECT c.field, c.old_value, c.new_value, c.urgency, c.detected_at, i.kind, i.url, i.source, {EFFECTIVE}
             FROM changes c JOIN items i ON i.id = c.item_id
             WHERE c.detected_at >= ? ORDER BY c.detected_at DESC""",
         (since,),
@@ -218,10 +228,15 @@ def _changes(conn: sqlite3.Connection, cfg: Config, now: datetime) -> list[str]:
             text = f"{label}'{r['old_value']}' was renamed to '{r['new_value']}'"
         elif r["field"] == "deleted":
             text = f"{label}{r['title']} was removed from its source"
+        elif r["field"] == "new":
+            text = f"{label}New: {r['title']}, due {_fmt(r['new_value'])}"
+        elif r["field"] == "canceled":
+            text = f"{label}{r['title']} was canceled: {r['new_value']}"
         else:
             text = f"{label}{r['title']}: {r['field']} changed"
         flag = " **(urgent)**" if r["urgency"] == "urgent" else ""
-        lines.append(f"- {text}{flag}")
+        heard = {"email": " (from school email)", "groupme": " (from GroupMe)"}.get(r["source"], "")
+        lines.append(f"- {text}{heard}{flag}")
     lines.append("")
     return lines
 
@@ -353,4 +368,5 @@ def _tablet_line(conn: sqlite3.Connection, now: datetime) -> str:
 
 
 def _friendly(connector: str) -> str:
-    return {"canvas_feed": "Canvas calendar feed", "canvas_api": "Canvas (token)", "remarkable_usb": "reMarkable", "google_calendar": "Google Calendar alerts"}.get(connector, connector)
+    return {"canvas_feed": "Canvas calendar feed", "canvas_api": "Canvas (token)", "remarkable_usb": "reMarkable", "google_calendar": "Google Calendar",
+            "school_email": "School email", "groupme": "GroupMe", "message_reading": "Reading messages"}.get(connector, connector)

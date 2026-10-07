@@ -46,12 +46,28 @@ def connected() -> bool:
     return bool(secrets.get(TOKEN))
 
 
-def connect(client_file: Path, cfg: Config) -> str:
-    """Run the one-time browser sign-in, store the token, and make sure the Oso calendar exists."""
+CLIENT = "google_oauth_client"  # the OAuth client file's contents, kept so school email can connect without it
+
+
+def sign_in(scopes: list[str], client_file: Path | None = None):
+    """The one-time browser sign-in for a Google permission. Uses the client file, or the one kept from before."""
     from google_auth_oauthlib.flow import InstalledAppFlow
 
-    flow = InstalledAppFlow.from_client_secrets_file(str(client_file), SCOPES)
-    creds = flow.run_local_server(port=0, prompt="consent", access_type="offline", open_browser=True)
+    if client_file is not None:
+        config = json.loads(Path(client_file).read_text(encoding="utf-8"))
+        secrets.set(CLIENT, json.dumps(config))
+    else:
+        raw = secrets.get(CLIENT)
+        if not raw:
+            raise NotConnected("Oso needs the Google client file (the one used for the Oso calendar) once more.")
+        config = json.loads(raw)
+    flow = InstalledAppFlow.from_client_config(config, scopes)
+    return flow.run_local_server(port=0, prompt="consent", access_type="offline", open_browser=True)
+
+
+def connect(client_file: Path, cfg: Config) -> str:
+    """Run the one-time browser sign-in, store the token, and make sure the Oso calendar exists."""
+    creds = sign_in(SCOPES, client_file)
     secrets.set(TOKEN, creds.to_json())
     cal_id = ensure_calendar(_session(), cfg)
     return cal_id
@@ -137,6 +153,7 @@ def event_body(a: dict, cfg: Config, now: datetime) -> dict:
         "start": {"dateTime": start.isoformat(), "timeZone": cfg.timezone},
         "end": {"dateTime": end.isoformat(), "timeZone": cfg.timezone},
         "reminders": {"useDefault": False, "overrides": reminders},
+        "extendedProperties": {"private": {"oso": "alert"}},
     }
     if a.get("url"):
         body["source"] = {"title": "Oso", "url": a["url"]}

@@ -110,6 +110,14 @@ def open_settings(cfg: cfgmod.Config) -> None:
         "connect_canvas": ("Opening the Canvas sign-in", actions.connect_canvas),
         "backup": ("Backing up", actions.backup_now),
     }
+
+    def connect_email() -> None:
+        client = _email_client_file()  # a dialog, so on this thread; the sign-in itself runs in the background
+        if client is False:
+            show("No file chosen.")
+            return
+        run("Opening the school sign-in", lambda: actions.connect_email(client))
+
     top = ttk.Frame(status_tab)
     top.pack(fill="x")
     result_box(status_tab, top)
@@ -137,7 +145,9 @@ def open_settings(cfg: cfgmod.Config) -> None:
             ttk.Label(line, text="●", foreground=DOT.get(c["status"], "#666")).pack(side="left", anchor="n", padx=(0, 6))
             ttk.Label(line, text=c["text"], wraplength=660, justify="left").pack(side="left", anchor="n")
             action = c.get("action")
-            if action == "connect_calendar":
+            if action == "connect_email":
+                ttk.Button(lines_frame, text=ACTIONS[action], command=connect_email).grid(row=i, column=2, sticky="ew", padx=(16, 16), pady=3)
+            elif action == "connect_calendar":
                 ttk.Button(lines_frame, text=ACTIONS[action], command=lambda: show(_connect_calendar(cfg))).grid(row=i, column=2, sticky="ew", padx=(16, 16), pady=3)
             elif action in fixes:
                 label, fn = fixes[action]
@@ -156,6 +166,10 @@ def open_settings(cfg: cfgmod.Config) -> None:
             ("Sign in to Canvas", lambda: run("Opening the Canvas sign-in", actions.connect_canvas)),
             ("Disconnect Canvas", lambda: run("Disconnecting Canvas", actions.disconnect_canvas)),
             ("Connect Google Calendar…", lambda: show(_connect_calendar(cfg))),
+            ("Connect school email…", connect_email),
+            ("Disconnect school email", lambda: run("Disconnecting school email", actions.disconnect_email)),
+            ("Connect GroupMe…", lambda: show(_connect_groupme(root))),
+            ("Disconnect GroupMe", lambda: run("Disconnecting GroupMe", actions.disconnect_groupme)),
         ]),
         ("Books and websites", [
             ("Books", lambda: run("Looking at books", actions.books)),
@@ -321,6 +335,36 @@ def open_settings(cfg: cfgmod.Config) -> None:
         ttk.Label(frm, text="No courses yet. Ask Claude to set one up from a syllabus.", foreground="#666").grid(row=row, column=0, columnspan=3, sticky="w", **pad)
         row += 1
 
+    # School email and GroupMe
+    ttk.Separator(frm).grid(row=row, column=0, columnspan=3, sticky="we", pady=8)
+    row += 1
+    label("Email senders to ignore", "addresses, @domains, or mailing lists, separated by commas")
+    senders_var = tk.StringVar(value=", ".join(cfg.muted_senders))
+    ttk.Entry(frm, textvariable=senders_var, width=36).grid(row=row, column=1, sticky="we", **pad)
+    row += 1
+    label("Daily limit on messages Claude reads", "0 means no limit; set one if it uses too much of your Claude plan")
+    msg_limit_var = tk.IntVar(value=cfg.message_reads_per_day)
+    ttk.Spinbox(frm, from_=0, to=2000, increment=25, textvariable=msg_limit_var, width=6).grid(row=row, column=1, sticky="w", **pad)
+    row += 1
+    from . import db as dbmod
+    from . import groupme
+
+    try:
+        with dbmod.connect() as conn:
+            known_groups = groupme.groups(conn)
+    except Exception:  # noqa: BLE001
+        known_groups = []
+    group_vars: dict[str, tk.BooleanVar] = {}
+    if known_groups:
+        ttk.Label(frm, text="GroupMe groups (tick to stop reading a group)").grid(row=row, column=0, columnspan=3, sticky="w", **pad)
+        row += 1
+        muted_groups = set(cfg.muted_groups)
+        for g in known_groups:
+            v = tk.BooleanVar(value=g["id"] in muted_groups or g["name"] in muted_groups)
+            group_vars[g["id"]] = v
+            ttk.Checkbutton(frm, text=g["name"], variable=v).grid(row=row, column=0, columnspan=3, sticky="w", **pad)
+            row += 1
+
     # Canvas
     ttk.Separator(frm).grid(row=row, column=0, columnspan=3, sticky="we", pady=8)
     row += 1
@@ -376,6 +420,10 @@ def open_settings(cfg: cfgmod.Config) -> None:
                 backup.check_folder(Path(new_backup))  # a plain sentence if it can't be written to
             cfg.backup_folder = new_backup
             cfg.muted_courses = [code for code, v in mute_vars.items() if v.get()]
+            cfg.muted_senders = [s.strip().lower() for s in senders_var.get().split(",") if s.strip()]
+            cfg.message_reads_per_day = max(0, int(msg_limit_var.get()))
+            known_ids = set(group_vars)
+            cfg.muted_groups = [g for g in cfg.muted_groups if g not in known_ids] + [gid for gid, v in group_vars.items() if v.get()]
             cfgmod.save(cfg)
             if feed_var.get().strip():
                 secrets.set(secrets.CANVAS_FEED_URL, feed_var.get().strip())
@@ -480,6 +528,31 @@ def _add_website(root, cfg) -> str:
         return f"No course called {course!r}."
     url = simpledialog.askstring("Follow a website", "The page's address:", parent=root)
     return actions.add_website(match.code, url) if url else "Nothing changed."
+
+
+def _email_client_file():
+    """The Google client file, asked for only if Oso doesn't have it from the calendar. None when not needed;
+    False when he closed the dialog."""
+    from pathlib import Path
+
+    from . import gcal, secrets
+
+    if secrets.get(gcal.CLIENT):
+        return None
+    path = filedialog.askopenfilename(title="Choose the OAuth client file from Google Cloud (the one used for the Oso calendar)",
+                                      filetypes=[("JSON", "*.json"), ("All files", "*")])
+    return Path(path) if path else False
+
+
+def _connect_groupme(root) -> str:
+    from tkinter import simpledialog
+
+    from . import actions
+
+    token = simpledialog.askstring(
+        "Connect GroupMe", "Sign in at dev.groupme.com, click Access Token at the top right, copy it, and paste it here:",
+        parent=root, show="•")
+    return actions.connect_groupme(token) if token else "Nothing changed."
 
 
 def _reschedule(minutes: int) -> str:

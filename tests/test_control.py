@@ -18,6 +18,9 @@ def env(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(cfgmod, "data_dir", lambda: data)
     monkeypatch.setattr(db, "data_dir", lambda: data)
     monkeypatch.setattr(cfgmod, "config_path", lambda: data / "config.toml")
+    from oso import secrets
+
+    monkeypatch.setattr(secrets, "get", lambda name: None)  # no credential store on the Linux test machine
     cfg = Config(vault=tmp_path / "vault")
     cfg.vault.mkdir()
     cfgmod.save(cfg)

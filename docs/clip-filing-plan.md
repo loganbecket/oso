@@ -17,7 +17,7 @@ He clips pages with the Obsidian clipper and moves on. Oso works out which cours
 
 - The clipper keeps its "book" and "page" boxes. He pastes the book's title and types the page number; never the course.
 - A clip with a book joins that book (searched as part of it, cited by page), in the course that already has a book by that name; a partial title is enough ("Halliday" finds "Fundamentals of Physics, Halliday").
-- The first page of a book Oso hasn't seen gets its course the same way as any clip: matched against the courses' material, and asked about in the briefing if unclear. Every later page of that book follows it.
+- The first page of a book Oso hasn't seen gets its course in this order: (1) the course whose syllabus names the book as a required or recommended text (every course has a syllabus first, so this nearly always settles it, related courses included); (2) failing that, the page's content matched against the courses' material, the same way as any clip; (3) failing that, the briefing asks. Every later page of that book follows it.
 - If a book lands in the wrong course, he tells Claude ("Halliday is for Physics 2, not Physics 1") and the whole book moves, every page clipped so far and every page after.
 
 ## What stays put
@@ -32,7 +32,7 @@ He tells Claude ("that article was for history, not physics"), and Claude moves 
 
 ## Done when
 
-- Tests: clips filed to the right course from sample course material; an ambiguous clip and an unrelated clip left in Clippings; a syllabus left in Clippings; course setup finding a syllabus that was filed anyway; finished courses skipped; moving a clip on request; pages of the same book following the first; moving a whole book.
+- Tests: clips filed to the right course from sample course material; an ambiguous clip and an unrelated clip left in Clippings; a syllabus left in Clippings; course setup finding a syllabus that was filed anyway; finished courses skipped; moving a clip on request; a book's course found from the syllabus that names it; pages of the same book following the first; moving a whole book.
 - A real run on his laptop with a handful of clips across his courses.
 
 ## Decisions (Logan's, 2026-10-07)

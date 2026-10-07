@@ -2,7 +2,7 @@
 
 Oso is a study assistant for college students, built from three things: an Obsidian vault that holds everything the student reads and writes, Claude on a Pro subscription (Cowork for the student, Claude Code for installation and local runs) for intelligence, and a small Python service on the student's computer (Windows, macOS, or Linux) for plumbing. Oso contains no model calls of its own and runs no server. A student installs it once from this repo and owns it.
 
-Read `docs/spec.md` for what Oso does and why, and `docs/plan.md` for what to build next.
+Read `docs/spec.md` for what Oso does and why.
 
 ## Rules for working in this repo
 

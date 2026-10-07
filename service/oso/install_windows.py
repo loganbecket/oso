@@ -103,5 +103,8 @@ def install_task(every_minutes: int = 60) -> str:
     if watch_error is None:
         subprocess.run(["schtasks", "/Run", "/TN", WATCH_TASK], capture_output=True, text=True)  # start it now, not at next sign-in
     note = "" if watch_error is None else f" The folder watcher could not be set up ({watch_error}); new files wait for the next check."
+    from . import shortcut
+
+    note += f" {shortcut.create() or 'Oso is in the Start menu; pin it to the taskbar if you like.'}"
     return (f"Installed '{TASK_NAME}': runs every {every_minutes} minutes, wakes the laptop to run, and catches up after sleep. "
             f"New files in your course folders are taken in as soon as they arrive.{note}")

@@ -57,4 +57,7 @@ def install_timer(every_minutes: int = 60) -> str:
     except (subprocess.CalledProcessError, FileNotFoundError) as e:
         detail = getattr(e, "stderr", "") or str(e)
         return f"Wrote the units to {unit_dir} but could not start the timer: {detail.strip()}"
-    return f"Installed the oso-sync timer: runs every {every_minutes} minutes and catches up after sleep (Persistent=true)."
+    from . import shortcut
+
+    return (f"Installed the oso-sync timer: runs every {every_minutes} minutes and catches up after sleep (Persistent=true). "
+            f"{shortcut.create() or 'Oso is in the app menu.'}")

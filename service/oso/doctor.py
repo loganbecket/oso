@@ -13,11 +13,39 @@ from . import db, secrets
 
 def run(fix: bool = False) -> list[tuple[str, str]]:
     """Returns (status, message) pairs; status is ok, warn, or fail."""
-    out: list[tuple[str, str]] = []
+    return [(c["status"], c["text"]) for c in checks(fix)]
+
+
+# What fixes each kind of problem; the status panel puts a button beside the line, and Claude can offer it.
+ACTIONS = {
+    "update": "Update Oso",
+    "fix": "Fix",
+    "sync": "Sync now",
+    "connect_canvas": "Sign in to Canvas",
+    "connect_calendar": "Connect Google Calendar",
+    "backup": "Back up now",
+}
+
+
+class _Out(list):
+    """The list of checks; `add` takes an optional action that fixes the problem."""
+
+    def append(self, item, action: str | None = None):  # noqa: D401 - list-compatible
+        status, text = item
+        super().append({"status": status, "text": text, "action": action if status != "ok" else None})
+
+
+def checks(fix: bool = False) -> list[dict]:
+    """Every check as {status, text, action}: status ok, warn, or fail; action the fix's name, if any."""
+    out = _Out()
     try:
         cfg = cfgmod.load()
     except cfgmod.ConfigError as e:
-        return [("fail", str(e))]
+        return [{"status": "fail", "text": str(e), "action": None}]
+    from . import __version__
+
+    version = cfg.installed_version or __version__
+    out.append(("ok", f"Oso {version if version.startswith('v') or len(version) > 8 else 'v' + version}, following {cfg.channel} updates"))
     out.append(("ok", f"Settings found at {cfgmod.config_path()}"))
 
     if cfg.vault.is_dir():
@@ -29,7 +57,7 @@ def run(fix: bool = False) -> list[tuple[str, str]]:
                     p.mkdir(parents=True, exist_ok=True)
                     out.append(("ok", f"Created missing folder {sub}"))
                 else:
-                    out.append(("warn", f"Vault folder {sub} is missing (run with --fix to create it)"))
+                    out.append(("warn", f"Vault folder {sub} is missing (run with --fix to create it)"), "fix")
     else:
         out.append(("fail", f"The vault folder {cfg.vault} does not exist. Run 'oso init --vault <path>' with the right path."))
 
@@ -52,18 +80,22 @@ def run(fix: bool = False) -> list[tuple[str, str]]:
         rows = db.connector_health(conn)
         now = datetime.now().astimezone()
         if not rows:
-            out.append(("warn", "No sync has run yet. Run 'oso sync'."))
+            out.append(("warn", "No sync has run yet. Run 'oso sync'."), "sync")
         for r in rows:
             if not r["last_success"]:
-                out.append(("fail", f"{r['connector']} has never succeeded: {r['last_error']}"))
+                out.append(("fail", f"{_name(r['connector'])} has never worked: {r['last_error']}"),
+                           "connect_canvas" if r["connector"] == "canvas_api" else None)
                 continue
             age = now - datetime.fromisoformat(r["last_success"])
             if age > timedelta(hours=24):
-                out.append(("warn", f"{r['connector']} last succeeded {int(age.total_seconds() // 3600)} hours ago. Is the scheduled task running? Try 'oso install-task'."))
+                if r["connector"] == "remarkable_usb":
+                    out.append(("ok", f"reMarkable last pulled {_ago(age)} (it pulls when plugged in)"))
+                else:
+                    out.append(("warn", f"{_name(r['connector'])} last worked {_ago(age)}. Is the automatic check running?"), "sync")
             else:
-                out.append(("ok", f"{r['connector']} synced within the last day"))
+                out.append(("ok", f"{_name(r['connector'])} last worked {_ago(age)}"))
         if not (cfg.vault / "Today.md").exists():
-            out.append(("warn", "Today.md has not been written yet. Run 'oso sync'."))
+            out.append(("warn", "Today.md has not been written yet. Run 'oso sync'."), "sync")
 
     if sys.platform == "win32":
         if shutil.which("schtasks"):
@@ -73,14 +105,14 @@ def run(fix: bool = False) -> list[tuple[str, str]]:
             if r.returncode == 0:
                 out.append(("ok", "Scheduled task 'Oso Sync' is installed"))
             else:
-                out.append(_schedule_missing(cfg, fix, "Scheduled task"))
+                out.append(_schedule_missing(cfg, fix, "Scheduled task"), "fix")
     elif sys.platform == "darwin":
         from .install_macos import installed
 
-        out.append(("ok", "Launch agent installed") if installed() else _schedule_missing(cfg, fix, "Launch agent"))
+        out.append(("ok", "Launch agent installed") if installed() else _schedule_missing(cfg, fix, "Launch agent"), "fix")
     else:
         unit = Path.home() / ".config" / "systemd" / "user" / "oso-sync.timer"
-        out.append(("ok", "systemd timer installed") if unit.exists() else _schedule_missing(cfg, fix, "Timer"))
+        out.append(("ok", "systemd timer installed") if unit.exists() else _schedule_missing(cfg, fix, "Timer"), "fix")
 
     if cfg.backup_folder:
         from . import backup
@@ -89,7 +121,7 @@ def run(fix: bool = False) -> list[tuple[str, str]]:
             last = backup.last_success(conn)
             stale = backup.stale_line(conn, cfg, datetime.now(cfg.tz))
         if stale:
-            out.append(("warn", stale))
+            out.append(("warn", stale), "backup")
         elif last:
             out.append(("ok", f"Last backup to {cfg.backup_folder}: {last.astimezone(cfg.tz).strftime('%a %b %d %H:%M')}"))
         else:
@@ -105,20 +137,20 @@ def run(fix: bool = False) -> list[tuple[str, str]]:
         _reschedule(cfg)
         out.append(("ok", "Folder watcher was not running; restarted it"))
     else:
-        out.append(("warn", "The folder watcher isn't running, so new files wait for the next check. Run 'oso doctor --fix'."))
+        out.append(("warn", "The folder watcher isn't running, so new files wait for the next check. Run 'oso doctor --fix'."), "fix")
 
     from . import gcal
 
     if gcal.connected():
         out.append(("ok", "Google Calendar connected for alerts"))
     else:
-        out.append(("warn", "Google Calendar is not connected, so urgent changes only appear in Today.md and Oso/Alerts.md. See 'Connect the Oso calendar' in the README."))
+        out.append(("warn", "Google Calendar is not connected, so urgent changes only appear in Today.md and Oso/Alerts.md. See 'Connect the Oso calendar' in the README."), "connect_calendar")
 
     from . import update
 
     st = update.status(cfg)
     if not st["known"] or st["available"]:
-        out.append(("warn", st["message"]))
+        out.append(("warn", st["message"]), "update" if st["available"] else None)
     else:
         out.append(("ok", st["message"]))
 
@@ -130,9 +162,9 @@ def run(fix: bool = False) -> list[tuple[str, str]]:
     if cs == "connected":
         out.append(("ok", "Canvas connected through your sign-in" + (f" (sessions have lasted about {sorted(hours)[len(hours) // 2]:g} hours)" if hours else "")))
     elif cs == "needs_sign_in":
-        out.append(("warn", canvas_session.SIGN_IN_LINE))
+        out.append(("warn", canvas_session.SIGN_IN_LINE), "connect_canvas")
     elif not secrets.get(secrets.CANVAS_TOKEN):
-        out.append(("warn", "Canvas grades and coursework are not connected; only due dates come in. Run 'oso connect-canvas' to sign in."))
+        out.append(("warn", "Canvas grades and coursework are not connected; only due dates come in. Run 'oso connect-canvas' to sign in."), "connect_canvas")
 
     from . import books
 
@@ -160,11 +192,20 @@ def run(fix: bool = False) -> list[tuple[str, str]]:
 
     si = search.status()
     if si["sections"] == 0:
-        out.append(("warn", "The search index is empty. It fills in on the next check; run 'oso sync' to build it now."))
+        out.append(("warn", "The search index is empty. It fills in on the next check; run 'oso sync' to build it now."), "sync")
     elif si["without_meaning"]:
         out.append(("warn", f"Search covers {si['notes']} notes, but {si['without_meaning']} sections still wait for the search model, which downloads on the next check with an internet connection."))
     else:
         out.append(("ok", f"Search covers {si['notes']} notes ({si['sections']} sections)"))
+
+    from . import sites, skillsync
+
+    with db.connect() as conn:
+        for line in sites.problems(conn, cfg):
+            out.append(("warn", line.replace("**", "")))
+    waiting = skillsync.conflicts()
+    if waiting:
+        out.append(("warn", f"Oso has new versions of commands you changed ({', '.join(n.removeprefix('oso-') for n in waiting)}). Ask Claude to go through the Oso command updates."))
 
     if not shutil.which("oso-mcp"):
         out.append(("warn", "The 'oso-mcp' command is not on PATH, so Cowork and Claude Code cannot reach Oso's tools. Run the installer again."))
@@ -180,6 +221,24 @@ def _schedule_missing(cfg, fix: bool, what: str) -> tuple[str, str]:
     result = _reschedule(cfg)
     ok = result.startswith("Installed")
     return ("ok" if ok else "warn", f"{what} for the automatic check was missing; recreated it." if ok else result)
+
+
+_NAMES = {"canvas_feed": "Canvas calendar feed", "canvas_api": "Canvas sign-in", "remarkable_usb": "reMarkable",
+          "google_calendar": "Google Calendar alerts"}
+
+
+def _name(connector: str) -> str:
+    return _NAMES.get(connector, connector)
+
+
+def _ago(age: timedelta) -> str:
+    minutes = int(age.total_seconds() // 60)
+    if minutes < 2:
+        return "just now"
+    if minutes < 90:
+        return f"{minutes} minutes ago"
+    hours = minutes // 60
+    return f"{hours} hours ago" if hours < 48 else f"{hours // 24} days ago"
 
 
 def format_report(results: list[tuple[str, str]]) -> str:

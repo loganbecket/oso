@@ -1,18 +1,23 @@
 ---
 name: oso-doctor
-description: Check whether Oso is working and fix common problems. Use when the briefing is missing, deadlines look stale, a connection shows as failing, or the student asks whether Oso is set up right. Runs in Claude Code on the laptop.
+description: Look after Oso itself. Use when the student says open my settings, open Oso, Oso status, is Oso OK, update Oso, sync now, back up now, or when the briefing is missing, deadlines look stale, or a connection shows as failing.
 ---
 
-# Is Oso healthy?
+# Looking after Oso
 
-1. Run `oso doctor --fix` in the terminal and read every line.
-2. For each WARN or FAIL, do the obvious fix if it is safe and local:
-   - missing folders: already fixed by `--fix`
-   - no sync yet or Today.md missing: run `oso sync`
-   - scheduled task or timer missing: run `oso install-task`
-   - `oso-mcp` not on PATH: run `uv tool install --force <repo path>` and restart Cowork or Claude Code
-   - a source that has never succeeded: read the error. If it says the login was rejected or the address no longer works, the student needs to copy a fresh Calendar Feed URL from Canvas (Calendar, then Calendar Feed) and run `oso init` again with it. Do not guess at URLs or tokens.
-3. Run `oso doctor` again and show the result.
-4. Explain anything still wrong in one or two plain sentences, with the exact command the student should run.
+Everything here works from Cowork through the Oso tools. Answer in plain sentences; never show commands, paths, or error text unless the student asks.
 
-Never edit the config file by hand; use the `oso` commands. Never print or ask for the feed URL or token in chat if it can be avoided.
+**"Open my settings", "open Oso", "show me Oso's settings":** call `open_settings`. The Oso window opens on his laptop (or comes to the front if it is already open), on a status panel with a button beside anything that needs doing. Say so in one line. If the tool is unavailable (he is on his phone, or Oso is not running), say the window only opens on the laptop and give the status in chat instead.
+
+**"Oso status", "is Oso OK?":** call `oso_status` and show a short status card: one line per item that needs attention first (what is wrong, and what fixes it), then one line saying everything else is fine. Leave out the technical detail. Offer to fix what you can: `run_health_check` with fix, `sync_now`, `update_oso`, `backup_now`, or `open_settings` for things only he can do (signing in to Canvas, connecting Google Calendar).
+
+**Something looks broken** (briefing missing, deadlines stale, a source failing):
+1. Call `run_health_check` with `fix` true and read every line.
+2. For what is still wrong: no recent check, call `sync_now`; a newer version is out, offer `update_oso`; the Canvas sign-in lapsed, call `open_settings` and tell him to press Sign in to Canvas; the calendar feed is rejected, he needs to copy a fresh Calendar Feed address from Canvas (Calendar, then Calendar Feed) into the Settings tab. Do not guess at addresses or tokens.
+3. Explain anything still wrong in one or two plain sentences.
+
+**"Update Oso":** call `update_oso`. On Windows a window opens and installs the update, and this chat's connection to Oso restarts; tell him to restart the Claude app when the window closes.
+
+**If the Oso tools are not available at all**, Oso itself is not running in the Claude app. In Claude Code on the laptop, run `oso doctor --fix` in the terminal and follow it; otherwise tell him to run that in PowerShell.
+
+Starting over (fresh start) is never done from chat. If he asks, tell him it is the PowerShell command `oso fresh-start`, which asks him to confirm.

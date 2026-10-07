@@ -39,13 +39,15 @@ There is no Oso server. Your notes stay on your computer and in your own Google 
 
 **Making commands your own.** The instructions Claude follows for each command (summarize, quiz, study guide, and the rest) are notes you can edit in `Oso/Skills/`. If Oso later ships a new version of one you changed, your briefing tells you, and Claude walks you through keeping yours, taking the new one, or combining them. `oso reset-skills` puts Oso's versions back.
 
-**Keeping Oso up to date.** When a new version is out, your briefing says so. Run `oso update` in your command window, wait about a minute, and restart the Claude app.
+**Looking after Oso.** Everything is done from the Claude app. Say *"open my settings"* and the Oso window opens on your laptop: a status panel that says in plain words what is fine and what needs attention, with a button beside anything that needs doing (update, sign in to Canvas, sync, back up), and your settings on a second tab. Or just ask: *"Oso status"*, *"is Oso OK?"*, *"update Oso"*, *"sync now"*, *"back up now"*. The same window is in your Start menu (Applications on a Mac) as **Oso**; pin it to the taskbar if you like.
+
+**Keeping Oso up to date.** When a new version is out, your briefing says so. Say *"update Oso"* in the Claude app (or click **Update Oso** in the Oso window), wait about a minute, and restart the Claude app.
 
 **Instructors' websites.** If an instructor posts materials on their own site, tell Claude ("Dr. Lee posts physics materials at …"), or mention it during `/create-course`. Oso checks the site a few times a day, saves new and changed pages and the documents they link to (PDFs, slides, worksheets) into the course's `Web` folder, where they're searchable like anything else, and the briefing lists what's new. Sites that need a sign-in can't be followed; Oso says so. `oso sites` shows what's followed.
 
-**Backups.** If you set a backup folder in `oso settings` (a network share, an external drive, any folder), Oso copies your vault and its records there every night, keeping deleted files for 30 days. `oso backup` runs one now; `oso restore --from <folder>` brings everything back on a new computer.
+**Backups.** If you set a backup folder in the Oso window's Settings tab (a network share, an external drive, any folder), Oso copies your vault and its records there every night, keeping deleted files for 30 days. Say *"back up now"* to Claude (or click **Back up now**) to run one now; `oso restore --from <folder>` brings everything back on a new computer.
 
-**When something seems wrong.** Run `oso doctor` in your command window. It checks every part of Oso and says in plain words what to fix. Part 6 below lists common problems.
+**When something seems wrong.** Ask Claude *"is Oso OK?"*, or open the Oso window: it checks every part of Oso, fixes what it can, and says in plain words what's left. Part 6 below lists common problems.
 
 Oso runs on Windows, macOS, and Linux. Installation instructions follow. Setup takes about an hour, most of it installing and signing in to apps. Do the sections in order; where a step differs by platform, the differences are listed.
 
@@ -186,7 +188,7 @@ Google requires a one-time setup to let a program like Oso do this. It takes abo
 4. In the search bar, type **Google Auth Platform** and open it. Click **Get started**. App name `Oso`; your email as the support and contact email; audience **External**. Finish the steps and click **Create**.
 5. In the left menu, open **Audience** and click **Publish app**, then confirm. This keeps the connection from expiring every seven days.
 6. In the left menu, open **Clients**, click **Create client**, choose application type **Desktop app**, name it `Oso`, and click **Create**. Click **Download JSON** and save the file somewhere you can find it.
-7. Run `oso connect-calendar --client-file "<path to the downloaded file>"` in your command window, or click **Connect Google Calendar** in `oso settings` and pick the file.
+7. Run `oso connect-calendar --client-file "<path to the downloaded file>"` in your command window, or click **Connect Google Calendar** in the Oso window and pick the file.
 8. A browser window opens. Sign in, and if Google says the app is not verified, click **Advanced**, then **Go to Oso**. Allow access.
 
 Oso then creates a calendar named **Oso** in your Google Calendar. To stop it, run `oso disconnect-calendar`; the calendar stays until you delete it.
@@ -235,7 +237,7 @@ The rule is simple: **a folder on the tablet with the same name as a course fold
 2. On the tablet, make one folder per course, named exactly as the course folder in your vault (capital letters do not matter). If you would rather keep them together, put them all inside one folder such as `School` and run `oso set-remarkable-folder School` once in your command window.
 3. Plug the tablet into your computer with its USB cable. It appears as a small network device; the first time can take a minute. On Windows, if asked about a new network, choose **Private**. On macOS and Linux nothing needs to be done.
 4. The next time Oso syncs (within 15 minutes, or run `oso sync`), it copies any notebook you changed. Leave it plugged in for a few minutes; charging it at your desk is enough.
-5. Oso turns the pages into notes you can search on its own, in the background. To have it done right away, run `oso transcribe` in your command window (or click **Transcribe now** in `oso settings`). It sends each page to Claude one at a time, writes the pages out with their equations and a description of every diagram, files the note in the right course, and skips blank pages. Pages it could not read well are listed in your morning briefing. Saying *"Transcribe my handwritten notes"* in Claude Code does the same thing.
+5. Oso turns the pages into notes you can search on its own, in the background. To have it done right away, run `oso transcribe` in your command window (or click **Transcribe now** in the Oso window). It sends each page to Claude one at a time, writes the pages out with their equations and a description of every diagram, files the note in the right course, and skips blank pages. Pages it could not read well are listed in your morning briefing. Saying *"Transcribe my handwritten notes"* in Claude Code does the same thing.
 
 **Paper notes** work the same way. Scan them with any phone scanning app (Adobe Scan, for example) and save the PDF to Google Drive inside your vault, in the course's `Handwriting` folder: `Vault/Courses/2026 Fall/Physics/Handwriting`. Drive brings it to your computer, and the next check queues the pages. A photo saved there works too.
 
@@ -259,11 +261,11 @@ The rule is simple: **a folder on the tablet with the same name as a course fold
   - "Plan my studying for next week and put it on my calendar."
   - "Make flashcards for the vocabulary in lecture 5."
 - **Grades**: Oso tracks them if your school allows a Canvas token (below). Otherwise tell Claude a grade and it records it.
-- **Something looks wrong**: in Claude Code say *"Run the Oso doctor"*, or in your command window run `oso doctor --fix`.
-- **Updating Oso**: when a newer version exists, the morning briefing and `oso doctor` say so. Run `oso update` in your command window (or click **Update Oso** in `oso settings`); it downloads the new version from GitHub, reinstalls the service, and keeps your notes, deadlines, and settings. On Windows the update runs in a new window that shows the installer and closes by itself when it's done; then restart the Claude app. By default Oso follows **stable**, meaning only versions marked as releases. To get every change as soon as it is published, set **Updates** to **latest** in `oso settings`. If a new version causes trouble, `oso update --version v0.1.1` (or any earlier release from v0.1.1 on) goes back to it. Oso comes in two pieces: the service on your computer, which `oso update` replaces, and the plugin inside the Claude app, which only the Claude app can update. With **Sync automatically** on (step 3.3) the plugin updates itself; otherwise click **Check for updates** on the Oso plugin under Customize, Plugins. The plugin rarely changes, since the instructions behind each command come with the service.
+- **Something looks wrong**: ask Claude *"is Oso OK?"*, or say *"open my settings"* and look at the status panel. (In a command window, `oso doctor --fix` does the same.)
+- **Updating Oso**: when a newer version exists, the morning briefing and `oso doctor` say so. Say *"update Oso"* in the Claude app, click **Update Oso** in the Oso window, or run `oso update` in your command window; it downloads the new version from GitHub, reinstalls the service, and keeps your notes, deadlines, and settings. On Windows the update runs in a new window that shows the installer and closes by itself when it's done; then restart the Claude app. By default Oso follows **stable**, meaning only versions marked as releases. To get every change as soon as it is published, set **Updates** to **latest** in `oso settings`. If a new version causes trouble, `oso update --version v0.1.1` (or any earlier release from v0.1.1 on) goes back to it. Oso comes in two pieces: the service on your computer, which `oso update` replaces, and the plugin inside the Claude app, which only the Claude app can update. With **Sync automatically** on (step 3.3) the plugin updates itself; otherwise click **Check for updates** on the Oso plugin under Customize, Plugins. The plugin rarely changes, since the instructions behind each command come with the service.
 - **Search**: on every check Oso indexes your notes and course materials, so Claude can find the right passage across every course in a fraction of a second, by meaning as well as exact words (a question about derivatives finds notes that only say "rate of change"). The first check after installing downloads a small search model (about 65 MB); indexing a large batch of new material can take a few minutes in the background, and later checks only index what changed.
 - **Making Oso's commands your own**: the instructions behind each Oso command (summarize, quiz, study guide, and the rest) are plain notes in your vault under `Oso/Skills/`. Edit one in Obsidian and Claude follows your version from then on. When Oso updates a command you haven't touched, your copy updates quietly. If you have changed it, your copy is kept, and the briefing tells you a new version is waiting; ask Claude to go through the Oso command updates, and it shows what changed on each side and lets you keep yours, take Oso's, or combine them. To throw away your edits, run `oso reset-skills` (or `oso reset-skills oso-summarize` for just one). Files you add to that folder yourself are never touched.
-- **Changing settings**: run `oso settings` in your command window. A small window opens where you can change the vault folder, time zone, how often Oso checks for changes (15 minutes by default), what counts as urgent, quiet hours, which courses are muted, the tablet folder, and the Canvas feed or token. **Save and check** applies the change, reschedules the checks if needed, and runs the health check.
+- **Changing settings**: say *"open my settings"* in the Claude app, open **Oso** from the Start menu, or run `oso settings` in your command window. The Oso window opens on its status panel; the **Settings** tab is where you can change the vault folder, time zone, how often Oso checks for changes (15 minutes by default), what counts as urgent, quiet hours, which courses are muted, the tablet folder, and the Canvas feed or token. **Save and check** applies the change, reschedules the checks if needed, and runs the health check.
 
 ### Textbooks
 
@@ -283,7 +285,7 @@ The calendar feed only brings in due dates. To let Oso read your grades, scores,
 oso connect-canvas
 ```
 
-A small window opens with your school's Canvas sign-in page. Sign in as you normally do, including any two-step check; the window closes by itself once you're in. Oso never sees your password: it keeps only the signed-in session, in your computer's credential store, and reads your own Canvas pages on every check, never changing anything. (**Connect Canvas** in `oso settings` does the same.)
+A small window opens with your school's Canvas sign-in page. Sign in as you normally do, including any two-step check; the window closes by itself once you're in. Oso never sees your password: it keeps only the signed-in session, in your computer's credential store, and reads your own Canvas pages on every check, never changing anything. (**Sign in to Canvas** in the Oso window does the same.)
 
 Canvas ends sign-ins after a while. When that happens, Oso shows a notification ("Canvas needs you to sign in again"); click it, or run `oso connect-canvas`, and sign in again. Until you do, your briefing says so and due dates keep coming from the calendar feed. `oso canvas --raw` shows what Oso has read, and `oso disconnect-canvas` makes it forget the sign-in.
 
@@ -319,6 +321,8 @@ oso set-drive-folder MATH-101-001 "<path to that folder>"
 
 ## Commands
 
+You rarely need these: the Oso window and the Claude app do the same things. They're here for reference, and for when the Claude app can't reach Oso.
+
 ```
 oso sync                  pull every source and rewrite Today.md and Dashboard.md
 oso doctor [--fix]        check the installation and explain anything wrong
@@ -326,7 +330,7 @@ oso health                when each source last synced
 oso add-course            register a course by hand
 oso set-drive-folder      mirror a shared Google Drive folder into a course
 oso set-remarkable-folder the tablet folder that holds the course folders
-oso settings              open the settings window
+oso settings              open the Oso window (status and settings)
 oso transcribe            turn queued handwritten pages into notes
 oso install-task          schedule the sync (every 15 minutes by default)
 oso update                install the newest Oso on your update channel

@@ -61,8 +61,10 @@ def install_agent(every_minutes: int = 60) -> str:
     watch.write_text(_WATCH_PLIST.format(label=WATCH_LABEL, python=sys.executable, log=log.with_name("oso-watch.log")), encoding="utf-8")
     subprocess.run(["launchctl", "unload", str(watch)], capture_output=True)
     subprocess.run(["launchctl", "load", str(watch)], capture_output=True)
+    from . import shortcut
+
     return (f"Installed the {LABEL} agent: runs every {every_minutes} minutes and on login. Missed runs are made up when the Mac wakes. "
-            "New files in your course folders are taken in as soon as they arrive.")
+            f"New files in your course folders are taken in as soon as they arrive. {shortcut.create() or 'Oso is in your Applications folder.'}")
 
 
 def installed() -> bool:

@@ -213,6 +213,57 @@ def health() -> list[dict]:
         return [_row(r) for r in db.connector_health(conn)]
 
 
+# ---- looking after Oso (the same actions as the buttons in the Oso window) -----------------------
+
+
+@mcp.tool()
+def open_settings() -> str:
+    """Open the Oso window (status and settings) on the student's computer, or bring it to the front if it is already open."""
+    from . import actions
+
+    return actions.open_settings()
+
+
+@mcp.tool()
+def oso_status() -> list[dict]:
+    """Oso's status, one plain line each: {status: ok|warn|fail, text, action (what fixes it, if anything)}."""
+    from . import actions
+
+    return actions.status()
+
+
+@mcp.tool()
+def run_health_check(fix: bool = False) -> str:
+    """Check Oso's health; with fix, repair what can be repaired (schedule, watcher, folders). Returns plain sentences."""
+    from . import actions
+
+    return actions.health_check(fix=fix)
+
+
+@mcp.tool()
+def sync_now() -> str:
+    """Start a full check of every source now, in the background."""
+    from . import actions
+
+    return actions.sync_now()
+
+
+@mcp.tool()
+def update_oso() -> str:
+    """Install the newest Oso on the student's update channel. On Windows a visible update window does the install and this connection restarts."""
+    from . import actions
+
+    return actions.update_oso()
+
+
+@mcp.tool()
+def backup_now() -> str:
+    """Back up the vault and Oso's records now, to the backup folder in settings."""
+    from . import actions
+
+    return actions.backup_now()
+
+
 # ---- learner profile ---------------------------------------------------------------------------
 
 

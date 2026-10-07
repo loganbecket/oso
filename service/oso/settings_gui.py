@@ -1,7 +1,9 @@
-"""A small settings window (tkinter, ships with Python) so nothing has to be edited by hand.
+"""The Oso window (tkinter, ships with Python): a status panel first, then the settings.
 
-Saving writes the config, stores any secrets in the credential store, reschedules the watcher
-if the interval changed, and runs the doctor so the result is visible right away.
+The status panel shows the same facts as `oso doctor`, with a button beside anything that needs
+doing; its buttons run the same actions Claude runs when asked (`actions.py`). Saving the settings
+writes the config, stores any secrets in the credential store, reschedules the check if the
+interval changed, and can run the health check so the result is visible right away.
 """
 
 from __future__ import annotations
@@ -20,13 +22,140 @@ TIMEZONES = [
 ]
 
 
+DOT = {"ok": "#2e7d32", "warn": "#b26a00", "fail": "#c62828"}
+
+
 def open_settings(cfg: cfgmod.Config) -> None:
+    import os
+    import threading
+
+    from . import actions
+    from .doctor import ACTIONS
+
     root = tk.Tk()
-    root.title("Oso settings")
-    root.resizable(False, False)
+    root.title("Oso")
+    root.geometry("960x720")
     pad = {"padx": 8, "pady": 4}
-    frm = ttk.Frame(root, padding=12)
-    frm.grid(sticky="nsew")
+    notebook = ttk.Notebook(root)
+    notebook.pack(fill="both", expand=True)
+    status_tab = ttk.Frame(notebook, padding=12)
+    settings_outer = ttk.Frame(notebook)
+    notebook.add(status_tab, text="Status")
+    notebook.add(settings_outer, text="Settings")
+
+    # One window at a time: record ours, and come to the front when Claude asks for the window again.
+    actions.window_pid_path().write_text(str(os.getpid()), encoding="utf-8")
+    raise_file = actions.raise_request_path()
+    raise_file.unlink(missing_ok=True)
+
+    def watch_for_raise() -> None:
+        if raise_file.exists():
+            raise_file.unlink(missing_ok=True)
+            root.deiconify()
+            root.lift()
+            root.attributes("-topmost", True)
+            root.after(300, lambda: root.attributes("-topmost", False))
+            root.focus_force()
+        root.after(1000, watch_for_raise)
+
+    # ---- Status ----------------------------------------------------------------------------------------
+    result = tk.Text(status_tab, height=7, wrap="word", state="disabled", relief="solid", borderwidth=1)
+
+    def show(text: str) -> None:
+        result.configure(state="normal")
+        result.delete("1.0", "end")
+        result.insert("1.0", text)
+        result.configure(state="disabled")
+
+    busy = {"on": False}
+
+    def run(label: str, fn) -> None:
+        """Run an action without freezing the window, then show its sentence and refresh the status."""
+        if busy["on"]:
+            show("Still working on the last request…")
+            return
+        busy["on"] = True
+        show(f"{label}…")
+        box: dict = {}
+        threading.Thread(target=lambda: box.update(text=_safe(fn)), daemon=True).start()
+
+        def wait() -> None:
+            if "text" in box:
+                busy["on"] = False
+                show(box["text"])
+                refresh()
+            else:
+                root.after(300, wait)
+
+        root.after(300, wait)
+
+    fixes = {
+        "update": ("Updating Oso", actions.update_oso),
+        "fix": ("Fixing", lambda: actions.health_check(fix=True)),
+        "sync": ("Starting a check", actions.sync_now),
+        "connect_canvas": ("Opening the Canvas sign-in", actions.connect_canvas),
+        "backup": ("Backing up", actions.backup_now),
+    }
+    ttk.Label(status_tab, text="How Oso is doing", font=("TkDefaultFont", 12, "bold")).pack(anchor="w")
+    lines_frame = ttk.Frame(status_tab)
+    lines_frame.pack(fill="x", pady=(6, 10))
+
+    def refresh() -> None:
+        for w in lines_frame.winfo_children():
+            w.destroy()
+        try:
+            checks = actions.status()
+        except Exception as e:  # noqa: BLE001
+            checks = [{"status": "fail", "text": f"Oso couldn't check itself: {e}", "action": None}]
+        order = {"fail": 0, "warn": 1, "ok": 2}
+        for i, c in enumerate(sorted(checks, key=lambda c: order.get(c["status"], 3))):
+            tk.Label(lines_frame, text="●", fg=DOT.get(c["status"], "#666")).grid(row=i, column=0, sticky="nw", padx=(0, 6))
+            ttk.Label(lines_frame, text=c["text"], wraplength=660, justify="left").grid(row=i, column=1, sticky="w", pady=1)
+            action = c.get("action")
+            if action == "connect_calendar":
+                ttk.Button(lines_frame, text=ACTIONS[action], command=lambda: show(_connect_calendar(cfg))).grid(row=i, column=2, sticky="e", padx=(8, 0))
+            elif action in fixes:
+                label, fn = fixes[action]
+                ttk.Button(lines_frame, text=ACTIONS[action], command=lambda label=label, fn=fn: run(label, fn)).grid(
+                    row=i, column=2, sticky="e", padx=(8, 0))
+
+    ttk.Label(status_tab, text="Do something", font=("TkDefaultFont", 12, "bold")).pack(anchor="w", pady=(4, 2))
+    acts = ttk.Frame(status_tab)
+    acts.pack(anchor="w")
+    buttons = [
+        ("Refresh", lambda: (show("Up to date."), refresh())),
+        ("Health check and fix", lambda: run("Checking and fixing", lambda: actions.health_check(fix=True))),
+        ("Sync now", lambda: run("Starting a check", actions.sync_now)),
+        ("Update Oso", lambda: run("Updating Oso", actions.update_oso)),
+        ("Transcribe now", lambda: run("Starting transcription", actions.transcribe_now)),
+        ("Back up now", lambda: run("Backing up", actions.backup_now)),
+        ("Sign in to Canvas", lambda: run("Opening the Canvas sign-in", actions.connect_canvas)),
+        ("Disconnect Canvas", lambda: run("Disconnecting Canvas", actions.disconnect_canvas)),
+        ("Connect Google Calendar…", lambda: show(_connect_calendar(cfg))),
+        ("Books", lambda: run("Looking at books", actions.books)),
+        ("Read a book again…", lambda: show(_reread_book(root))),
+        ("Websites", lambda: run("Looking at websites", actions.websites)),
+        ("Check websites now", lambda: run("Checking websites", lambda: actions.websites(check=True))),
+        ("Add a website…", lambda: show(_add_website(root, cfg))),
+    ]
+    for i, (text, cmd) in enumerate(buttons):
+        ttk.Button(acts, text=text, command=cmd).grid(row=i // 5, column=i % 5, padx=4, pady=3, sticky="we")
+    result.pack(fill="x", pady=(10, 0))
+    ttk.Label(status_tab, text="Starting over (fresh start) is only in PowerShell, on purpose: run 'oso fresh-start'.",
+              foreground="#666").pack(anchor="w", pady=(6, 0))
+    refresh()
+    show("Ask Claude \"open my settings\" any time to come back here.")
+
+    # ---- Settings (scrolls: there are many) -----------------------------------------------------------
+    canvas = tk.Canvas(settings_outer, highlightthickness=0)
+    bar = ttk.Scrollbar(settings_outer, orient="vertical", command=canvas.yview)
+    frm = ttk.Frame(canvas, padding=12)
+    frm.bind("<Configure>", lambda _e: canvas.configure(scrollregion=canvas.bbox("all")))
+    canvas.create_window((0, 0), window=frm, anchor="nw")
+    canvas.configure(yscrollcommand=bar.set)
+    canvas.pack(side="left", fill="both", expand=True)
+    bar.pack(side="right", fill="y")
+    canvas.bind_all("<MouseWheel>", lambda e: canvas.yview_scroll(int(-e.delta / 120), "units"))
 
     row = 0
 
@@ -189,15 +318,6 @@ def open_settings(cfg: cfgmod.Config) -> None:
     # Buttons and result
     ttk.Separator(frm).grid(row=row, column=0, columnspan=3, sticky="we", pady=8)
     row += 1
-    result = tk.Text(frm, height=8, width=90, state="disabled", wrap="word")
-    result.grid(row=row + 1, column=0, columnspan=3, sticky="we", **pad)
-
-    def show(text: str) -> None:
-        result.configure(state="normal")
-        result.delete("1.0", "end")
-        result.insert("1.0", text)
-        result.configure(state="disabled")
-
     def save(and_apply: bool) -> None:
         from pathlib import Path
 
@@ -252,24 +372,65 @@ def open_settings(cfg: cfgmod.Config) -> None:
 
             lines.append("")
             lines.append(doctor.format_report(doctor.run(fix=True)))
-        show("\n".join(lines))
+        show_saved("\n".join(lines))
 
     btns = ttk.Frame(frm)
     btns.grid(row=row, column=0, columnspan=3, sticky="w", **pad)
     ttk.Button(btns, text="Save", command=lambda: save(False)).grid(row=0, column=0, padx=4)
     ttk.Button(btns, text="Save and check", command=lambda: save(True)).grid(row=0, column=1, padx=4)
-    ttk.Button(btns, text="Sync now", command=lambda: show(_sync_now())).grid(row=0, column=2, padx=4)
-    ttk.Button(btns, text="Transcribe now", command=lambda: show(_transcribe_now())).grid(row=0, column=3, padx=4)
-    ttk.Button(btns, text="Update Oso", command=lambda: show(_update_now())).grid(row=1, column=0, padx=4, pady=4)
-    ttk.Button(btns, text="Connect Google Calendar…", command=lambda: show(_connect_calendar(cfg))).grid(row=0, column=4, padx=4)
-    ttk.Button(btns, text="Connect Canvas…", command=lambda: show(_connect_canvas())).grid(row=1, column=1, padx=4, pady=4)
-    ttk.Button(btns, text="Books", command=lambda: show(_books(cfg))).grid(row=1, column=3, padx=4, pady=4)
-    ttk.Button(btns, text="Back up now", command=lambda: show(_backup_now())).grid(row=1, column=5, padx=4, pady=4)
-    ttk.Button(btns, text="Read a book again…", command=lambda: show(_reread_book(cfg, root))).grid(row=1, column=4, padx=4, pady=4)
-    ttk.Button(btns, text="Disconnect Canvas", command=lambda: show(_disconnect_canvas())).grid(row=1, column=2, padx=4, pady=4)
-    ttk.Button(btns, text="Close", command=root.destroy).grid(row=0, column=5, padx=4)
+    row += 1
+    settings_result = tk.Text(frm, height=8, width=100, state="disabled", wrap="word")
+    settings_result.grid(row=row, column=0, columnspan=3, sticky="we", **pad)
 
+    def show_saved(text: str) -> None:
+        settings_result.configure(state="normal")
+        settings_result.delete("1.0", "end")
+        settings_result.insert("1.0", text)
+        settings_result.configure(state="disabled")
+        refresh()
+
+
+    def close() -> None:
+        actions.window_pid_path().unlink(missing_ok=True)
+        root.destroy()
+
+    root.protocol("WM_DELETE_WINDOW", close)
+    root.after(1000, watch_for_raise)
     root.mainloop()
+
+
+def _safe(fn) -> str:
+    try:
+        return fn()
+    except Exception as e:  # noqa: BLE001
+        return f"That didn't work: {e}"
+
+
+def _reread_book(root) -> str:
+    from tkinter import simpledialog
+
+    from . import actions
+
+    title = simpledialog.askstring("Read a book again", "Which book? (its title or folder name)", parent=root)
+    return actions.reread_book(title) if title else "Nothing changed."
+
+
+def _add_website(root, cfg) -> str:
+    from tkinter import simpledialog
+
+    from . import actions
+
+    if not cfg.courses:
+        return "Set up a course first."
+    names = ", ".join(f"{c.name} ({c.code})" for c in cfg.courses)
+    course = simpledialog.askstring("Follow a website", f"Which course? ({names})", parent=root)
+    if not course:
+        return "Nothing changed."
+    match = next((c for c in cfg.courses if course.strip().lower() in (c.code.lower(), c.name.lower())), None)
+    if match is None:
+        return f"No course called {course!r}."
+    url = simpledialog.askstring("Follow a website", "The page's address:", parent=root)
+    return actions.add_website(match.code, url) if url else "Nothing changed."
 
 
 def _reschedule(minutes: int) -> str:
@@ -286,63 +447,8 @@ def _reschedule(minutes: int) -> str:
     return install_timer(every_minutes=minutes)
 
 
-def _update_now() -> str:
-    from . import config as cfgmod
-    from . import update
-
-    return update.run(cfgmod.load())
 
 
-def _backup_now() -> str:
-    from datetime import datetime
-
-    from . import backup, db, lock
-
-    cfg = cfgmod.load()
-    if not cfg.backup_folder:
-        return "Set a backup folder first, then Save."
-    with lock.held(wait_seconds=5) as got:
-        if not got:
-            return "Another Oso task is running; try again in a few minutes."
-        with db.connect() as conn:
-            r = backup.run(cfg, conn, datetime.now(cfg.tz), force=True, budget=10**6)
-    return r.get("skipped") or f"Backed up {r['copied']} changed files and Oso's records."
-
-
-def _books(cfg) -> str:
-    from . import books
-
-    rows = books.progress(cfg)
-    if not rows:
-        return "No books yet. Put a book's PDF or EPUB in a course's Books folder, or its scans in Books/<title>/Scans."
-    lines = []
-    for b in rows:
-        state = b["error"] or ("read" if b["total"] and b["done"] >= b["total"] else f"{b['done']} of {b['total'] or '?'} pages read so far")
-        lines.append(f"{b['book']} ({b['course']}): {state}" + (f"; {b['poor']} pages are mostly equations or figures" if b["poor"] else ""))
-    return "\n".join(lines)
-
-
-def _reread_book(cfg, root) -> str:
-    from tkinter import simpledialog
-
-    from . import books
-
-    title = simpledialog.askstring("Read a book again", "Which book? (its title or folder name)", parent=root)
-    return books.reprocess(cfg, title) if title else "Nothing changed."
-
-
-def _connect_canvas() -> str:
-    from . import canvas_session, db
-
-    with db.connect() as conn:
-        return canvas_session.connect(conn)
-
-
-def _disconnect_canvas() -> str:
-    from . import canvas_session
-
-    canvas_session.forget()
-    return "Oso forgot your Canvas sign-in. Due dates still come from the calendar feed."
 
 
 def _connect_calendar(cfg) -> str:
@@ -358,26 +464,3 @@ def _connect_calendar(cfg) -> str:
     except Exception as e:  # noqa: BLE001
         return f"Could not connect Google Calendar: {e}"
     return "Connected. Oso created a calendar named 'Oso' and will put urgent changes on it."
-
-
-def _transcribe_now() -> str:
-    from . import config as cfgmod
-    from . import db, transcribe
-
-    try:
-        with db.connect() as conn:
-            counts = transcribe.run(conn, cfgmod.load())
-    except Exception as e:  # noqa: BLE001
-        return f"Transcription failed: {e}"
-    return f"Transcribed {counts['pages']} page(s) into {counts['notes']} note(s); {counts['low_confidence']} low confidence, {counts['failed']} failed."
-
-
-def _sync_now() -> str:
-    from . import config as cfgmod
-    from . import sync
-
-    try:
-        results = sync.run(cfgmod.load())
-    except Exception as e:  # noqa: BLE001
-        return f"Sync failed: {e}"
-    return "Synced.\n" + "\n".join(f"{k}: {v}" for k, v in results.items())

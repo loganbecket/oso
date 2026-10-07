@@ -57,13 +57,21 @@ def canvas_data():
                 {"type": "Page", "title": "How to study", "page_url": "how-to-study"},
                 {"type": "ExternalUrl", "title": "Worksheet", "external_url": "SERVER/ext/worksheet.pdf"},
                 {"type": "ExternalUrl", "title": "Video", "external_url": "https://video.example/abc"},
-                {"type": "File", "title": "Locked exam key", "content_id": 599}]},
+                {"type": "File", "title": "Locked exam key", "content_id": 599},
+                {"type": "Assignment", "title": "Lab 1", "content_id": 77}]},
             {"id": 2, "name": "Week 2: Forces", "position": 2, "items_url": "SERVER/api/v1/courses/1/modules/2/items"}],
         "/api/v1/courses/1/modules/2/items": [{"type": "File", "title": "Forces notes", "content_id": 503}],
         "/api/v1/courses/1/files/501": {"id": 501, "display_name": "Lecture 1 slides.pdf", "url": "SERVER/dl/501", "updated_at": "2026-08-20T00:00:00Z", "size": 10},
         "/api/v1/courses/1/files/503": {"id": 503, "display_name": "Forces notes.pdf", "url": "SERVER/dl/503", "updated_at": "2026-08-27T00:00:00Z", "size": 10},
         "/api/v1/courses/1/files/599": {"id": 599, "display_name": "Key.pdf", "locked_for_user": True},
-        "/api/v1/courses/1/pages/how-to-study": {"title": "How to study", "body": "<p>Read <b>before</b> lecture.</p>", "updated_at": "2026-08-20T00:00:00Z"},
+        "/api/v1/courses/1/pages/how-to-study": {"title": "How to study", "updated_at": "2026-08-20T00:00:00Z", "body":
+            "<p>Read <b>before</b> lecture.</p><p><a href='/courses/1/files/504/download?wrap=1'>Study guide</a> and "
+            "<a class='instructure_file_link' data-api-endpoint='SERVER/api/v1/courses/1/files/505' href='SERVER/courses/1/files/505?verifier=x'>Formula sheet</a>, "
+            "plus <a href='https://publisher.example/ch2.pdf'>chapter 2</a> and <a href='https://video.example/v'>a video</a>.</p>"},
+        "/api/v1/courses/1/files/504": {"id": 504, "display_name": "Study guide.pdf", "url": "SERVER/dl/504", "updated_at": "2026-08-20T00:00:00Z", "size": 10},
+        "/api/v1/courses/1/files/505": {"id": 505, "display_name": "Formula sheet.pdf", "url": "SERVER/dl/505", "updated_at": "2026-08-20T00:00:00Z", "size": 10},
+        "/api/v1/courses/1/assignments/77": {"name": "Lab 1", "description": "<p>Use <a href='/courses/1/files/506/download'>the lab handout</a>.</p>", "due_at": "2026-09-01T00:00:00Z"},
+        "/api/v1/courses/1/files/506": {"id": 506, "display_name": "Lab handout.pdf", "url": "SERVER/dl/506", "updated_at": "2026-08-20T00:00:00Z", "size": 10},
         "/api/v1/announcements": [],
     }
 
@@ -310,7 +318,7 @@ def test_modules_files_pages_and_links(env, server):
     api = CanvasApi(server, None, cfg, cookies={"canvas_session": "good"})
     api.fetch()
     counts = api.mirror()
-    assert counts["module_files"] == 3 and counts["module_pages"] == 1 and counts["files"] == 1  # Syllabus.pdf came via the module
+    assert counts["module_files"] == 6 and counts["module_pages"] == 2 and counts["files"] == 1  # Syllabus.pdf came via the module
     mods = cfg.vault / "Courses" / "2026 Fall" / "Physics" / "Canvas" / "Modules"
     assert (mods / "01 Week 1 Motion" / "Lecture 1 slides.pdf").read_bytes().startswith(b"%PDF")
     assert (mods / "01 Week 1 Motion" / "worksheet.pdf").exists() and (mods / "02 Week 2 Forces" / "Forces notes.pdf").exists()
@@ -319,10 +327,16 @@ def test_modules_files_pages_and_links(env, server):
     assert "type: canvas-page" in page and "Read before lecture." in page
     index = (mods / "Modules.md").read_text(encoding="utf-8")
     assert "## Week 1: Motion" in index and "### Readings" in index and "Locked exam key (locked or unavailable)" in index
+    week1 = mods / "01 Week 1 Motion"
+    for name in ("Study guide.pdf", "Formula sheet.pdf", "Lab handout.pdf"):
+        assert (week1 / name).read_bytes().startswith(b"%PDF"), name
+    assert "## Files linked here" in page and "Formula sheet.pdf]]" in page
+    lab = (week1 / "Assignment - Lab 1.md").read_text(encoding="utf-8")
+    assert "type: canvas-assignment" in lab and "Lab handout.pdf]]" in lab and "due: '2026-09-01" in lab
     assert "[Video](https://video.example/abc)" in index and "[[Courses/2026 Fall/Physics/Canvas/Modules/01 Week 1 Motion/How to study|How to study]]" in index
     assert (cfg.vault / "Courses/2026 Fall/Physics/Canvas/Old notes.pdf").exists() and not (cfg.vault / "Courses/2026 Fall/Physics/Canvas/Syllabus.pdf").exists()
     with db.connect() as conn:
         canvas_store.record_new_files(conn, api.new_files, now="2026-11-01T12:00:00+00:00")
-        assert [r["text"] for r in canvas_store.recent_events(conn, datetime(2026, 11, 1, 9, 0, tzinfo=TZ))] == ["Downloaded 4 files from Canvas modules and files"]
+        assert [r["text"] for r in canvas_store.recent_events(conn, datetime(2026, 11, 1, 9, 0, tzinfo=TZ))] == ["Downloaded 7 files from Canvas modules and files"]
         again = api.mirror()
         assert again["module_files"] == 0 and again["files"] == 0 and api.new_files == []  # unchanged: nothing downloaded twice

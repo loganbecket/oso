@@ -172,9 +172,17 @@ class CanvasApi:
                     counts["files"] += got is not None and got[1]
                     index.append(f"- {title}" + (f" ([[{got[0]}]])" if got else " (locked or unavailable)"))
                 elif kind == "Page" and item.get("page_url"):
-                    path = self._module_page(course_id, item["page_url"], folder, title)
-                    counts["pages"] += path is not None and path[1]
-                    index.append(f"- [[{path[0]}|{title}]]" if path else f"- {title} (locked or unavailable)")
+                    path = self._module_doc(course_id, code, f"/api/v1/courses/{course_id}/pages/{item['page_url']}",
+                                            "body", folder, title, name, seen, counts)
+                    index.append(f"- [[{path}|{title}]]" if path else f"- {title} (locked or unavailable)")
+                elif kind in ("Assignment", "Quiz", "Discussion") and item.get("content_id"):
+                    endpoint, field = {
+                        "Assignment": (f"/api/v1/courses/{course_id}/assignments/{item['content_id']}", "description"),
+                        "Quiz": (f"/api/v1/courses/{course_id}/quizzes/{item['content_id']}", "description"),
+                        "Discussion": (f"/api/v1/courses/{course_id}/discussion_topics/{item['content_id']}", "message"),
+                    }[kind]
+                    path = self._module_doc(course_id, code, endpoint, field, folder, title, name, seen, counts, kind=kind.lower())
+                    index.append(f"- {kind}: [[{path}|{title}]]" if path else f"- {kind}: {title}")
                 elif kind == "ExternalUrl" and item.get("external_url"):
                     url = item["external_url"]
                     if _doc_link(url):
@@ -219,22 +227,44 @@ class CanvasApi:
             self.new_files.append((code, f"New file in {module}: {name}"))
         return (target.relative_to(self.cfg.vault).as_posix(), fresh)
 
-    def _module_page(self, course_id: int, page_url: str, folder: Path, title: str):
+    def _module_doc(self, course_id: int, code: str, endpoint: str, field: str, folder: Path, title: str, module: str,
+                    seen: set[int], counts: dict, kind: str = "page") -> str | None:
+        """A module page, or an assignment, quiz, or discussion's instructions: saved as a note, and every
+        file it links to (Canvas files and outside documents) downloaded into the module's folder."""
         try:
-            pages = self._pages(f"/api/v1/courses/{course_id}/pages/{page_url}", {})
+            got = self._pages(endpoint, {})
         except requests.HTTPError:
             return None
-        if not pages or pages[0].get("locked_for_user"):
+        if not got or got[0].get("locked_for_user"):
             return None
-        page = pages[0]
-        target = folder / f"{notes.safe_name(page.get('title') or title or page_url)[:80]}.md"
-        fm = {"type": "canvas-page", "updated": page.get("updated_at"), "source": page.get("html_url")}
-        text = notes.with_front_matter(fm, f"# {page.get('title') or title}\n\n{_strip_html(page.get('body') or '')}\n")
-        changed = not target.exists() or target.read_text(encoding="utf-8") != text
-        if changed:
+        doc = got[0]
+        html = doc.get(field) or ""
+        files = []
+        for fid in _canvas_file_ids(html):
+            res = self._module_file(course_id, code, fid, folder, seen, module)
+            if res:
+                files.append(res[0])
+                counts["files"] += res[1]
+        for url in _doc_links(html, self.base):
+            target = folder / notes.safe_name(Path(url.split("?")[0]).name, limit=120)
+            if not target.exists() and self._download(url, target):
+                counts["files"] += 1
+                self.new_files.append((code, f"New file in {module}: {target.name}"))
+            if target.exists():
+                files.append(target.relative_to(self.cfg.vault).as_posix())
+        heading = doc.get("title") or doc.get("name") or title
+        body = f"# {heading}\n\n{_strip_html(html)}\n"
+        if files:
+            body += "\n## Files linked here\n\n" + "\n".join(f"- [[{f}]]" for f in dict.fromkeys(files)) + "\n"
+        prefix = "" if kind == "page" else f"{kind.title()} - "
+        target = folder / f"{prefix}{notes.safe_name(heading)[:80]}.md"
+        fm = {"type": f"canvas-{kind}", "updated": doc.get("updated_at"), "due": doc.get("due_at"), "source": doc.get("html_url")}
+        text = notes.with_front_matter(fm, body)
+        if not target.exists() or target.read_text(encoding="utf-8") != text:
             folder.mkdir(parents=True, exist_ok=True)
             target.write_text(text, encoding="utf-8")
-        return (target.relative_to(self.cfg.vault).with_suffix("").as_posix(), changed)
+            counts["pages"] += 1
+        return target.relative_to(self.cfg.vault).with_suffix("").as_posix()
 
     def _download(self, url: str, target: Path) -> bool:
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -317,6 +347,30 @@ DOC_EXT = {".pdf", ".docx", ".doc", ".pptx", ".ppt", ".xlsx", ".xls", ".odt", ".
 
 def _doc_link(url: str) -> bool:
     return Path(url.split("?")[0].split("#")[0]).suffix.lower() in DOC_EXT
+
+
+_FILE_ID = re.compile(r"/files/(\d+)")
+
+
+def _canvas_file_ids(html: str) -> list[int]:
+    """Canvas files a page links to or embeds: links like /courses/1/files/456/download, and the
+    data-api-endpoint Canvas puts on file links."""
+    ids = []
+    for attr in re.findall(r'(?:href|src|data-api-endpoint)\s*=\s*["\']([^"\']+)["\']', html or "", re.IGNORECASE):
+        m = _FILE_ID.search(attr)
+        if m and ("/courses/" in attr or "/api/v1/files/" in attr or attr.startswith("/files/")):
+            ids.append(int(m.group(1)))
+    return list(dict.fromkeys(ids))
+
+
+def _doc_links(html: str, base: str) -> list[str]:
+    """Links to documents outside Canvas (a PDF on an instructor's or publisher's site)."""
+    out = []
+    host = urlparse(base).netloc
+    for href in re.findall(r'href\s*=\s*["\']([^"\']+)["\']', html or "", re.IGNORECASE):
+        if href.startswith(("http://", "https://")) and urlparse(href).netloc != host and _doc_link(href):
+            out.append(href)
+    return list(dict.fromkeys(out))
 
 
 def _signed_out(r: requests.Response) -> bool:

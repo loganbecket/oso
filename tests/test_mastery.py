@@ -45,6 +45,11 @@ def test_untested_shaky_strong(env):
     quiz(conn, cfg, "Kinematics", ["right", "right"], 3)
     assert states(conn, cfg)["Kinematics"]["state"] == "untested"  # two results are not enough
     quiz(conn, cfg, "Kinematics", ["right", "right", "right", "right"], 2)
+    assert states(conn, cfg)["Kinematics"]["state"] == "shaky"  # results alone aren't enough: he hasn't explained it
+    from oso import tutor
+
+    tutor.note_signal(conn, cfg, "explained_well", "PHYS-110", "Kinematics", "it's the rate of change of velocity",
+                      now=(NOW - timedelta(days=2)).isoformat())
     k = states(conn, cfg)["Kinematics"]
     assert k["state"] == "strong" and k["accuracy"] == 100.0 and k["results"] == 6 and k["last_practiced"] == "2026-10-30"
     quiz(conn, cfg, "Forces", ["wrong", "right", "partly_right"], 1)
@@ -78,8 +83,9 @@ def test_profile_file_written_and_not_churned(env):
     [path] = mastery.write_all(conn, cfg, NOW)
     assert path.name == "Physics (2026 Fall).md"
     text = path.read_text()
-    assert "## Needs work\n- **Forces**: 67% over 3 results" in text and "on Exam 1" in text and "from quiz 1" in text
-    assert "## Not yet tested\n- **Kinematics**: on Exam 1\n- **Energy**: on Final" in text
+    assert "## Practicing\n- **Forces**: 2 of 3 right in the last 3 results (2026-10-31 to 2026-10-31); practicing; mostly concept gaps; on Exam 1. Next: practice." in text
+    assert "  - Trail: quiz 1 2026-10-31, 2 of 3" in text
+    assert "## Not yet tested\n- **Kinematics**: no results yet; untested; on Exam 1. Next: a few questions to find out." in text
     mtime = path.stat().st_mtime_ns
     mastery.write_all(conn, cfg, NOW + timedelta(minutes=15))
     assert path.stat().st_mtime_ns == mtime  # unchanged content is not rewritten every check

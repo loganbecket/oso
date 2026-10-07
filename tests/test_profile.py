@@ -85,8 +85,10 @@ WINDOW_QS = [
      "choices": ["m/s", "m/s^2", "N"], "answer": "B"},
     {"number": 2, "topic": "Kinematics", "type": "multiple_choice", "difficulty": "easy", "question": "g on Earth?",
      "choices": ["9.8 m/s^2", "1 m/s^2"], "answer": "9.8 m/s^2"},
-    {"number": 3, "topic": "Forces", "type": "short_answer", "difficulty": "medium", "question": "State Newton's second law."},
-    {"number": 4, "topic": "Forces", "type": "worked_problem", "difficulty": "hard", "question": "A 2 kg block..."},
+    {"number": 3, "topic": "Forces", "type": "short_answer", "difficulty": "medium", "question": "State Newton's second law.",
+     "criteria": {"expected": "F = ma", "full_credit": "net force equals mass times acceleration", "partial_credit": "F = ma without 'net'"}},
+    {"number": 4, "topic": "Forces", "type": "worked_problem", "difficulty": "hard", "question": "A 2 kg block...",
+     "criteria": {"expected": "4 N", "full_credit": "free-body diagram and 4 N", "wrong_answers": {"2 N": "forgot friction"}}},
 ]
 
 
@@ -189,7 +191,10 @@ def test_corrections(env):
     qid = profile.start_quiz(conn, cfg, "PHYS-110", QUESTIONS[:2])
     profile.record_answers(conn, qid, [{"number": 1, "result": "wrong", "mistake": "concept_gap"}, {"number": 2, "result": "right"}])
     assert profile.finish_quiz(conn, qid)["score"] == 50.0
-    assert "is now right" in profile.correct(conn, quiz_id=qid, number=1, result="right")
+    with pytest.raises(profile.ProfileError, match="Say why the grade changes"):
+        profile.correct(conn, quiz_id=qid, number=1, result="right")  # pushback alone doesn't change a grade
+    assert "is now right" in profile.correct(conn, quiz_id=qid, number=1, result="right", reason="meets the full-credit criterion: F = ma with net force")
+    assert conn.execute("SELECT reason FROM regrades").fetchone()["reason"].startswith("meets the full-credit")
     assert profile.summary(conn, qid)["score"] == 100.0 and profile.summary(conn, qid)["questions"][0]["mistake"] is None
     assert "not graded" in profile.correct(conn, quiz_id=qid, number=2, remove=True)
     assert profile.summary(conn, qid)["score"] == 50.0
@@ -213,7 +218,7 @@ def test_delete_quiz_removes_everything(env, tmp_path: Path):
     profile.record_answers(conn, keep, [{"number": 1, "result": "right"}])
     trial = profile.start_quiz(conn, cfg, "PHYS-110", [
         {"number": 1, "topic": "Kinematics", "type": "multiple_choice", "difficulty": "easy", "question": "?", "choices": ["alpha", "beta"], "answer": "A"},
-        {"number": 2, "topic": "Dummy topic", "type": "worked_problem", "difficulty": "easy", "question": "Solve"},
+        {"number": 2, "topic": "Dummy topic", "type": "worked_problem", "difficulty": "easy", "question": "Solve", "criteria": "x = 1"},
     ], window=True)
     profile.window_submit(conn, trial, {1: {"response": "B", "seconds": 5, "changes": 0}, 2: {"response": None, "seconds": 9, "changes": 0}})
     photo = tmp_path / "w.png"

@@ -47,6 +47,7 @@ def render(conn: sqlite3.Connection, cfg: Config, now: datetime) -> str:
     lines += _canvas_sign_in(conn)
     lines += _section("Due today", due_today, cfg, now)
     lines += _readiness(conn, cfg, now)
+    lines += _study_time(conn, cfg, now)
     lines += _schedule(conn, cfg, now)
     lines += _missing(conn, cfg)
     lines += _section("Due this week", this_week, cfg, now)
@@ -190,6 +191,28 @@ def _readiness(conn: sqlite3.Connection, cfg: Config, now: datetime) -> list[str
         return readiness.section(conn, cfg, now)
     except sqlite3.Error:
         return []
+
+
+def _study_time(conn: sqlite3.Connection, cfg: Config, now: datetime) -> list[str]:
+    """Where study time should go, and the honesty checks that change how he should practice."""
+    from . import tutor
+
+    try:
+        ranked = [c for c in tutor.attention(conn, cfg, now) if c["score"] > 0]
+        flags = []
+        for c in cfg.courses:
+            if not c.finished:
+                flags += [f"{c.name}: {line}" for line in (v["line"] for v in tutor.course_flags(conn, cfg, c.code, now=now).values())]
+    except (sqlite3.Error, ValueError):
+        return []
+    if not ranked and not flags:
+        return []
+    lines = ["## Where study time should go"]
+    for c in ranked[:4]:
+        lines.append(f"- {c['name']}: about {c['share_percent']}% of study time" + (f" ({'; '.join(c['reasons'])})" if c["reasons"] else ""))
+    lines += [f"- {f}" for f in flags]
+    lines.append("")
+    return lines
 
 
 def _schedule(conn: sqlite3.Connection, cfg: Config, now: datetime) -> list[str]:

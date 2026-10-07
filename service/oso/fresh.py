@@ -8,7 +8,8 @@ search model. Everything read from Canvas is cleared and read again on the next 
 
 Deleted, with no backup: everything else in the vault, the courses and anything tied to them (muted
 courses, Drive folder links), and Oso's database (deadlines, grades, alerts, transcription history, and the
-learner profile: every quiz, check, and topic rating, and what was picked out of email and GroupMe), its
+learner profile: every quiz, check, and topic rating, what was picked out of email and GroupMe, and what Claude noted in conversations: confusion, misconceptions,
+preferences, and goals), its
 search index, and its record of the command instructions. A sync then rebuilds the starting folders,
 `Today.md`, and the command instructions, and pulls the Canvas deadlines back in.
 """

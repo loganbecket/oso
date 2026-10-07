@@ -32,7 +32,7 @@ def quiz(conn, cfg, course, results_by_topic, at, window_seconds=None):
     for topic, results in results_by_topic.items():
         for r in results:
             n += 1
-            qs.append({"number": n, "topic": topic, "type": "short_answer", "difficulty": "medium", "question": "?"})
+            qs.append({"number": n, "topic": topic, "type": "short_answer", "difficulty": "medium", "question": "?", "criteria": "x"})
             ans.append({"number": n, "result": r, "mistake": None if r == "right" else "concept_gap"})
     qid = profile.start_quiz(conn, cfg, course, qs, now=when, window=window_seconds is not None)
     if window_seconds is not None:

@@ -397,20 +397,69 @@ def record_answers(quiz_id: int, answers: list[dict]) -> dict:
 
 @mcp.tool()
 def finish_quiz(quiz_id: int) -> dict:
-    """Close a quiz after grading; returns its score and per-question results."""
-    from . import profile
+    """Close a quiz after grading; returns its score and per-question results. When `second_grading` is present, have the
+    oso-examiner agent grade it blind from `second_grading` and pass its grades to `record_second_grade` before reporting."""
+    from . import profile, tutor
 
     with db.connect() as conn:
-        return profile.finish_quiz(conn, quiz_id)
+        out = profile.finish_quiz(conn, quiz_id)
+        if tutor.needs_second_grade(conn, quiz_id) and not conn.execute(
+            "SELECT 1 FROM second_grades g JOIN quiz_questions q ON q.id = g.question_id WHERE q.quiz_id = ?", (quiz_id,)
+        ).fetchone():
+            out["second_grading"] = tutor.blind_view(conn, _cfg(), quiz_id)
+        return out
+
+
+@mcp.tool()
+def record_second_grade(quiz_id: int, answers: list[dict]) -> dict:
+    """The second grader's results ({number, result, mistake}) for a quiz's Claude-graded questions. Where they differ, the second grade counts."""
+    from . import tutor
+
+    with db.connect() as conn:
+        return tutor.record_second_grade(conn, quiz_id, answers)
 
 
 @mcp.tool()
 def get_profile(course: str) -> dict:
-    """What the student knows in a course: topics grouped as shaky, untested, and strong, with accuracy, result count, trend, common mistake, and last practiced."""
-    from . import mastery
+    """Where he stands in a course, computed by Oso from evidence: each topic's stage, next step, status line, open
+    misconceptions, and trail; his grade and goal; honesty flags; how he learns. Report the status lines as they are,
+    never upgraded. Be a direct, honest tutor: name the evidence for anything positive, lead with gaps, no unearned praise."""
+    from . import tutor
 
     with db.connect() as conn:
-        return mastery.course_profile(conn, _cfg(), course)
+        return tutor.course_view(conn, _cfg(), course)
+
+
+@mcp.tool()
+def note_signal(kind: str, course: str | None = None, topic: str | None = None, words: str | None = None,
+                belief: str | None = None, misconception: int | None = None, target_percent: float | None = None) -> dict:
+    """Quietly note what he shows in a study conversation, as it happens, never announced. kind: confused, misconception
+    (belief = the wrong idea itself), basic_question, explained_well (explained it correctly in his own words; pass
+    misconception to close one), solved / needed_help (worked a problem in chat), explained (you explained it; words =
+    how), preference (how he learns), goal (words as he said it, target_percent if a grade). words: his words where they show it."""
+    from . import tutor
+
+    with db.connect() as conn:
+        return tutor.note_signal(conn, _cfg(), kind, course, topic, words, belief, misconception, target_percent)
+
+
+@mcp.tool()
+def correct_note(note: int | None = None, misconception: int | None = None, reopen: bool = False) -> str:
+    """When he says a conversation note or misconception is wrong: remove the note, or remove or reopen the misconception."""
+    from . import tutor
+
+    with db.connect() as conn:
+        return tutor.forget(conn, note, misconception, reopen)
+
+
+@mcp.tool()
+def study_attention() -> list[dict]:
+    """Which courses need study time most, with reasons (topics needing focus, the next exam, grade against his goal,
+    upcoming work) and a suggested share of study time."""
+    from . import tutor
+
+    with db.connect() as conn:
+        return tutor.attention(conn, _cfg())
 
 
 @mcp.tool()
@@ -442,12 +491,14 @@ def tag_assignments(tags: list[dict]) -> dict:
 
 @mcp.tool()
 def correct_result(quiz_id: int | None = None, number: int | None = None, check_id: int | None = None,
-                   result: str | None = None, mistake: str | None = None, remove: bool = False) -> str:
-    """Fix a recorded result the student says is wrong: a quiz question (quiz_id + number) or a check (check_id); new result and mistake kind, or remove."""
+                   result: str | None = None, mistake: str | None = None, remove: bool = False, reason: str | None = None) -> str:
+    """Fix a recorded result: a quiz question (quiz_id + number) or a check (check_id); new result and mistake kind, or
+    remove. Changing a grade needs `reason`: the stored criterion that supports it, or what was recorded wrong. Arguing
+    alone ("I meant that") is not a reason."""
     from . import profile
 
     with db.connect() as conn:
-        return profile.correct(conn, quiz_id, number, check_id, result, mistake, remove)
+        return profile.correct(conn, quiz_id, number, check_id, result, mistake, remove, reason)
 
 
 @mcp.tool()

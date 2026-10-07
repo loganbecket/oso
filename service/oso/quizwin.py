@@ -42,6 +42,7 @@ class QuizSession:
         self.seconds: dict[int, float] = {q["number"]: 0.0 for q in questions}
         self.changes: dict[int, int] = {q["number"]: 0 for q in questions}
         self.first_at: dict[int, str | None] = {q["number"]: None for q in questions}
+        self.confidence: dict[int, str | None] = {q["number"]: None for q in questions}
         self._shown_at = clock()
 
     @property
@@ -71,13 +72,17 @@ class QuizSession:
             self.first_at[n] = self.wall()
         self.answers[n] = value
 
+    def sure(self, value: str | None) -> None:
+        """How sure he is of the current answer: sure, think_so, or guessing. Never required."""
+        self.confidence[self.current["number"]] = value or None
+
     def unanswered(self) -> list[int]:
         return [n for n, a in self.answers.items() if a is None]
 
     def responses(self) -> dict[int, dict]:
         self._bank_time()
         return {n: {"response": self.answers[n], "seconds": self.seconds[n], "changes": self.changes[n],
-                    "first_answer_at": self.first_at[n]} for n in self.answers}
+                    "first_answer_at": self.first_at[n], "confidence": self.confidence[n]} for n in self.answers}
 
 
 def load_questions(conn, quiz_id: int) -> tuple[dict, list[dict]]:
@@ -201,6 +206,13 @@ def run(quiz_id: int) -> None:
     text.pack(fill="x", pady=(8, 8))
     body = ttk.Frame(frm)
     body.pack(fill="both", expand=True)
+    sure_row = ttk.Frame(frm)
+    sure_row.pack(fill="x", pady=(8, 0))
+    sure_var = tk.StringVar()
+    ttk.Label(sure_row, text="How sure are you?").pack(side="left", padx=(0, 8))
+    for value, label in (("sure", "Sure"), ("think_so", "Think so"), ("guessing", "Guessing")):
+        ttk.Radiobutton(sure_row, text=label, value=value, variable=sure_var,
+                        command=lambda: session.sure(sure_var.get())).pack(side="left", padx=4)
     nav = ttk.Frame(frm)
     nav.pack(fill="x", pady=(8, 0))
 
@@ -225,6 +237,7 @@ def run(quiz_id: int) -> None:
         for w in body.winfo_children():
             w.destroy()
         entry = None
+        sure_var.set(session.confidence[q["number"]] or "")
         current = session.answers[q["number"]] or ""
         if q["type"] == "multiple_choice" and q["choices"]:
             choice_var.set(current)

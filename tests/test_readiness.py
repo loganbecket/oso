@@ -77,6 +77,10 @@ def test_ready_means_no_line(env):
     conn, cfg = env
     exam(conn, "Exam 2", 5)
     quiz(conn, cfg, {"Kinematics": ["right"] * 6, "Forces": ["right"] * 6}, 2)
+    from oso import tutor
+
+    for t in ("Kinematics", "Forces"):
+        tutor.note_signal(conn, cfg, "explained_well", "PHYS-110", t, now=(NOW - timedelta(days=1)).isoformat())
     assert reasons(conn, cfg) == {}
     assert "## Readiness" not in today.render(conn, cfg, NOW)
 
@@ -86,6 +90,9 @@ def test_dropping_scores(env):
     exam(conn, "Exam 2", 6)
     quiz(conn, cfg, {"Kinematics": ["right"] * 6, "Forces": ["right"] * 6}, 6)
     quiz(conn, cfg, {"Kinematics": ["right"] * 4, "Forces": ["right", "right", "right", "wrong"]}, 1)
+    from oso import tutor
+
+    tutor.note_signal(conn, cfg, "explained_well", "PHYS-110", "Kinematics", now=(NOW - timedelta(days=1)).isoformat())
     r = reasons(conn, cfg)["Exam 2"]
     assert r[-1] == "scores dropping (100% then 88%)"
     assert r[0].startswith("shaky: Forces")  # 90% is not strong

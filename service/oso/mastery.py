@@ -43,15 +43,21 @@ def evidence(conn: sqlite3.Connection, course: str) -> list[dict]:
     profile.ensure(conn)
     out = []
     for r in conn.execute(
-        """SELECT q.topic, a.result, a.attempts, a.hint, a.mistake, a.answered_at AS at, z.id AS quiz_id
+        """SELECT q.topic, q.difficulty, q.misconception_id, a.result, a.attempts, a.hint, a.mistake, a.answered_at AS at,
+                  z.id AS quiz_id, r.confidence
            FROM quiz_answers a JOIN quiz_questions q ON q.id = a.question_id JOIN quizzes z ON z.id = q.quiz_id
+           LEFT JOIN quiz_responses r ON r.question_id = q.id
            WHERE LOWER(z.course) = LOWER(?)""",
         (course,),
     ):
         credit = CREDIT.get(r["result"], 0.0)
         if (r["attempts"] > 1 or r["hint"]) and credit > 0.5:
             credit = 0.5
-        out.append({"topic": r["topic"], "credit": credit, "mistake": r["mistake"], "at": r["at"], "source": f"quiz {r['quiz_id']}"})
+        if r["confidence"] == "guessing" and credit > 0.5:
+            credit = 0.5  # a right guess is weaker evidence than knowing
+        out.append({"topic": r["topic"], "credit": credit, "mistake": r["mistake"], "at": r["at"], "source": f"quiz {r['quiz_id']}",
+                    "difficulty": r["difficulty"], "confidence": r["confidence"],
+                    "sure_wrong": r["confidence"] == "sure" and r["result"] in ("wrong", "partly_right")})
     for r in conn.execute(
         "SELECT id, topic, correct, mistake, checked_at FROM checks WHERE LOWER(course) = LOWER(?)", (course,)
     ):
@@ -64,7 +70,7 @@ def evidence(conn: sqlite3.Connection, course: str) -> list[dict]:
     return out
 
 
-def topic_states(conn: sqlite3.Connection, cfg: Config, course: str, now: datetime | None = None) -> list[dict]:
+def topic_states(conn: sqlite3.Connection, cfg: Config, course: str, now: datetime | None = None, record: bool = False) -> list[dict]:
     now = now or datetime.now(UTC)
     by_topic: dict[str, list[dict]] = {}
     for e in evidence(conn, course):
@@ -72,6 +78,10 @@ def topic_states(conn: sqlite3.Connection, cfg: Config, course: str, now: dateti
     listed = profile.list_topics(conn, course)
     names = [t["name"] for t in listed] + [n for n in by_topic if n not in {t["name"] for t in listed}]
     meta = {t["name"]: t for t in listed}
+    from . import tutor
+
+    stages = {t["topic"]: t for t in tutor.topics(conn, cfg, course, now, record=record)}
+    names += [n for n in stages if n not in names]
     out = []
     for name in names:
         ev = by_topic.get(name, [])
@@ -89,25 +99,33 @@ def topic_states(conn: sqlite3.Connection, cfg: Config, course: str, now: dateti
                 before = ev[-2 * TREND_WINDOW:-TREND_WINDOW]
                 diff = 100 * (sum(e["credit"] for e in last) / len(last) - sum(e["credit"] for e in before) / len(before))
                 row["trend"] = "improving" if diff >= TREND_POINTS else "slipping" if diff <= -TREND_POINTS else "steady"
-        recent = sum(1 for e in ev if now - _parse(e["at"]) <= timedelta(days=RECENT_DAYS))
-        if len(ev) < cfg.untested_below:
-            row["state"] = "untested"
-        elif row["accuracy"] >= cfg.strong_percent and recent >= cfg.strong_min_results:
-            row["state"] = "strong"
-        else:
-            row["state"] = "shaky"
+        t = stages.get(name, {})
+        row.update({k: t.get(k) for k in ("stage", "next_step", "status", "misconceptions", "trail")})
+        # The older three-way rating, kept for readiness and the briefing: solid and maintaining are strong.
+        row["state"] = {"solid": "strong", "maintaining": "strong", "untested": "untested"}.get(t.get("stage"), "shaky")
         out.append(row)
     return out
 
 
-def course_profile(conn: sqlite3.Connection, cfg: Config, course: str, now: datetime | None = None) -> dict:
+def course_profile(conn: sqlite3.Connection, cfg: Config, course: str, now: datetime | None = None, record: bool = False) -> dict:
+    """Topics grouped by stage, with the older strong/shaky/untested groups the briefing and readiness use."""
     c = cfg.course_for(course)
     if c is None:
         raise profile.ProfileError(f"There is no course {course!r}; use its code from list_courses.")
-    topics = topic_states(conn, cfg, c.code, now)
+    from . import tutor
+
+    now = now or datetime.now(UTC)
+    topics = topic_states(conn, cfg, c.code, now, record=record)
+    flags = tutor.course_flags(conn, cfg, c.code, now=now)
+    gen = tutor.generosity(conn, c.code)
+    if gen and gen.get("line"):
+        flags["grading_too_generous"] = gen
     return {
         "course": c.code,
         "name": c.name,
+        "topics": topics,
+        "flags": {k: v["line"] for k, v in flags.items()},
+        "goal": tutor.goal(conn, c.code),
         "shaky": [t for t in topics if t["state"] == "shaky"],
         "untested": [t for t in topics if t["state"] == "untested"],
         "strong": [t for t in topics if t["state"] == "strong"],
@@ -116,6 +134,9 @@ def course_profile(conn: sqlite3.Connection, cfg: Config, course: str, now: date
 
 MISTAKE_WORDS = {"concept_gap": "concept gaps", "calculation_slip": "calculation slips",
                  "misread_question": "misread questions", "incomplete": "incomplete answers"}
+
+GROUPS = (("Needs focus", ("needs_focus",)), ("Explained, not yet shown", ("explained",)), ("Practicing", ("practicing",)),
+          ("Not yet tested", ("untested",)), ("Solid", ("solid", "maintaining")))
 
 
 def render(p: dict, cfg: Config, now: datetime) -> str:
@@ -126,48 +147,49 @@ def render(p: dict, cfg: Config, now: datetime) -> str:
         f"generated: {now.isoformat(timespec='minutes')}",
         "---",
         "",
-        f"# {p['name']}: what you know",
+        f"# {p['name']}: where you stand",
         "",
-        "Generated by Oso from your quiz results and checks of your work. Do not edit; it is rewritten on every check. "
-        "If something here is wrong, tell Claude.",
+        "Generated by Oso from your quizzes, checks of your work, graded Canvas work, and what you've shown in conversations "
+        "with Claude. Do not edit; it is rewritten on every check. If something here is wrong, tell Claude.",
         "",
-        f"Strong means {cfg.strong_percent}% or better over at least {cfg.strong_min_results} recent results; "
-        f"untested means fewer than {cfg.untested_below} results. Recent results count more.",
+        f"Solid means {cfg.strong_percent}% or better over at least {cfg.strong_min_results} recent results, including medium or "
+        "hard questions, and explaining it correctly in your own words. Recent results count more; nothing from conversation "
+        "alone makes a topic solid.",
         "",
     ]
-    for heading, key, empty in (("Needs work", "shaky", "Nothing shaky right now."),
-                                ("Not yet tested", "untested", "Every topic has been tested."),
-                                ("Strong", "strong", "No strong topics yet.")):
-        lines.append(f"## {heading}")
-        rows = p[key]
+    if p.get("goal"):
+        lines += [f"Your goal: {p['goal']['goal']}.", ""]
+    if p.get("flags"):
+        lines.append("## Heads up")
+        lines += [f"- {line}" for line in p["flags"].values()]
+        lines.append("")
+    for heading, stages in GROUPS:
+        rows = [t for t in p["topics"] if t.get("stage") in stages]
         if not rows:
-            lines.append(f"- {empty}")
+            continue
+        lines.append(f"## {heading}")
         for t in rows:
-            bits = []
-            if t["accuracy"] is not None:
-                bits.append(f"{t['accuracy']:.0f}% over {t['results']} result{'s' if t['results'] != 1 else ''}")
-            if t["trend"]:
-                bits.append(t["trend"])
-            if t["common_mistake"]:
+            bits = [t["status"].split(": ", 1)[1] if t.get("status") else ""]
+            if t.get("common_mistake"):
                 bits.append(f"mostly {MISTAKE_WORDS.get(t['common_mistake'], t['common_mistake'])}")
-            if t["last_practiced"]:
-                bits.append(f"last practiced {t['last_practiced']}")
-            if t["exams"]:
+            if t.get("exams"):
                 bits.append("on " + ", ".join(t["exams"]))
-            if t["sources"]:
-                bits.append("from " + ", ".join(t["sources"][-6:]))
-            lines.append(f"- **{t['topic']}**" + (f": {'; '.join(bits)}" if bits else ""))
+            lines.append(f"- **{t['topic']}**: {'; '.join(b for b in bits if b)}. Next: {t['next_step']}.")
+            if t.get("trail"):
+                lines.append(f"  - Trail: {t['trail']}")
         lines.append("")
     return "\n".join(lines)
 
 
 def write_all(conn: sqlite3.Connection, cfg: Config, now: datetime | None = None) -> list[Path]:
+    from . import tutor
+
     now = now or datetime.now(cfg.tz)
     folder = cfg.vault / "Oso" / "Profile"
     written = []
     for c in cfg.courses:
-        p = course_profile(conn, cfg, c.code, now)
-        if not (p["shaky"] or p["untested"] or p["strong"]):
+        p = course_profile(conn, cfg, c.code, now, record=True)
+        if not p["topics"]:
             continue
         folder.mkdir(parents=True, exist_ok=True)
         name = f"{c.name} ({c.term}).md" if c.term else f"{c.name}.md"
@@ -177,4 +199,7 @@ def write_all(conn: sqlite3.Connection, cfg: Config, now: datetime | None = None
         if old is None or old.split("---", 2)[-1] != text.split("---", 2)[-1]:
             path.write_text(text, encoding="utf-8")
         written.append(path)
+    how = tutor.write_how_i_learn(conn, cfg, now)
+    if how:
+        written.append(how)
     return written

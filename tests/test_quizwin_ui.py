@@ -24,7 +24,7 @@ def test_window_steps_through_and_submits(tmp_path: Path, monkeypatch):
     with db.connect() as conn:
         qid = profile.start_quiz(conn, cfg, "PHYS-110", [
             {"number": 1, "topic": "K", "type": "multiple_choice", "difficulty": "easy", "question": "Pick B", "choices": ["ex", "why"], "answer": "B"},
-            {"number": 2, "topic": "F", "type": "worked_problem", "difficulty": "hard", "question": "Solve it"},
+            {"number": 2, "topic": "F", "type": "worked_problem", "difficulty": "hard", "question": "Solve it", "criteria": "x = 2"},
         ], window=True)
 
     from tkinter import messagebox, ttk
@@ -44,6 +44,7 @@ def test_window_steps_through_and_submits(tmp_path: Path, monkeypatch):
 
         root.update()
         find(root, ttk.Radiobutton, "B. why").invoke()
+        find(root, ttk.Radiobutton, "Sure").invoke()
         find(root, ttk.Button, "Next").invoke()
         root.update()
         box = find(root, tk.Text)
@@ -62,3 +63,4 @@ def test_window_steps_through_and_submits(tmp_path: Path, monkeypatch):
     with db.connect() as conn:
         view = profile.grading_view(conn, cfg, qid)
     assert view["questions"][0]["graded_by_window"] == "right" and view["questions"][1]["response"] is None
+    assert view["questions"][0]["confidence"] == "sure" and view["questions"][1]["confidence"] is None

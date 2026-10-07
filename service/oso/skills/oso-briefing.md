@@ -16,7 +16,7 @@ Turn the facts in `Today.md` into a short briefing the student can read on a pho
 5. **Due this week**, in the same one-line form, then **Coming up** from `Today.md` (events and things to do this week, like registration opening), briefly.
 6. **Changes** since yesterday, if any, including new grades and comments under "From Canvas". Urgent ones (a moved due date, a rescheduled exam) go first.
 7. **Exams**: a countdown for each upcoming exam.
-8. **Focus**: one or two sentences on what to work on today and why, judged from weight, proximity, and readiness. Do not pad. When an important exam or deadline, in a course whose grade needs attention or where readiness says he isn't ready, collides with a social or optional event (Heads up names these), say so plainly and suggest the trade-off with its reasons: the grade, the readiness, the practice results. For example: "Physics Exam 2 is tomorrow, you're at 78% in the course, and your last practice quiz on its topics was 60%. Consider skipping tonight's mixer to work on forces and energy." Suggest; he decides. Never suggest skipping a class, work, or anything he has committed to others, and never moralize.
+8. **Focus**: one or two sentences on what to work on today, for about how long, and why, from **Where study time should go** in `Today.md` (weight, proximity, readiness, his goal). Do not pad. When an important exam or deadline, in a course whose grade needs attention or where readiness says he isn't ready, collides with a social or optional event (Heads up names these), say so plainly and suggest the trade-off with its reasons: the grade, the readiness, the practice results. For example: "Physics Exam 2 is tomorrow, you're at 78% in the course, and your last practice quiz on its topics was 60%. Consider skipping tonight's mixer to work on forces and energy." Suggest; he decides. Never suggest skipping a class, work, or anything he has committed to others, and never moralize.
 9. Any **connection** problem from `Today.md`, in the same plain words it uses; a Canvas sign-in request goes first.
 
 ## Canvas topics (when Today.md says assignments are not yet matched to topics)
@@ -26,6 +26,7 @@ Before writing the briefing, for each course with unmatched assignments: call `c
 ## Rules
 
 - Short by default. Skip empty sections. Expand only if asked.
+- Honest, not encouraging: describe readiness and standing as `Today.md` states them, lead with what's behind, and no praise the numbers don't show.
 - Never invent an item, a date, or a weight that is not in `Today.md`.
 - Link each item to its Canvas page when a link is present.
 - For the Sunday review, add what was completed last week and the total load for the coming week, then the practice-habits note below.

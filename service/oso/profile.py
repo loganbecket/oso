@@ -115,8 +115,13 @@ class ProfileError(ValueError):
 
 COLUMNS = {
     "quizzes": {"mode": "TEXT NOT NULL DEFAULT 'chat'"},
-    "quiz_questions": {"choices": "TEXT", "answer_key": "TEXT"},
+    "quiz_questions": {"choices": "TEXT", "answer_key": "TEXT",
+                       "criteria": "TEXT",            # JSON: how Claude will grade it, fixed before he answers; never shown to him
+                       "misconception_id": "INTEGER"},  # the open misconception this question is aimed at
+    "quiz_responses": {"confidence": "TEXT"},         # sure, think_so, or guessing, from the quiz window
+    "quiz_answers": {"criterion": "TEXT"},            # which grading criterion the answer met or missed
 }
+CONFIDENCE = ("sure", "think_so", "guessing")
 
 
 def ensure(conn: sqlite3.Connection) -> None:
@@ -177,9 +182,17 @@ def start_quiz(conn: sqlite3.Connection, cfg: Config, course: str, questions: li
                 choices = json.dumps(opts)
         if window and not str(q.get("question") or "").strip():
             raise ProfileError(f"Question {n} needs its text for the quiz window.")
+        criteria = q.get("criteria")
+        if window and not key and not criteria:
+            raise ProfileError(f"Question {n} will be graded by Claude, so it needs its grading criteria now: the expected answer, "
+                               "what earns full and partial credit, and the common wrong answers.")
+        aimed = q.get("misconception")
+        if aimed is not None and not conn.execute("SELECT 1 FROM sqlite_master WHERE name = 'misconceptions'").fetchone():
+            aimed = None
         rows.append((n, topic, (str(q.get("theme")).strip() or None) if q.get("theme") else None,
                      qtype, _pick(q.get("difficulty"), DIFFICULTIES, f"Question {n}'s difficulty"),
-                     q.get("question"), q.get("source"), choices, key))
+                     q.get("question"), q.get("source"), choices, key,
+                     json.dumps(criteria) if criteria else None, int(aimed) if aimed is not None else None))
     topics = list(dict.fromkeys(r[1] for r in rows))
     cur = conn.execute(
         """INSERT INTO quizzes (course, topics, sources, requested, retake_of, handed_out_at, question_count, mode)
@@ -189,8 +202,9 @@ def start_quiz(conn: sqlite3.Connection, cfg: Config, course: str, questions: li
     )
     quiz_id = cur.lastrowid
     conn.executemany(
-        """INSERT INTO quiz_questions (quiz_id, number, topic, theme, qtype, difficulty, question, source, choices, answer_key)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        """INSERT INTO quiz_questions (quiz_id, number, topic, theme, qtype, difficulty, question, source, choices, answer_key,
+                                       criteria, misconception_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         [(quiz_id, *r) for r in rows],
     )
     return quiz_id
@@ -280,7 +294,7 @@ def record_check(conn: sqlite3.Connection, cfg: Config, course: str, topic: str,
 
 
 def correct(conn: sqlite3.Connection, quiz_id: int | None = None, number: int | None = None, check_id: int | None = None,
-            result: str | None = None, mistake: str | None = None, remove: bool = False) -> str:
+            result: str | None = None, mistake: str | None = None, remove: bool = False, reason: str | None = None) -> str:
     """Fix a recorded result the student says is wrong: regrade one quiz question (the quiz's score is
     recomputed), or change or remove one check. Returns a plain sentence saying what changed."""
     ensure(conn)
@@ -306,7 +320,17 @@ def correct(conn: sqlite3.Connection, quiz_id: int | None = None, number: int | 
     else:
         res = _pick(result, RESULTS, "The result")
         kind = _pick(mistake, MISTAKES, "The mistake") if res in ("partly_right", "wrong") else None
-        if conn.execute("SELECT 1 FROM quiz_answers WHERE question_id = ?", (q["id"],)).fetchone():
+        old = conn.execute("SELECT result FROM quiz_answers WHERE question_id = ?", (q["id"],)).fetchone()
+        if old is not None and old["result"] != res:
+            # A changed grade needs its reason: the criterion that supports it, or the record being wrong.
+            if not (reason or "").strip():
+                raise ProfileError("Say why the grade changes: which grading criterion supports it, or what was recorded wrong.")
+            from . import tutor
+
+            tutor.ensure(conn)
+            conn.execute("INSERT INTO regrades (question_id, old, new, reason, at) VALUES (?, ?, ?, ?, ?)",
+                         (q["id"], old["result"], res, reason.strip(), _now()))
+        if old is not None:
             conn.execute("UPDATE quiz_answers SET result = ?, mistake = ? WHERE question_id = ?", (res, kind, q["id"]))
         else:
             when = _now()
@@ -430,17 +454,22 @@ def record_answers(conn: sqlite3.Connection, quiz_id: int, answers: list[dict], 
         if result in ("partly_right", "wrong") and not (auto and not a.get("mistake")):
             mistake = _pick(a.get("mistake"), MISTAKES, f"Question {n}'s mistake")
         hint = 1 if a.get("hint") else 0
+        criterion = (str(a.get("criterion")).strip() or None) if a.get("criterion") else None
         prior = conn.execute("SELECT attempts, hint, first_answered_at FROM quiz_answers WHERE question_id = ?", (q["id"],)).fetchone()
         if prior is None:
             conn.execute(
-                "INSERT INTO quiz_answers (question_id, result, mistake, attempts, hint, first_answered_at, answered_at) VALUES (?, ?, ?, 1, ?, ?, ?)",
-                (q["id"], result, mistake, hint, when, when),
+                "INSERT INTO quiz_answers (question_id, result, mistake, attempts, hint, first_answered_at, answered_at, criterion) VALUES (?, ?, ?, 1, ?, ?, ?, ?)",
+                (q["id"], result, mistake, hint, when, when, criterion),
             )
         else:
             conn.execute(
-                "UPDATE quiz_answers SET result = ?, mistake = ?, attempts = ?, hint = ?, answered_at = ? WHERE question_id = ?",
-                (result, mistake, prior["attempts"] + 1, max(prior["hint"], hint), when, q["id"]),
+                "UPDATE quiz_answers SET result = ?, mistake = ?, attempts = ?, hint = ?, answered_at = ?, criterion = COALESCE(?, criterion) WHERE question_id = ?",
+                (result, mistake, prior["attempts"] + 1, max(prior["hint"], hint), when, criterion, q["id"]),
             )
+        aimed = conn.execute("SELECT misconception_id FROM quiz_questions WHERE id = ?", (q["id"],)).fetchone()["misconception_id"]
+        if aimed and result == "right" and not hint and (prior is None):
+            conn.execute("UPDATE misconceptions SET closed_at = ?, closed_by = ? WHERE id = ? AND closed_at IS NULL",
+                         (when, f"right on quiz {quiz_id}, question {n}, aimed at it", aimed))
     if not quiz["submitted_at"]:
         conn.execute("UPDATE quizzes SET submitted_at = ? WHERE id = ?", (when, quiz_id))
     return _progress(conn, quiz_id)
@@ -459,10 +488,11 @@ def window_submit(conn: sqlite3.Connection, quiz_id: int, responses: dict[int, d
         r = responses.get(q["number"]) or {}
         response = (str(r.get("response")).strip() or None) if r.get("response") is not None else None
         conn.execute(
-            """INSERT INTO quiz_responses (question_id, response, seconds, changes, first_answer_at) VALUES (?, ?, ?, ?, ?)
+            """INSERT INTO quiz_responses (question_id, response, seconds, changes, first_answer_at, confidence) VALUES (?, ?, ?, ?, ?, ?)
                ON CONFLICT(question_id) DO UPDATE SET response = excluded.response, seconds = excluded.seconds,
-                 changes = excluded.changes, first_answer_at = excluded.first_answer_at""",
-            (q["id"], response, round(float(r.get("seconds") or 0), 1), int(r.get("changes") or 0), r.get("first_answer_at")),
+                 changes = excluded.changes, first_answer_at = excluded.first_answer_at, confidence = excluded.confidence""",
+            (q["id"], response, round(float(r.get("seconds") or 0), 1), int(r.get("changes") or 0), r.get("first_answer_at"),
+             r.get("confidence") if r.get("confidence") in CONFIDENCE else None),
         )
         if q["qtype"] == "multiple_choice" and q["answer_key"]:
             if response is None:
@@ -495,8 +525,8 @@ def grading_view(conn: sqlite3.Connection, cfg: Config, quiz_id: int) -> dict:
     if not quiz["submitted_at"]:
         return {"quiz_id": quiz_id, "status": "handed_out", "note": "The student has not submitted this quiz yet."}
     rows = conn.execute(
-        """SELECT q.number, q.topic, q.theme, q.qtype, q.question, q.choices, q.answer_key,
-                  r.response, r.seconds, r.changes, a.result
+        """SELECT q.number, q.topic, q.theme, q.qtype, q.question, q.choices, q.answer_key, q.criteria, q.misconception_id,
+                  r.response, r.seconds, r.changes, r.confidence, a.result
            FROM quiz_questions q LEFT JOIN quiz_responses r ON r.question_id = q.id
            LEFT JOIN quiz_answers a ON a.question_id = q.id
            WHERE q.quiz_id = ? ORDER BY q.number""",
@@ -505,7 +535,11 @@ def grading_view(conn: sqlite3.Connection, cfg: Config, quiz_id: int) -> dict:
     questions = []
     for r in rows:
         item = {"number": r["number"], "topic": r["topic"], "theme": r["theme"], "type": r["qtype"], "question": r["question"],
-                "response": r["response"], "seconds": r["seconds"], "changes": r["changes"]}
+                "response": r["response"], "seconds": r["seconds"], "changes": r["changes"], "confidence": r["confidence"]}
+        if r["criteria"]:
+            item["criteria"] = json.loads(r["criteria"])
+        if r["misconception_id"]:
+            item["aimed_at_misconception"] = r["misconception_id"]
         if r["choices"]:
             item["choices"] = json.loads(r["choices"])
         if r["qtype"] == "multiple_choice" and r["answer_key"]:
@@ -519,7 +553,19 @@ def grading_view(conn: sqlite3.Connection, cfg: Config, quiz_id: int) -> dict:
         "minutes": minutes(quiz, conn),
         "questions": questions,
         "written_work": [{"path": p, "full_path": str(cfg.vault / p)} for p in work],
+        "grading": _grading_rule(conn, quiz["course"]),
     }
+
+
+def _grading_rule(conn: sqlite3.Connection, course: str) -> str:
+    """How to grade, plus a warning when blind second gradings have found the first grading too generous."""
+    from . import tutor
+
+    rule = ("Grade each answer against its stored criteria only, and name the criterion it met or missed. A confident, "
+            "long, or sympathetic answer earns nothing the criteria don't give it. Wrong is wrong; partly right only "
+            "where the criteria give partial credit.")
+    gen = tutor.generosity(conn, course)
+    return rule + (" " + gen["line"] if gen and gen.get("line") else "")
 
 
 def finish_quiz(conn: sqlite3.Connection, quiz_id: int, now: str | None = None) -> dict:

@@ -190,6 +190,14 @@ def checks(fix: bool = False) -> list[dict]:
     elif not secrets.get(secrets.CANVAS_TOKEN):
         out.append(("warn", "Canvas grades and coursework are not connected; only due dates come in. Run 'oso connect-canvas' to sign in."), "connect_canvas")
 
+    from . import tutor
+
+    with db.connect() as conn:
+        for c in cfg.courses:
+            gen = tutor.generosity(conn, c.code)
+            if gen and gen.get("line"):
+                out.append(("warn", f"{c.name}: {gen['line']} The quiz instructions now say to grade strictly."))
+
     from . import books
 
     for b in books.progress(cfg):

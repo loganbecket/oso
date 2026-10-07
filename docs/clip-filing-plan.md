@@ -24,7 +24,7 @@ He tells Claude ("that article was for history, not physics"), and Claude moves 
 
 ## Done when
 
-- Tests: clips filed to the right course from sample course material; an ambiguous clip and an unrelated clip left in Clippings; a syllabus for an unset course left alone; finished courses skipped; partial typed names; moving a clip on request.
+- Tests: clips filed to the right course from sample course material; an ambiguous clip and an unrelated clip left in Clippings; a syllabus for an unset course left alone; finished courses skipped; moving a clip on request.
 - A real run on his laptop with a handful of clips across his courses.
 
 ## Decisions (Logan's, 2026-10-07)

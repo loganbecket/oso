@@ -137,9 +137,9 @@ def test_window_quiz_needs_text_and_valid_keys(env):
     with pytest.raises(profile.ProfileError, match="needs its text"):
         profile.start_quiz(conn, cfg, "PHYS-110", [{"topic": "x", "type": "short_answer", "difficulty": "easy"}], window=True)
     with pytest.raises(profile.ProfileError, match="at least two choices"):
-        profile.start_quiz(conn, cfg, "PHYS-110", [{"topic": "x", "type": "multiple_choice", "difficulty": "easy", "question": "?", "choices": ["a"], "answer": "A"}], window=True)
+        profile.start_quiz(conn, cfg, "PHYS-110", [{"topic": "x", "type": "multiple_choice", "difficulty": "easy", "question": "?", "choices": ["alpha"], "answer": "A"}], window=True)
     with pytest.raises(profile.ProfileError, match="must be one of its choices"):
-        profile.start_quiz(conn, cfg, "PHYS-110", [{"topic": "x", "type": "multiple_choice", "difficulty": "easy", "question": "?", "choices": ["a", "b"], "answer": "D"}], window=True)
+        profile.start_quiz(conn, cfg, "PHYS-110", [{"topic": "x", "type": "multiple_choice", "difficulty": "easy", "question": "?", "choices": ["alpha", "beta"], "answer": "D"}], window=True)
     view = profile.grading_view(conn, cfg, profile.start_quiz(conn, cfg, "PHYS-110", WINDOW_QS[2:3], window=True))
     assert view["status"] == "handed_out"
 
@@ -212,7 +212,7 @@ def test_delete_quiz_removes_everything(env, tmp_path: Path):
     keep = profile.start_quiz(conn, cfg, "PHYS-110", [{"topic": "Kinematics", "type": "conceptual", "difficulty": "easy"}])
     profile.record_answers(conn, keep, [{"number": 1, "result": "right"}])
     trial = profile.start_quiz(conn, cfg, "PHYS-110", [
-        {"number": 1, "topic": "Kinematics", "type": "multiple_choice", "difficulty": "easy", "question": "?", "choices": ["a", "b"], "answer": "A"},
+        {"number": 1, "topic": "Kinematics", "type": "multiple_choice", "difficulty": "easy", "question": "?", "choices": ["alpha", "beta"], "answer": "A"},
         {"number": 2, "topic": "Dummy topic", "type": "worked_problem", "difficulty": "easy", "question": "Solve"},
     ], window=True)
     profile.window_submit(conn, trial, {1: {"response": "B", "seconds": 5, "changes": 0}, 2: {"response": None, "seconds": 9, "changes": 0}})
@@ -234,3 +234,18 @@ def test_delete_quiz_removes_everything(env, tmp_path: Path):
     assert mastery.topic_states(conn, cfg, "PHYS-110")[0]["results"] == 1
     with pytest.raises(profile.ProfileError, match="no quiz"):
         profile.delete_quiz(conn, cfg, trial)
+
+
+def test_choices_however_claude_sends_them(env):
+    conn, cfg = env
+    base = {"topic": "Method", "type": "multiple_choice", "difficulty": "easy", "question": "Core rule?"}
+    for choices, answer in (({"A": "Test ideas by experiment", "B": "Trust authority", "C": "Guess", "D": "Vote"}, "A"),
+                            (["A. Test ideas by experiment", "B) Trust authority", "(C) Guess", "D: Vote"], "A"),
+                            ([{"label": "A", "text": "Test ideas by experiment"}, {"label": "B", "text": "Trust authority"}], "A")):
+        qid = profile.start_quiz(conn, cfg, "PHYS-110", [{**base, "choices": choices, "answer": answer}], window=True)
+        from oso import quizwin
+
+        _, qs = quizwin.load_questions(conn, qid)
+        assert qs[0]["choices"][0] == "Test ideas by experiment" and qs[0]["choices"][1] == "Trust authority"
+    with pytest.raises(profile.ProfileError, match="only letters"):
+        profile.start_quiz(conn, cfg, "PHYS-110", [{**base, "choices": ["A", "B", "C", "D"], "answer": "A"}], window=True)

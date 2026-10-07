@@ -196,7 +196,8 @@ def run(quiz_id: int) -> None:
     header.pack(anchor="w")
     clock_lbl = ttk.Label(frm, foreground="#666")
     clock_lbl.pack(anchor="w")
-    text = tk.Text(frm, height=8, wrap="word", relief="flat", background=root.cget("background"))
+    text = tk.Text(frm, height=8, wrap="word", relief="flat", background=root.cget("background"),
+                   font=("Segoe UI", 12) if sys.platform == "win32" else ("TkDefaultFont", 12))
     text.pack(fill="x", pady=(8, 8))
     body = ttk.Frame(frm)
     body.pack(fill="both", expand=True)

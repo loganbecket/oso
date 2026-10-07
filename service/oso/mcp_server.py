@@ -219,7 +219,7 @@ def health() -> list[dict]:
 @mcp.tool()
 def start_quiz(course: str, questions: list[dict], requested: str | None = None, sources: list[str] | None = None,
                retake_of: int | None = None, window: bool = True) -> dict:
-    """Record a quiz and open it in the quiz window on the student's computer. questions: [{number, topic, theme, type: multiple_choice|short_answer|worked_problem|conceptual, difficulty: easy|medium|hard, question, source, choices (multiple choice), answer (key letter)}]. Returns quiz_id."""
+    """Record a quiz and open it in the quiz window on the student's computer. questions: [{number, topic, theme, type: multiple_choice|short_answer|worked_problem|conceptual, difficulty: easy|medium|hard, question, source, choices (multiple choice: a list of the answer texts, without letters), answer (the correct choice's letter)}]. Returns quiz_id."""
     from . import profile, quizwin
 
     with db.connect() as conn:

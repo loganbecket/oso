@@ -167,9 +167,11 @@ def start_quiz(conn: sqlite3.Connection, cfg: Config, course: str, questions: li
         qtype = _pick(q.get("type") or q.get("qtype"), QUESTION_TYPES, f"Question {n}'s type")
         choices, key = None, None
         if qtype == "multiple_choice":
-            opts = [str(c).strip() for c in (q.get("choices") or []) if str(c).strip()]
+            opts = _choice_texts(q.get("choices"))
             if window and len(opts) < 2:
                 raise ProfileError(f"Question {n} is multiple choice and needs at least two choices.")
+            if opts and all(re.fullmatch(r"[A-Za-z]", o) for o in opts):
+                raise ProfileError(f"Question {n}'s choices are only letters; send the text of each choice.")
             if opts:
                 key = _key_letter(q.get("answer"), opts, n) if (window or q.get("answer") is not None) else None
                 choices = json.dumps(opts)
@@ -372,6 +374,26 @@ def recent_checks(conn: sqlite3.Connection, course: str | None = None, limit: in
     sql += " ORDER BY checked_at DESC, id DESC LIMIT ?"
     params.append(limit)
     return [dict(r) for r in conn.execute(sql, params)]
+
+
+_LABEL = re.compile(r"^\(?([A-Za-z])[).:]\s+")
+
+
+def _choice_texts(raw) -> list[str]:
+    """The text of each choice, in order, however it was sent: a list of texts, a list labeled "A. text",
+    a {"A": "text"} mapping, or a list of {"label", "text"} objects. Letters are added by the window."""
+    if isinstance(raw, dict):
+        items = [raw[k] for k in sorted(raw, key=str)]
+    else:
+        items = list(raw or [])
+    out = []
+    for c in items:
+        if isinstance(c, dict):
+            c = c.get("text") or c.get("choice") or c.get("value") or c.get("answer") or ""
+        text = _LABEL.sub("", str(c).strip())
+        if text:
+            out.append(text)
+    return out
 
 
 def _key_letter(answer, opts: list[str], n: int) -> str:

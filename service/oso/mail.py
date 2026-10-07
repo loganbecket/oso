@@ -1,7 +1,8 @@
-"""School email: on every check, read what arrived in the student's school Gmail since the last check.
+"""School email: on every check, read what arrived in the Gmail account his school email is forwarded to.
 
-Read-only (the `gmail.readonly` permission), on the one school account he connects with `oso connect-email`;
-his personal email is never connected. Obvious noise is set aside here, with no Claude involved: Gmail's
+Read-only (the `gmail.readonly` permission), on the one account he connects with `oso connect-email`. School
+email reaches it through a forwarding rule in the school account; a message forwarded with the original sender
+inside it ("From: ... Subject: ...") is unwrapped, so the sender, subject, and text are the original's. Obvious noise is set aside here, with no Claude involved: Gmail's
 Promotions and Social tabs, Canvas's own notification emails (Oso reads Canvas directly), and senders or
 mailing lists he has muted. What is left is kept as a short record (sender, subject, date, a trimmed copy of the
 text, a link back to the message) for Claude to pick the facts out of (`messages.py`); the text is dropped once
@@ -118,6 +119,11 @@ def parse(msg: dict, mailbox: str = "") -> dict:
     payload = msg.get("payload", {})
     headers = {h["name"].lower(): h["value"] for h in payload.get("headers", [])}
     name, addr = parseaddr(headers.get("from", ""))
+    subject = headers.get("subject", "(no subject)")
+    text = body_text(payload)
+    original = unwrap_forward(text)
+    if original:
+        name, addr, subject, text = original["name"] or name, original["address"] or addr, original["subject"] or subject, original["text"]
     try:
         sent = parsedate_to_datetime(headers["date"]).isoformat(timespec="minutes")
     except (KeyError, TypeError, ValueError):
@@ -128,10 +134,10 @@ def parse(msg: dict, mailbox: str = "") -> dict:
         "external_id": msg["id"],
         "sender": name or addr,
         "address": addr.lower(),
-        "subject": headers.get("subject", "(no subject)"),
+        "subject": subject,
         "channel": headers.get("list-id", ""),
         "sent_at": sent,
-        "text": trim(body_text(payload)),
+        "text": trim(text),
         "link": link,
         "labels": msg.get("labelIds", []),
         "internal": int(msg.get("internalDate", 0)) // 1000,
@@ -180,6 +186,26 @@ def _strip_html(text: str) -> str:
     text = re.sub(r"(?is)<(script|style).*?</\1>", " ", text)
     text = re.sub(r"(?i)<br\s*/?>|</p>|</div>|</li>|</tr>", "\n", text)
     return html.unescape(re.sub(r"<[^>]+>", " ", text))
+
+
+FORWARD_HEADER = re.compile(
+    r"^[ \t]*\*?From:\*?[ \t]*(?P<from>.+?)[ \t]*\n(?P<rest>(?:[ \t]*\*?(?:Sent|Date|To|Cc|Subject|Reply-To):\*?.*\n){1,6})",
+    re.M,
+)
+
+
+def unwrap_forward(text: str) -> dict | None:
+    """The original message inside a forwarded one (Outlook's and Gmail's forward formats), or None when the
+    message wasn't forwarded that way. Only a header block near the top counts, so a reply quoted further down
+    isn't mistaken for a forward."""
+    m = FORWARD_HEADER.search(text)
+    if not m or len(text[:m.start()].strip()) > 400:
+        return None
+    subject = re.search(r"^[ \t]*\*?Subject:\*?[ \t]*(.*)$", m.group("rest"), re.M)
+    raw = m.group("from").replace("[mailto:", "<").replace("]", ">")
+    angle = re.fullmatch(r'\s*"?(.*?)"?\s*<([^>]+)>\s*', raw)  # "Lee, Dana <dlee@...>": parseaddr trips on the comma
+    name, addr = (angle.group(1).strip(), angle.group(2).strip()) if angle else parseaddr(raw)
+    return {"name": name, "address": addr.lower(), "subject": subject.group(1).strip() if subject else "", "text": text[m.end():]}
 
 
 REPLY_START = re.compile(r"^(On .+ wrote:|-----Original Message-----|From: .+)$", re.M)

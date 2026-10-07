@@ -104,6 +104,24 @@ def test_email_fetches_only_new_and_sets_noise_aside(env):
     assert len(gm.gets) == 5 and gm.queries[-1].startswith(f"after:{int(NOW.timestamp())}")
 
 
+def test_forwarded_school_email_is_unwrapped(env):
+    cfg, conn = env
+    outlook = ("\n________________________________\nFrom: Lee, Dana <dlee@school.edu>\nSent: Tuesday, October 6, 2026 4:12 PM\n"
+               "To: Student, Sam <sam@school.edu>\nSubject: Lab 3 moved\n\nThe lab report is now due Friday.\n")
+    canvas = ("---------- Forwarded message ---------\nFrom: Canvas <notifications@instructure.com>\nDate: Tue, Oct 6, 2026\n"
+              "Subject: New announcement\nTo: <sam@school.edu>\n\nSomething posted.\n")
+    plain = "Hi Sam,\n\nSee you at office hours.\n\nOn Mon, Dana wrote:\nFrom: earlier\n"
+    gmail = FakeGmail([gmail_message("f1", "Sam Student <sam@school.edu>", "FW: Lab 3 moved", outlook),
+                       gmail_message("f2", "Sam Student <sam@school.edu>", "Fwd: New announcement", canvas),
+                       gmail_message("f3", "Dana Lee <dlee@school.edu>", "Office hours", plain)])
+    mail.fetch(conn, cfg, NOW, session=gmail)
+    rows = {r["external_id"]: r for r in conn.execute("SELECT * FROM messages")}
+    assert (rows["f1"]["sender"], rows["f1"]["address"], rows["f1"]["subject"]) == ("Lee, Dana", "dlee@school.edu", "Lab 3 moved")
+    assert rows["f1"]["text"] == "The lab report is now due Friday."
+    assert rows["f2"]["noise"] == "Canvas notification"  # recognized through the forward
+    assert rows["f3"]["sender"] == "Dana Lee" and rows["f3"]["text"] == "Hi Sam,\n\nSee you at office hours."
+
+
 # ---- recorded GroupMe ---------------------------------------------------------------------------------------
 
 

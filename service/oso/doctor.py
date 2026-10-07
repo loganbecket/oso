@@ -23,7 +23,7 @@ ACTIONS = {
     "sync": "Sync now",
     "connect_canvas": "Sign in to Canvas",
     "connect_calendar": "Connect Google Calendar",
-    "connect_email": "Connect school email",
+    "connect_email": "Connect email",
     "backup": "Back up now",
 }
 
@@ -150,9 +150,9 @@ def checks(fix: bool = False) -> list[dict]:
     from . import groupme, mail, messages
 
     if mail.connected():
-        out.append(("ok", f"Reading school email ({mail.address() or 'connected'})"))
+        out.append(("ok", f"Reading email at {mail.address() or 'the connected account'}"))
     else:
-        out.append(("warn", "School email isn't connected, so Oso can't see moved deadlines or events announced by email. Run 'oso connect-email'."), "connect_email")
+        out.append(("warn", "Email isn't connected, so Oso can't see moved deadlines or events announced by email. Run 'oso connect-email'."), "connect_email")
     if groupme.connected():
         with db.connect() as conn:
             gs = groupme.groups(conn)

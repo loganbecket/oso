@@ -108,15 +108,15 @@ def connect_email(client_file=None) -> str:
     except Exception as e:  # noqa: BLE001
         if "client file" in str(e):
             return str(e)
-        return f"School email didn't connect ({e}). If the sign-in page said your school blocks the app, school email can't be read."
-    return f"Connected {addr}. Oso reads new school email on every check; nothing is ever sent or changed."
+        return f"Email didn't connect ({e})."
+    return f"Connected {addr}. Oso reads new email there on every check; nothing is ever sent or changed."
 
 
 def disconnect_email() -> str:
     from . import mail
 
     mail.disconnect()
-    return "Oso forgot the school email connection."
+    return "Oso forgot the email connection."
 
 
 def connect_groupme(token: str) -> str:

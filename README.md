@@ -201,13 +201,13 @@ Most of what competes for your time arrives outside Canvas: an instructor's emai
 
 What is kept is the facts, with a link back to the message. Message text is never copied into your vault, and Oso never sends, deletes, or changes anything in your email or GroupMe. Ads, social-network notices, and Canvas's own notification emails are set aside without Claude reading them.
 
-**School email** (your school account only; your personal email is never connected):
+**School email.** Oso reads one Gmail account: the one your school email is forwarded to. If your school email isn't forwarded there yet, add a rule in your school email that forwards everything to that Gmail address.
 
 1. In the Google Cloud project from step 3.2, search for **Gmail API**, open it, and click **Enable**.
-2. Say *"open my settings"* in the Claude app (or press Ctrl+Alt+O), open the **Actions** tab, and click **Connect school email**. Or run `oso connect-email` in your command window.
-3. A browser window opens. Sign in with your **school** account. If Google says the app is not verified, click **Advanced**, then **Go to Oso**, and allow Oso to read your email.
+2. Say *"open my settings"* in the Claude app (or press Ctrl+Alt+O), open the **Actions** tab, and click **Connect email**. Or run `oso connect-email` in your command window.
+3. A browser window opens. Sign in with the Gmail account your school email is forwarded to. If Google says the app is not verified, click **Advanced**, then **Go to Oso**, and allow Oso to read your email.
 
-If the sign-in page says your school doesn't allow the app, your school has blocked outside apps from reading school email, and Oso can't read it.
+Forwarded messages are unwrapped, so Oso sees who originally sent each one.
 
 **GroupMe** (optional):
 
@@ -363,7 +363,7 @@ oso reset-skills [NAME]   put back Oso's version of its commands (all, or the on
 oso quiz [N]              reopen a quiz window (the latest one not yet submitted)
 oso profile --raw         show every recorded quiz, question by question
 oso connect-canvas        sign in to Canvas so Oso can read grades and coursework
-oso connect-email         let Oso read your school email (read-only)
+oso connect-email         let Oso read the Gmail your school email is forwarded to (read-only)
 oso connect-groupme       let Oso read your GroupMe groups
 oso canvas --raw          show what Oso has read from Canvas
 oso books                 how far Oso has read each textbook (--reprocess TITLE reads one again)

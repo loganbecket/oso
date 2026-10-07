@@ -72,9 +72,9 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("canvas", help="show what Oso has read from Canvas")
     s.add_argument("--raw", action="store_true", help="every course and assignment with its score")
     sub.add_parser("disconnect-calendar", help="stop Oso writing to Google Calendar and forget its access")
-    s = sub.add_parser("connect-email", help="let Oso read your school email (read-only), signing in with your school account")
+    s = sub.add_parser("connect-email", help="let Oso read the Gmail account your school email is forwarded to (read-only)")
     s.add_argument("--client-file", help="the OAuth client file from Google Cloud (only if Oso asks for it)")
-    sub.add_parser("disconnect-email", help="stop reading school email and forget its access")
+    sub.add_parser("disconnect-email", help="stop reading email and forget its access")
     sub.add_parser("connect-groupme", help="let Oso read your GroupMe groups, with the access token from dev.groupme.com")
     sub.add_parser("disconnect-groupme", help="stop reading GroupMe and forget the token")
     s = sub.add_parser("transcribe", help="turn queued handwritten pages into notes, one page per Claude Code call")
@@ -212,7 +212,7 @@ def _dispatch(args: argparse.Namespace) -> int:
     if args.cmd == "connect-email":
         from . import actions
 
-        print("A browser window will open. Sign in with your SCHOOL account and allow Oso to read your email.")
+        print("A browser window will open. Sign in with the Gmail account your school email is forwarded to, and allow Oso to read it.")
         print(actions.connect_email(Path(args.client_file).expanduser() if args.client_file else None))
         return 0
 

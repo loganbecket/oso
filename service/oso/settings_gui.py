@@ -116,7 +116,7 @@ def open_settings(cfg: cfgmod.Config) -> None:
         if client is False:
             show("No file chosen.")
             return
-        run("Opening the school sign-in", lambda: actions.connect_email(client))
+        run("Opening the Google sign-in", lambda: actions.connect_email(client))
 
     top = ttk.Frame(status_tab)
     top.pack(fill="x")
@@ -166,8 +166,8 @@ def open_settings(cfg: cfgmod.Config) -> None:
             ("Sign in to Canvas", lambda: run("Opening the Canvas sign-in", actions.connect_canvas)),
             ("Disconnect Canvas", lambda: run("Disconnecting Canvas", actions.disconnect_canvas)),
             ("Connect Google Calendar…", lambda: show(_connect_calendar(cfg))),
-            ("Connect school email…", connect_email),
-            ("Disconnect school email", lambda: run("Disconnecting school email", actions.disconnect_email)),
+            ("Connect email…", connect_email),
+            ("Disconnect email", lambda: run("Disconnecting email", actions.disconnect_email)),
             ("Connect GroupMe…", lambda: show(_connect_groupme(root))),
             ("Disconnect GroupMe", lambda: run("Disconnecting GroupMe", actions.disconnect_groupme)),
         ]),

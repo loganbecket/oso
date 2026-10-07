@@ -125,41 +125,153 @@ class CanvasApi:
     # ---- vault mirroring ---------------------------------------------------------------------
 
     def mirror(self) -> dict[str, int]:
-        """Download course files and announcements into the vault. Safe to run on every check."""
-        counts = {"files": 0, "announcements": 0}
-        for course in self._courses():
+        """Download course materials into the vault: everything linked in the course's modules (where most
+        instructors put their files), the Files section, and announcements. Safe to run on every check."""
+        counts = {"files": 0, "module_files": 0, "module_pages": 0, "announcements": 0}
+        self.new_files: list[tuple[str, str]] = []  # (course code, plain description) for Today.md
+        for course in self.courses or self._courses():
             code = course.get("course_code") or str(course["id"])
             folder = notes.course_dir(self.cfg, code)
             if folder is None:
                 continue  # course not set up in Oso yet
-            counts["files"] += self._mirror_files(course["id"], folder / "Canvas")
+            seen: set[int] = set()
+            m = self._mirror_modules(course["id"], code, folder / "Canvas" / "Modules", seen)
+            counts["module_files"] += m["files"]
+            counts["module_pages"] += m["pages"]
+            counts["files"] += self._mirror_files(course["id"], code, folder / "Canvas", seen)
             counts["announcements"] += self._mirror_announcements(course["id"], folder / "Announcements")
         return counts
 
-    def _mirror_files(self, course_id: int, dest: Path) -> int:
+    # ---- modules -------------------------------------------------------------------------------
+
+    def _mirror_modules(self, course_id: int, code: str, dest: Path, seen: set[int]) -> dict[str, int]:
+        """Every module, in order, as a folder: its files downloaded, its pages saved as notes, and an index
+        note listing all of it (with outside links). Locked items are skipped until they open."""
+        counts = {"files": 0, "pages": 0}
+        try:
+            modules = self._pages(f"/api/v1/courses/{course_id}/modules", [("include[]", "items"), ("per_page", 50)])
+        except requests.HTTPError:
+            return counts  # modules hidden in this course
+        index = ["# Modules", "", "From Canvas, kept up to date by Oso.", ""]
+        for n, mod in enumerate(sorted(modules, key=lambda m: m.get("position") or 0), start=1):
+            name = (mod.get("name") or f"Module {n}").strip()
+            folder = dest / f"{n:02d} {notes.safe_name(name)[:70]}"
+            items = mod.get("items")
+            if items is None and mod.get("items_url"):
+                try:
+                    items = self._pages(mod["items_url"], {"per_page": 100})
+                except requests.HTTPError:
+                    items = []
+            index.append(f"## {name}")
+            for item in items or []:
+                if not isinstance(item, dict):
+                    continue
+                kind, title = item.get("type"), (item.get("title") or "").strip()
+                if kind == "File" and item.get("content_id"):
+                    got = self._module_file(course_id, code, int(item["content_id"]), folder, seen, name)
+                    counts["files"] += got is not None and got[1]
+                    index.append(f"- {title}" + (f" ([[{got[0]}]])" if got else " (locked or unavailable)"))
+                elif kind == "Page" and item.get("page_url"):
+                    path = self._module_page(course_id, item["page_url"], folder, title)
+                    counts["pages"] += path is not None and path[1]
+                    index.append(f"- [[{path[0]}|{title}]]" if path else f"- {title} (locked or unavailable)")
+                elif kind == "ExternalUrl" and item.get("external_url"):
+                    url = item["external_url"]
+                    if _doc_link(url):
+                        got = self._download(url, folder / notes.safe_name(Path(url.split("?")[0]).name, limit=120))
+                        counts["files"] += got
+                        if got:
+                            self.new_files.append((code, f"New file in {name}: {Path(url.split('?')[0]).name}"))
+                    index.append(f"- [{title or url}]({url})")
+                elif kind == "SubHeader":
+                    index.append(f"### {title}")
+                elif title:
+                    index.append(f"- {title}" + (f" ({item['html_url']})" if item.get("html_url") else ""))
+            index.append("")
+        if modules:
+            dest.mkdir(parents=True, exist_ok=True)
+            text = notes.with_front_matter({"type": "canvas-modules", "course": code}, "\n".join(index) + "\n")
+            target = dest / "Modules.md"
+            if not target.exists() or target.read_text(encoding="utf-8") != text:
+                target.write_text(text, encoding="utf-8")
+        return counts
+
+    def _module_file(self, course_id: int, code: str, file_id: int, folder: Path, seen: set[int], module: str):
+        """Download one file a module links to. Returns (vault path, downloaded now) or None."""
+        seen.add(file_id)
+        try:
+            f = self._pages(f"/api/v1/courses/{course_id}/files/{file_id}", {})
+        except requests.HTTPError:
+            return None
+        if not f:
+            return None
+        f = f[0]
+        if f.get("locked_for_user") or not f.get("url") or (f.get("size") or 0) > MAX_FILE_MB * 1024 * 1024:
+            return None
+        name = notes.safe_name(f.get("display_name") or f.get("filename") or str(file_id), limit=120)
+        target = folder / name
+        stamp = _parse_time(f.get("updated_at"), self.tz)
+        fresh = not (target.exists() and stamp and target.stat().st_mtime >= stamp.timestamp())
+        if fresh:
+            if not self._download(f["url"], target):
+                return None
+            self.new_files.append((code, f"New file in {module}: {name}"))
+        return (target.relative_to(self.cfg.vault).as_posix(), fresh)
+
+    def _module_page(self, course_id: int, page_url: str, folder: Path, title: str):
+        try:
+            pages = self._pages(f"/api/v1/courses/{course_id}/pages/{page_url}", {})
+        except requests.HTTPError:
+            return None
+        if not pages or pages[0].get("locked_for_user"):
+            return None
+        page = pages[0]
+        target = folder / f"{notes.safe_name(page.get('title') or title or page_url)[:80]}.md"
+        fm = {"type": "canvas-page", "updated": page.get("updated_at"), "source": page.get("html_url")}
+        text = notes.with_front_matter(fm, f"# {page.get('title') or title}\n\n{_strip_html(page.get('body') or '')}\n")
+        changed = not target.exists() or target.read_text(encoding="utf-8") != text
+        if changed:
+            folder.mkdir(parents=True, exist_ok=True)
+            target.write_text(text, encoding="utf-8")
+        return (target.relative_to(self.cfg.vault).with_suffix("").as_posix(), changed)
+
+    def _download(self, url: str, target: Path) -> bool:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        tmp = target.with_name(target.name + ".part")
+        try:
+            with self.s.get(url, stream=True, timeout=self.timeout) as r:
+                r.raise_for_status()
+                with tmp.open("wb") as out:
+                    for chunk in r.iter_content(1 << 16):
+                        out.write(chunk)
+            tmp.replace(target)
+            return True
+        except (requests.RequestException, OSError) as e:
+            log.warning("could not download %s: %s", target.name, type(e).__name__)
+            tmp.unlink(missing_ok=True)
+            return False
+
+    # ---- the Files section ---------------------------------------------------------------------
+
+    def _mirror_files(self, course_id: int, code: str, dest: Path, seen: set[int]) -> int:
         n = 0
         try:
             files = self._pages(f"/api/v1/courses/{course_id}/files", {"per_page": 100})
         except requests.HTTPError:
-            return 0
+            return 0  # Files hidden in this course; modules usually have everything
         for f in files:
-            if (f.get("size") or 0) > MAX_FILE_MB * 1024 * 1024 or f.get("locked_for_user"):
+            if f.get("id") in seen:
+                continue  # already downloaded from a module
+            if (f.get("size") or 0) > MAX_FILE_MB * 1024 * 1024 or f.get("locked_for_user") or not f.get("url"):
                 continue
             name = notes.safe_name(f.get("display_name") or f.get("filename") or str(f["id"]), limit=120)
             target = dest / name
             stamp = _parse_time(f.get("updated_at"), self.tz)
             if target.exists() and stamp and target.stat().st_mtime >= stamp.timestamp():
                 continue
-            dest.mkdir(parents=True, exist_ok=True)
-            try:
-                with self.s.get(f["url"], stream=True, timeout=self.timeout) as r:
-                    r.raise_for_status()
-                    with target.open("wb") as out:
-                        for chunk in r.iter_content(1 << 16):
-                            out.write(chunk)
+            if self._download(f["url"], target):
                 n += 1
-            except requests.RequestException as e:
-                log.warning("could not download %s: %s", name, type(e).__name__)
+                self.new_files.append((code, f"New file: {name}"))
         return n
 
     def _mirror_announcements(self, course_id: int, dest: Path) -> int:
@@ -184,7 +296,7 @@ class CanvasApi:
     # ---- http --------------------------------------------------------------------------------
 
     def _pages(self, path: str, params) -> list[dict]:
-        url = self.base + path
+        url = path if path.startswith(("http://", "https://")) else self.base + path
         out: list[dict] = []
         while url:
             r = self.s.get(url, params=params, timeout=self.timeout, allow_redirects=not self.uses_session)
@@ -197,6 +309,13 @@ class CanvasApi:
             url = r.links.get("next", {}).get("url")
             params = {}
         return out
+
+
+DOC_EXT = {".pdf", ".docx", ".doc", ".pptx", ".ppt", ".xlsx", ".xls", ".odt", ".txt"}
+
+
+def _doc_link(url: str) -> bool:
+    return Path(url.split("?")[0].split("#")[0]).suffix.lower() in DOC_EXT
 
 
 def _signed_out(r: requests.Response) -> bool:

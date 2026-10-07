@@ -207,6 +207,28 @@ def quiz_questions(conn: sqlite3.Connection, aid: int) -> dict | None:
             "wrong": sum(1 for r in rows if r["result"] == "wrong"), "attempt": rows[0]["attempt"], "attempts": rows[0]["attempts"]}
 
 
+def record_new_files(conn: sqlite3.Connection, items: list[tuple[str, str]], now: str | None = None) -> None:
+    """New course files downloaded from Canvas, as Today.md events (only after the first full download)."""
+    ensure(conn)
+    first = conn.execute("SELECT value FROM meta WHERE key = 'canvas_files_seen'").fetchone() if _has_meta(conn) else None
+    when = now or _now()
+    if first is None:
+        conn.executescript("CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);")
+        conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('canvas_files_seen', ?)", (when,))
+        if items:
+            for course in sorted({c for c, _ in items}):
+                n = sum(1 for c, _ in items if c == course)
+                conn.execute("INSERT INTO canvas_events (at, course, text) VALUES (?, ?, ?)",
+                             (when, course, f"Downloaded {n} file{'s' if n != 1 else ''} from Canvas modules and files"))
+        return
+    for course, text in items:
+        conn.execute("INSERT INTO canvas_events (at, course, text) VALUES (?, ?, ?)", (when, course, text))
+
+
+def _has_meta(conn: sqlite3.Connection) -> bool:
+    return conn.execute("SELECT 1 FROM sqlite_master WHERE name = 'meta'").fetchone() is not None
+
+
 # ---- reading it back ----------------------------------------------------------------------------------
 
 

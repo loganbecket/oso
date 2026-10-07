@@ -80,6 +80,7 @@ def _run(cfg: Config, now: datetime | None = None) -> dict[str, object]:
                     counts["grades"] = _apply_grades(conn, connector)
                     counts.update(canvas_store.save(conn, connector))
                     counts.update(connector.mirror())
+                    canvas_store.record_new_files(conn, connector.new_files)
                     if connector.uses_session:
                         canvas_session.mark_connected(conn)
                         if connector.cookies() and connector.cookies() != canvas_session.load():

@@ -277,7 +277,7 @@ Ask Claude to **check my notes** against the book for a lecture or a chapter: it
 
 ### Connect Canvas for grades and coursework
 
-The calendar feed only brings in due dates. To let Oso read your grades, scores, missing work, instructor comments, and course files too, sign in to Canvas once through Oso:
+The calendar feed only brings in due dates. To let Oso read your grades, scores, missing work, instructor comments, and course materials too (every file and page in each course's modules, organized by module under `Canvas/Modules`), sign in to Canvas once through Oso:
 
 ```
 oso connect-canvas

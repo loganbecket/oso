@@ -117,5 +117,5 @@ def test_a_taken_quiz_opens_read_only_with_the_answers(tmp_path: Path, monkeypat
 
     gc.collect()
     assert seen[0] == [("A. ex   ✗ your answer", "disabled"), ("B. why   ✓ correct answer", "disabled")]
-    assert "Wrong · you said: Sure" in seen[1]
+    assert "Wrong · how sure you were: Sure" in seen[1]
     assert "Correct answer: F = ma (net force)" in seen[2] and "Partly right" in seen[2] and "It's the net force that equals ma." in seen[2]

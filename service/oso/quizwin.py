@@ -181,7 +181,8 @@ def review(quiz_id: int) -> None:
                 letter = chr(ord("A") + i)
                 mark, color = "", "#000000"
                 if letter == q["key"]:
-                    mark, color = "   ✓ correct answer", RESULT_COLORS["right"]
+                    mine = letter == (q["response"] or "").upper()
+                    mark, color = "   ✓ correct answer" + (" (your answer)" if mine else ""), RESULT_COLORS["right"]
                 elif letter == (q["response"] or "").upper():
                     mark, color = "   ✗ your answer", RESULT_COLORS["wrong"]
                 tk.Radiobutton(body, text=f"{letter}. {opt}{mark}", value=letter, variable=picked, state="disabled",
@@ -198,7 +199,7 @@ def review(quiz_id: int) -> None:
                 ttk.Label(body, text=f"Correct answer: {q['expected']}", foreground=RESULT_COLORS["right"], wraplength=700,
                           justify="left").pack(anchor="w", pady=(8, 0))
         verdict = RESULT_WORDS.get(q["result"] or "", "Not graded yet")
-        line = verdict + (f" · you said: {CONFIDENCE_WORDS[q['confidence']]}" if q["confidence"] in CONFIDENCE_WORDS else "")
+        line = verdict + (f" · how sure you were: {CONFIDENCE_WORDS[q['confidence']]}" if q["confidence"] in CONFIDENCE_WORDS else "")
         ttk.Label(body, text=line, foreground=RESULT_COLORS.get(q["result"] or "", "#666"),
                   font=("TkDefaultFont", 10, "bold")).pack(anchor="w", pady=(10, 0))
         if q["note"]:

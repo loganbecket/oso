@@ -127,8 +127,7 @@ def open_settings(cfg: cfgmod.Config) -> None:
     refresh_button = ttk.Button(top, text="Refresh", command=lambda: (show("Up to date."), refresh()))
     refresh_button.pack(side="right", padx=(0, 16))
     lines_frame = _scrolling(status_tab, padding=(0, 8, 0, 0))
-    # Line Refresh up with the fix buttons below it, which sit left of the scroll bar.
-    lines_frame.scrollbar.bind("<Configure>", lambda e: refresh_button.pack_configure(padx=(0, 16 + e.width)))
+    _line_up(refresh_button, lines_frame)
     lines_frame.columnconfigure(1, weight=1)
 
     def refresh() -> None:
@@ -198,6 +197,8 @@ def open_settings(cfg: cfgmod.Config) -> None:
     qtop = ttk.Frame(quizzes_tab)
     qtop.pack(fill="x")
     ttk.Label(qtop, text="Your quizzes", font=("TkDefaultFont", 12, "bold")).pack(side="left")
+    names = ["All courses"] + [c.name for c in cfg.courses]
+    course_var = tk.StringVar(value="All courses")
     quiz_rows = _scrolling(quizzes_tab, padding=(0, 8, 0, 0))
     quiz_rows.columnconfigure(1, weight=1)
 
@@ -206,8 +207,9 @@ def open_settings(cfg: cfgmod.Config) -> None:
 
         for w in quiz_rows.winfo_children():
             w.destroy()
+        want = next((c.code for c in cfg.courses if c.name == course_var.get()), None)
         try:
-            rows = actions.quizzes()
+            rows = [q for q in actions.quizzes() if want is None or q["course"].lower() == want.lower()]
         except Exception as e:  # noqa: BLE001
             ttk.Label(quiz_rows, text=f"Oso couldn't list the quizzes ({e}).").grid(row=0, column=0, sticky="w")
             return
@@ -224,7 +226,12 @@ def open_settings(cfg: cfgmod.Config) -> None:
             ttk.Button(quiz_rows, text="Take" if q["status"] == "handed_out" else "Review",
                        command=lambda n=q["quiz_id"]: show(actions.open_quiz(n))).grid(row=i, column=3, sticky="e", padx=(8, 16), pady=2)
 
-    ttk.Button(qtop, text="Refresh", command=list_quizzes).pack(side="right", padx=(0, 16))
+    quiz_refresh = ttk.Button(qtop, text="Refresh", command=list_quizzes)
+    quiz_refresh.pack(side="right", padx=(0, 16))
+    _line_up(quiz_refresh, quiz_rows)
+    picker = ttk.Combobox(qtop, textvariable=course_var, values=names, state="readonly", width=28)
+    picker.pack(side="right", padx=(0, 12))
+    picker.bind("<<ComboboxSelected>>", lambda _e: list_quizzes())
     list_quizzes()
 
     # ---- Settings (scrolls: there are many) -----------------------------------------------------------
@@ -501,6 +508,11 @@ def open_settings(cfg: cfgmod.Config) -> None:
     root.protocol("WM_DELETE_WINDOW", close)
     root.after(1000, watch_for_raise)
     root.mainloop()
+
+
+def _line_up(button, scrolling: ttk.Frame) -> None:
+    """Keep a button above a scrolling list lined up with the list's buttons, which sit left of the scroll bar."""
+    scrolling.scrollbar.bind("<Configure>", lambda e: button.pack_configure(padx=(0, 16 + e.width)), add="+")
 
 
 def _scrolling(parent, padding=0) -> ttk.Frame:

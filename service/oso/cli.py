@@ -50,6 +50,11 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("profile", help="show what the learner profile has recorded")
     s.add_argument("--raw", action="store_true", help="every recent quiz with each question and answer")
     s.add_argument("--delete-quiz", type=int, metavar="N", help="delete quiz N completely (asks first)")
+    s = sub.add_parser("backup", help="back up the vault and Oso's records now (to the folder in settings)")
+    s.add_argument("--set-folder", metavar="PATH", help="set the backup folder (checked first); '' turns backups off")
+    s = sub.add_parser("restore", help="bring the vault and Oso's records back from a backup folder")
+    s.add_argument("--from", dest="source", metavar="PATH", help="the backup folder (default: the one in settings)")
+    s.add_argument("--date", metavar="YYYY-MM-DD", help="Oso's records as they were that day (the vault is always the latest)")
     sub.add_parser("watch", help="take in new course files as soon as they arrive (started automatically at sign-in)")
     sub.add_parser("fresh-start", help="delete everything in the vault and Oso's records and start fresh, keeping your settings")
     s = sub.add_parser("reset-skills", help="put back Oso's version of its commands' instructions (all, or the ones named), discarding your edits")
@@ -267,6 +272,64 @@ def _dispatch(args: argparse.Namespace) -> int:
             return 0
         with db.connect() as conn:
             print(profile.raw_dump(conn))
+        return 0
+
+    if args.cmd == "backup":
+        from . import backup
+
+        if args.set_folder is not None:
+            if not args.set_folder.strip():
+                cfg.backup_folder = None
+                cfgmod.save(cfg)
+                print("Backups are off.")
+                return 0
+            try:
+                backup.check_folder(Path(args.set_folder))
+            except backup.BackupError as e:
+                print(e)
+                return 1
+            cfg.backup_folder = args.set_folder
+            cfgmod.save(cfg)
+            print(f"Backups will go to {args.set_folder} every night.")
+            return 0
+        if not cfg.backup_folder:
+            print("No backup folder is set. Run 'oso backup --set-folder <folder>' or set one in 'oso settings'.")
+            return 1
+        from datetime import datetime as _dt
+
+        from . import lock
+
+        with lock.held() as got, db.connect() as conn:
+            if not got:
+                print("Another Oso task is running; try again in a few minutes.")
+                return 1
+            r = backup.run(cfg, conn, _dt.now(cfg.tz), force=True, budget=10**6)
+        if "skipped" in r:
+            print(r["skipped"])
+            return 1
+        print(f"Backed up {r['copied']} changed files and Oso's records to {cfg.backup_folder}"
+              + (f"; {r['removed']} deleted files kept under Removed" if r["removed"] else "") + ".")
+        return 0
+
+    if args.cmd == "restore":
+        from . import backup
+
+        source = args.source or cfg.backup_folder
+        if not source:
+            print("Say where the backup is: oso restore --from <folder>")
+            return 1
+        try:
+            lines = backup.restore(cfg, Path(source), day=args.date)
+        except backup.BackupError as e:
+            if "already has notes" not in str(e):
+                print(e)
+                return 1
+            if input(f"{e} Type yes to write over it: ").strip().lower() != "yes":
+                print("Nothing was restored.")
+                return 0
+            lines = backup.restore(cfg, Path(source), day=args.date, overwrite=True)
+        for line in lines:
+            print(line)
         return 0
 
     if args.cmd == "watch":

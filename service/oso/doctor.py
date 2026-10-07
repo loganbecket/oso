@@ -82,6 +82,19 @@ def run(fix: bool = False) -> list[tuple[str, str]]:
         unit = Path.home() / ".config" / "systemd" / "user" / "oso-sync.timer"
         out.append(("ok", "systemd timer installed") if unit.exists() else _schedule_missing(cfg, fix, "Timer"))
 
+    if cfg.backup_folder:
+        from . import backup
+
+        with db.connect() as conn:
+            last = backup.last_success(conn)
+            stale = backup.stale_line(conn, cfg, datetime.now(cfg.tz))
+        if stale:
+            out.append(("warn", stale))
+        elif last:
+            out.append(("ok", f"Last backup to {cfg.backup_folder}: {last.astimezone(cfg.tz).strftime('%a %b %d %H:%M')}"))
+        else:
+            out.append(("ok", f"Backups go to {cfg.backup_folder}; the first runs tonight (or run 'oso backup')"))
+
     from . import watch
 
     if watch.alive():

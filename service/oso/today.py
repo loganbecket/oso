@@ -67,6 +67,7 @@ def render(conn: sqlite3.Connection, cfg: Config, now: datetime) -> str:
     lines += _skill_note()
     lines += _finished_note(conn, cfg, now)
     lines += _reading_note(conn, cfg, now)
+    lines += _backup_note(conn, cfg, now)
     lines += _health(conn, now, timedelta(hours=cfg.stale_hours))
     return "\n".join(lines) + "\n"
 
@@ -222,6 +223,16 @@ def _update_note(conn: sqlite3.Connection) -> list[str]:
     if not row or not row["value"]:
         return []
     return ["## Oso", f"- {row['value']}", ""]
+
+
+def _backup_note(conn: sqlite3.Connection, cfg: Config, now: datetime) -> list[str]:
+    from . import backup
+
+    try:
+        line = backup.stale_line(conn, cfg, now)
+    except Exception:  # noqa: BLE001
+        return []
+    return ["## Backup", f"- {line}", ""] if line else []
 
 
 def _reading_note(conn: sqlite3.Connection, cfg: Config, now: datetime) -> list[str]:

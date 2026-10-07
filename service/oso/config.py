@@ -69,6 +69,8 @@ class Config:
     canvas_notify: bool = True  # show a desktop notification when the Canvas sign-in expires
     auto_read: bool = True  # have Claude read handwriting, equations, tables, and drawings in the background
     auto_read_per_day: int = 0  # optional daily limit on those pages (0 = no limit)
+    backup_folder: str | None = None  # where the nightly backup goes (a NAS share, a drive); none = no backup
+    backup_hour: int = 2  # the backup runs on the first check after this hour each day
 
     @property
     def tz(self) -> ZoneInfo:
@@ -141,6 +143,8 @@ def load(path: Path | None = None) -> Config:
         canvas_notify=bool(raw.get("canvas_notify", True)),
         auto_read=bool(raw.get("auto_read", True)),
         auto_read_per_day=int(raw.get("auto_read_per_day", 0)),
+        backup_folder=raw.get("backup_folder") or None,
+        backup_hour=int(raw.get("backup_hour", 2)),
     )
 
 
@@ -174,6 +178,8 @@ def save(cfg: Config, path: Path | None = None) -> Path:
         f"canvas_notify = {'true' if cfg.canvas_notify else 'false'}",
         f"auto_read = {'true' if cfg.auto_read else 'false'}",
         f"auto_read_per_day = {cfg.auto_read_per_day}",
+        *([f'backup_folder = "{_toml_str(cfg.backup_folder)}"'] if cfg.backup_folder else []),
+        f"backup_hour = {cfg.backup_hour}",
         "",
     ]
     for c in cfg.courses:

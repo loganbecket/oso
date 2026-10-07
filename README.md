@@ -41,6 +41,8 @@ There is no Oso server. Your notes stay on your computer and in your own Google 
 
 **Keeping Oso up to date.** When a new version is out, your briefing says so. Run `oso update` in your command window, wait about a minute, and restart the Claude app.
 
+**Backups.** If you set a backup folder in `oso settings` (a network share, an external drive, any folder), Oso copies your vault and its records there every night, keeping deleted files for 30 days. `oso backup` runs one now; `oso restore --from <folder>` brings everything back on a new computer.
+
 **When something seems wrong.** Run `oso doctor` in your command window. It checks every part of Oso and says in plain words what to fix. Part 6 below lists common problems.
 
 Oso runs on Windows, macOS, and Linux. Installation instructions follow. Setup takes about an hour, most of it installing and signing in to apps. Do the sections in order; where a step differs by platform, the differences are listed.
@@ -333,6 +335,8 @@ oso profile --raw         show every recorded quiz, question by question
 oso connect-canvas        sign in to Canvas so Oso can read grades and coursework
 oso canvas --raw          show what Oso has read from Canvas
 oso books                 how far Oso has read each textbook (--reprocess TITLE reads one again)
+oso backup                back up now (--set-folder PATH sets the backup folder)
+oso restore --from PATH   bring the vault and Oso's records back from a backup
 oso watch                 take in new files as they arrive (runs on its own from sign-in)
 oso fresh-start           start over as if newly installed, keeping your settings (deletes the vault's contents)
 oso connect-calendar      let Oso put urgent changes on its own Google calendar

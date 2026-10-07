@@ -138,6 +138,10 @@ def open_settings(cfg: cfgmod.Config) -> None:
     read_limit_var = tk.IntVar(value=cfg.auto_read_per_day)
     ttk.Spinbox(frm, from_=0, to=1000, increment=10, textvariable=read_limit_var, width=6).grid(row=row, column=1, sticky="w", **pad)
     row += 1
+    label("Backup folder", "optional: a NAS share or drive; Oso copies your vault and records there nightly")
+    backup_var = tk.StringVar(value=cfg.backup_folder or "")
+    ttk.Entry(frm, textvariable=backup_var, width=48).grid(row=row, column=1, sticky="we", **pad)
+    row += 1
     canvas_notify_var = tk.BooleanVar(value=cfg.canvas_notify)
     ttk.Checkbutton(frm, text="Show a notification when Canvas needs me to sign in again", variable=canvas_notify_var).grid(row=row, column=0, columnspan=3, sticky="w", **pad)
     row += 1
@@ -221,6 +225,12 @@ def open_settings(cfg: cfgmod.Config) -> None:
             cfg.canvas_notify = bool(canvas_notify_var.get())
             cfg.auto_read = bool(auto_read_var.get())
             cfg.auto_read_per_day = max(0, int(read_limit_var.get()))
+            new_backup = backup_var.get().strip() or None
+            if new_backup and new_backup != cfg.backup_folder:
+                from . import backup
+
+                backup.check_folder(Path(new_backup))  # a plain sentence if it can't be written to
+            cfg.backup_folder = new_backup
             cfg.muted_courses = [code for code, v in mute_vars.items() if v.get()]
             cfgmod.save(cfg)
             if feed_var.get().strip():
@@ -254,6 +264,7 @@ def open_settings(cfg: cfgmod.Config) -> None:
     ttk.Button(btns, text="Connect Google Calendar…", command=lambda: show(_connect_calendar(cfg))).grid(row=0, column=4, padx=4)
     ttk.Button(btns, text="Connect Canvas…", command=lambda: show(_connect_canvas())).grid(row=1, column=1, padx=4, pady=4)
     ttk.Button(btns, text="Books", command=lambda: show(_books(cfg))).grid(row=1, column=3, padx=4, pady=4)
+    ttk.Button(btns, text="Back up now", command=lambda: show(_backup_now())).grid(row=1, column=5, padx=4, pady=4)
     ttk.Button(btns, text="Read a book again…", command=lambda: show(_reread_book(cfg, root))).grid(row=1, column=4, padx=4, pady=4)
     ttk.Button(btns, text="Disconnect Canvas", command=lambda: show(_disconnect_canvas())).grid(row=1, column=2, padx=4, pady=4)
     ttk.Button(btns, text="Close", command=root.destroy).grid(row=0, column=5, padx=4)
@@ -280,6 +291,22 @@ def _update_now() -> str:
     from . import update
 
     return update.run(cfgmod.load())
+
+
+def _backup_now() -> str:
+    from datetime import datetime
+
+    from . import backup, db, lock
+
+    cfg = cfgmod.load()
+    if not cfg.backup_folder:
+        return "Set a backup folder first, then Save."
+    with lock.held(wait_seconds=5) as got:
+        if not got:
+            return "Another Oso task is running; try again in a few minutes."
+        with db.connect() as conn:
+            r = backup.run(cfg, conn, datetime.now(cfg.tz), force=True, budget=10**6)
+    return r.get("skipped") or f"Backed up {r['copied']} changed files and Oso's records."
 
 
 def _books(cfg) -> str:

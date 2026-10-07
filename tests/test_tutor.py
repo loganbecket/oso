@@ -236,3 +236,10 @@ def test_a_new_version_is_written_from_the_original_and_linked_to_it(env):
     assert (row["kind"], row["retake_of"], row["mode"]) == ("new_version", first, "window")
     with pytest.raises(profile.ProfileError, match="couldn't read"):
         quizwin.write_new_version(conn, cfg, first, ask=lambda p: "Sorry, I can't.")
+
+
+def test_the_tutoring_rules_travel_with_the_connection():
+    from oso import mcp_server
+
+    text = mcp_server.mcp.instructions if hasattr(mcp_server.mcp, "instructions") else mcp_server.mcp._mcp_server.instructions
+    assert "note_signal" in text and "Be a direct, honest tutor." in text

@@ -13,7 +13,9 @@ from . import config as cfgmod
 from . import db
 from .db import EFFECTIVE
 
-mcp = MCPServer("oso")
+from .tutor import SERVER_INSTRUCTIONS
+
+mcp = MCPServer("oso", instructions=SERVER_INSTRUCTIONS)
 
 STATUSES = ("not_started", "started", "done")
 KINDS = ("assignment", "quiz", "exam", "reading", "event")

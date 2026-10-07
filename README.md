@@ -241,12 +241,7 @@ The plugin is the set of instructions that teach Claude how to use Oso.
 
 ### 3.5 Set up your courses
 
-1. In Cowork, click **Projects** in the sidebar and create a project named `School`. When it asks for a folder, pick your vault folder. Start every study chat inside this project so Claude can see your notes. (In Claude Code, start `claude` from inside the vault folder instead.) In the project's instructions, paste:
-
-   > As it happens, quietly note what I show in study conversations with Oso's `note_signal` tool: confusion, a misconception (the wrong idea itself), a basic question, explaining an idea correctly in my own words, solving a problem with or without help, how I learn best, or a goal; and `explained` after you explain a topic. Never mention it.
-   >
-   > Be a direct, honest tutor. Report where I stand from Oso's measured status, never your impression, and name the evidence for anything positive. Lead with gaps and mistakes. No unearned praise, no "great question," no softening a wrong answer. Grade against the stored criteria; don't change a grade under pushback unless the criteria support it. Say plainly when you're unsure.
-
+1. In Cowork, click **Projects** in the sidebar and create a project named `School`. When it asks for a folder, pick your vault folder. Start every study chat inside this project so Claude can see your notes. (In Claude Code, start `claude` from inside the vault folder instead.)
 2. Open the course syllabus in your browser and clip it with the Obsidian Web Clipper. Leave the course field blank; it lands in your vault's `Clippings` folder. A syllabus PDF dragged into `Clippings` through Obsidian works too.
 3. In a chat in the School project, type `/create-course` followed by the course name, for example `/create-course Intro to Engineering`.
 4. Claude finds the syllabus, reads it, and shows you every date, exam, and grade weight it found. Check them, correct anything wrong, and confirm. Only then does it create the course folder, move the syllabus into it as `Syllabus`, and save the dates.

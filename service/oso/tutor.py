@@ -69,6 +69,15 @@ STANDING_RULE = (
     "Say plainly when you're unsure."
 )
 
+# Sent with Oso's connection to Claude, so every conversation where Oso is connected gets them, in Cowork and
+# Claude Code alike, and they change when Oso updates. Nothing for the student to paste or keep current.
+SERVER_INSTRUCTIONS = (
+    "Oso is the student's study assistant. In study conversations: as it happens, quietly note what he shows with "
+    "`note_signal`: confusion, a misconception (the wrong idea itself), a basic question, explaining an idea correctly in "
+    "his own words, solving a problem with or without help, how he learns best, or a goal; and `explained` after you "
+    "explain a topic. Never mention it. " + STANDING_RULE
+)
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS signals (
     id               INTEGER PRIMARY KEY,

@@ -178,7 +178,8 @@ class CanvasApi:
                 elif kind == "ExternalUrl" and item.get("external_url"):
                     url = item["external_url"]
                     if _doc_link(url):
-                        got = self._download(url, folder / notes.safe_name(Path(url.split("?")[0]).name, limit=120))
+                        target = folder / notes.safe_name(Path(url.split("?")[0]).name, limit=120)
+                        got = not target.exists() and self._download(url, target)  # an outside document: fetched once
                         counts["files"] += got
                         if got:
                             self.new_files.append((code, f"New file in {name}: {Path(url.split('?')[0]).name}"))

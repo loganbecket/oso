@@ -113,7 +113,7 @@ def save(conn: sqlite3.Connection, api, now: str | None = None) -> dict[str, int
     for c in api.courses:
         code = c.get("course_code") or str(c["id"])
         codes[c["id"]] = code
-        enr = next((e for e in c.get("enrollments") or [] if e.get("type") in ("student", "StudentEnrollment")), {})
+        enr = next((e for e in c.get("enrollments") or [] if isinstance(e, dict) and e.get("type") in ("student", "StudentEnrollment")), {})
         conn.execute(
             """INSERT INTO canvas_courses (canvas_id, code, name, current_score, current_grade, raw, read_at) VALUES (?, ?, ?, ?, ?, ?, ?)
                ON CONFLICT(canvas_id) DO UPDATE SET code = excluded.code, name = excluded.name, current_score = excluded.current_score,
@@ -125,7 +125,7 @@ def save(conn: sqlite3.Connection, api, now: str | None = None) -> dict[str, int
     for a in api.assignments:
         g = api.groups.get(str(a.get("assignment_group_id"))) or {}
         points[a["id"]] = a.get("points_possible")
-        names[a["id"]] = (a["_course_code"], a.get("name", "").strip())
+        names[a["id"]] = (a["_course_code"], (a.get("name") or "Untitled assignment").strip())
         is_quiz = 1 if a.get("is_quiz_assignment") or "online_quiz" in (a.get("submission_types") or []) or a.get("quiz_id") else 0
         raw = {k: v for k, v in a.items() if k != "submission"}
         conn.execute(
@@ -137,9 +137,9 @@ def save(conn: sqlite3.Connection, api, now: str | None = None) -> dict[str, int
             (a["id"], a["_course_code"], names[a["id"]][1], a.get("due_at"), a.get("points_possible"), g.get("name"),
              g.get("group_weight"), is_quiz, a.get("html_url"), json.dumps(raw), when),
         )
-    subs = {s["assignment_id"]: s for s in api.submissions}
+    subs = {s["assignment_id"]: s for s in api.submissions if s.get("assignment_id") is not None}
     for a in api.assignments:  # assignments carry a submission too; the submissions list wins when present
-        if a["id"] not in subs and a.get("submission"):
+        if a["id"] not in subs and isinstance(a.get("submission"), dict):
             subs[a["id"]] = {**a["submission"], "assignment_id": a["id"], "_course_code": a["_course_code"]}
     counts = {"courses": len(api.courses), "assignments": len(api.assignments), "submissions": 0, "new_grades": 0, "new_comments": 0}
     for aid, s in subs.items():
@@ -166,6 +166,8 @@ def save(conn: sqlite3.Connection, api, now: str | None = None) -> dict[str, int
             counts["new_grades"] += 1
         counts["quiz_questions"] = counts.get("quiz_questions", 0) + _save_quiz_questions(conn, aid, s)
         for cm in s.get("submission_comments") or []:
+            if not isinstance(cm, dict) or cm.get("id") is None:
+                continue
             if conn.execute("SELECT 1 FROM canvas_comments WHERE canvas_id = ?", (cm["id"],)).fetchone():
                 continue
             conn.execute("INSERT INTO canvas_comments (canvas_id, assignment_id, author, comment, created_at) VALUES (?, ?, ?, ?, ?)",
@@ -178,13 +180,13 @@ def save(conn: sqlite3.Connection, api, now: str | None = None) -> dict[str, int
 
 def _save_quiz_questions(conn: sqlite3.Connection, aid: int, s: dict) -> int:
     """Per-question results from a quiz submission's history, when Canvas shows them to the student."""
-    tries = [h for h in s.get("submission_history") or [] if h.get("submission_data")]
+    tries = [h for h in s.get("submission_history") or [] if isinstance(h, dict) and isinstance(h.get("submission_data"), list)]
     if not tries:
         return 0
     latest = max(tries, key=lambda h: (h.get("attempt") or 0, h.get("graded_at") or ""))
     rows = []
     for q in latest["submission_data"]:
-        if q.get("question_id") is None or "correct" not in q:
+        if not isinstance(q, dict) or q.get("question_id") is None or "correct" not in q:
             continue
         c = q["correct"]
         result = "right" if c is True else "partly_right" if c in ("partial", "partially_correct") else "wrong"

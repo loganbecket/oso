@@ -180,6 +180,7 @@ for ($i = 1; $i -le 3; $i++) {{
         $_.ProcessId -ne $PID -and ($_.Name -in @('oso.exe', 'oso-mcp.exe') -or $_.CommandLine -match '\\\\tools\\\\oso\\\\')
     }} | ForEach-Object {{ Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }}
     Start-Sleep -Seconds 2
+    Remove-Item (Join-Path (Split-Path $log) 'work.lock') -ErrorAction SilentlyContinue  # left by a stopped check
     Write-Host 'Installing...'
     cmd /c "`"$uv`" tool install --force --python 3.12 `"$url`" 2>&1" | Tee-Object -FilePath $log -Append
     if ($LASTEXITCODE -eq 0) {{

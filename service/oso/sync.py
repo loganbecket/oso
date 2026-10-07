@@ -94,6 +94,7 @@ def _run(cfg: Config, now: datetime | None = None) -> dict[str, object]:
                 db.finish_sync(conn, run_id, ok=False, error=plain_error(e))
                 results[connector.name] = plain_error(e)
                 log.warning("%s failed: %s", connector.name, plain_error(e))
+                _record_failure(connector.name)
                 continue
             db.finish_sync(conn, run_id, ok=True, items_seen=len(items))
             results[connector.name] = counts
@@ -119,6 +120,19 @@ def _run(cfg: Config, now: datetime | None = None) -> dict[str, object]:
         _safe(lambda: dashboard.write(conn, cfg, now), None)
         _safe(lambda: instructions.write(cfg), None)
     return results
+
+
+def _record_failure(name: str) -> None:
+    """Keep the technical detail of a failure in a log file (never shown to the student), so it can be fixed."""
+    import traceback
+
+    from .config import data_dir
+
+    try:
+        with (data_dir() / "errors.log").open("a", encoding="utf-8") as f:
+            f.write(f"\n--- {datetime.now().isoformat(timespec='seconds')} {name}\n{traceback.format_exc()}")
+    except OSError:
+        pass
 
 
 def _deliver_calendar(conn, cfg: Config, now: datetime) -> str | int:

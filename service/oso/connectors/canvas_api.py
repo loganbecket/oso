@@ -74,7 +74,7 @@ class CanvasApi:
                 a["_course_code"] = code
                 self.assignments.append(a)
                 items.append(self._assignment(a, code))
-            try:
+            try:  # his submissions; a course that hides them is skipped, not fatal
                 for sub in self._pages(f"/api/v1/courses/{course['id']}/students/submissions",
                                        [("student_ids[]", "self"), ("include[]", "submission_comments"),
                                         ("include[]", "submission_history"), ("per_page", 100)]):
@@ -100,7 +100,7 @@ class CanvasApi:
 
     def _assignment(self, a: dict, code: str) -> Item:
         due = _parse_time(a.get("due_at"), self.tz)
-        title = a.get("name", "").strip()
+        title = (a.get("name") or "Untitled assignment").strip()
         kind = "quiz" if a.get("is_quiz_assignment") or "online_quiz" in (a.get("submission_types") or []) else "assignment"
         if re.search(r"\b(exam|midterm|final|test)\b", title, re.IGNORECASE):
             kind = "exam"
@@ -188,14 +188,28 @@ class CanvasApi:
         out: list[dict] = []
         while url:
             r = self.s.get(url, params=params, timeout=self.timeout, allow_redirects=not self.uses_session)
-            if self.uses_session and (r.status_code in (401, 302, 303) or "/login" in r.headers.get("Location", "")):
+            if self.uses_session and _signed_out(r):
                 raise SessionExpired()
             r.raise_for_status()
             data = r.json()
-            out.extend(data if isinstance(data, list) else [data])
+            # Real Canvas sometimes puts nulls or error objects in lists; keep only records.
+            out.extend(x for x in (data if isinstance(data, list) else [data]) if isinstance(x, dict) and "errors" not in x)
             url = r.links.get("next", {}).get("url")
             params = {}
         return out
+
+
+def _signed_out(r: requests.Response) -> bool:
+    """Canvas no longer accepts the session (as opposed to "you may not see this", which it also answers
+    with 401, for example when an instructor hides a course's Files)."""
+    if r.status_code in (302, 303):
+        return "/login" in r.headers.get("Location", "")
+    if r.status_code != 401:
+        return False
+    try:
+        return (r.json() or {}).get("status") == "unauthenticated"
+    except ValueError:
+        return True
 
 
 def _parse_time(value: str | None, tz: ZoneInfo) -> datetime | None:

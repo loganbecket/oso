@@ -104,3 +104,20 @@ def test_windows_watch_task_runs_windowless_and_restarts():
     xml = install_windows._WATCH_XML.format(command="C:\\oso\\pythonw.exe", user="PC\\Campbell")
     assert "<Arguments>-m oso.watch</Arguments>" in xml and "<ExecutionTimeLimit>PT0S</ExecutionTimeLimit>" in xml
     assert "<RestartOnFailure>" in xml and "<UserId>PC\\Campbell</UserId>" in xml
+
+
+def test_a_lock_left_by_a_stopped_program_is_taken_over(cfg):
+    p = cfgmod.data_dir() / "work.lock"
+    p.write_text("999999")  # a process that doesn't exist
+    with lock.held(wait_seconds=0) as got:
+        assert got
+
+
+def test_a_lock_held_by_a_live_program_is_respected(cfg):
+    import os
+
+    p = cfgmod.data_dir() / "work.lock"
+    p.write_text(str(os.getpid()))
+    with lock.held(wait_seconds=0) as got:
+        assert not got
+    p.unlink()

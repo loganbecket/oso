@@ -242,3 +242,41 @@ def test_quiz_questions_from_the_latest_attempt(env, server):
         conn.execute("DELETE FROM canvas_quiz_questions")
         ev = [e for e in mastery.evidence(conn, "PHYS-110") if e["source"] == "canvas 104"]
         assert [e["credit"] for e in ev] == [0.625]
+
+
+def test_messy_real_canvas_data_is_skipped_not_fatal(env, server, monkeypatch):
+    cfg, _ = env
+    real = canvas_data
+
+    def messy():
+        d = real()
+        d["/api/v1/courses"][0]["enrollments"].append(None)
+        d["/api/v1/courses/1/assignments"].append(None)
+        d["/api/v1/courses/1/assignments"].append({"id": 105, "name": None, "points_possible": None, "submission": None})
+        d["/api/v1/courses/1/students/submissions"].append(None)
+        d["/api/v1/courses/1/students/submissions"][0]["submission_comments"] = [None, {"id": 901, "comment": "ok"}]
+        d["/api/v1/courses/1/students/submissions"][2]["submission_history"].append(None)
+        return d
+
+    monkeypatch.setattr(__import__(__name__), "canvas_data", messy)
+    api = CanvasApi(server, None, cfg, cookies={"canvas_session": "good"})
+    api.fetch()
+    with db.connect() as conn:
+        c = canvas_store.save(conn, api)
+        assert c["submissions"] == 3 and c["new_comments"] == 1
+
+
+def test_forbidden_is_not_signed_out():
+    import requests as rq
+
+    from oso.connectors.canvas_api import _signed_out
+
+    def resp(code, body):
+        r = rq.Response()
+        r.status_code = code
+        r._content = body.encode()
+        return r
+
+    assert _signed_out(resp(401, '{"status":"unauthenticated","errors":[{"message":"user authorization required"}]}'))
+    assert not _signed_out(resp(401, '{"status":"unauthorized","errors":[{"message":"user not authorized to perform that action"}]}'))
+    assert not _signed_out(resp(404, "{}"))

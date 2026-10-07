@@ -407,6 +407,35 @@ def finish_quiz(quiz_id: int) -> dict:
 
 
 @mcp.tool()
+def file_clip(name: str, course: str) -> str:
+    """Put a clipped page where he says: a course (code or name), from Clippings or from another course's Readings;
+    or "none" when it belongs to no course (it stays in Clippings and Oso stops asking)."""
+    from . import filing
+
+    with db.connect() as conn:
+        return filing.file_clip(_cfg(), name, course, conn)
+
+
+@mcp.tool()
+def move_book(book: str, course: str) -> str:
+    """Move a book clipped from an online textbook to another course: every page so far, and later pages follow."""
+    from . import filing
+
+    return filing.move_book(_cfg(), book, course)
+
+
+@mcp.tool()
+def recently_filed_clips(days: int = 14) -> list[dict]:
+    """Clips Oso filed by itself lately, with where they went. Course setup uses it when the syllabus isn't in Clippings."""
+    from datetime import UTC
+
+    from . import filing
+
+    with db.connect() as conn:
+        return filing.recently_filed(conn, (datetime.now(UTC) - timedelta(days=days)).isoformat(timespec="seconds"))
+
+
+@mcp.tool()
 def show_quiz(quiz_id: int) -> str:
     """Open a past quiz on his computer in the quiz window, exactly as he took it, read-only, with his answers, the right
     answers, his grades, and your notes. Find the id with `recent_quizzes`."""

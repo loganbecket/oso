@@ -64,7 +64,7 @@ def test_one_task_at_a_time(cfg):
 def test_ingest_is_local_only(cfg, monkeypatch):
     called = []
     for name in ("file_clippings",):
-        monkeypatch.setattr(sync.filing, name, lambda c: called.append("filing") or 0)
+        monkeypatch.setattr(sync.filing, name, lambda *a: called.append("filing") or 0)
     monkeypatch.setattr(sync.convert, "convert_vault", lambda c: called.append("convert") or [])
     monkeypatch.setattr(sync.books, "process", lambda c, conn: called.append("books") or {})
     monkeypatch.setattr(sync.search, "update", lambda c: called.append("search") or {})

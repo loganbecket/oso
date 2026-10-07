@@ -6,7 +6,7 @@ The file is regenerated on every sync. Nothing in it is written by hand.
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from .config import Config
@@ -65,6 +65,7 @@ def render(conn: sqlite3.Connection, cfg: Config, now: datetime) -> str:
     lines += _changes(conn, cfg, now)
     lines += _canvas_events(conn, cfg, now)
     lines += _site_lines(conn, cfg, now)
+    lines += _clip_lines(conn, cfg, now)
     lines += _handwriting(conn)
     lines += _update_note(conn)
     lines += _skill_note()
@@ -211,6 +212,32 @@ def _study_time(conn: sqlite3.Connection, cfg: Config, now: datetime) -> list[st
     for c in ranked[:4]:
         lines.append(f"- {c['name']}: about {c['share_percent']}% of study time" + (f" ({'; '.join(c['reasons'])})" if c["reasons"] else ""))
     lines += [f"- {f}" for f in flags]
+    lines.append("")
+    return lines
+
+
+def _clip_lines(conn: sqlite3.Connection, cfg: Config, now: datetime) -> list[str]:
+    """What Oso filed from Clippings since yesterday, and the clips it couldn't place."""
+    from collections import Counter
+
+    from . import filing
+
+    since = (now - timedelta(hours=24)).astimezone(UTC).isoformat(timespec="seconds")
+    try:
+        filed = [r for r in filing.recently_filed(conn, since) if r["how"] != "asked"]
+        waiting = filing.unplaced(cfg)
+    except (sqlite3.Error, OSError):
+        return []
+    if not filed and not waiting:
+        return []
+    lines = ["## Clippings"]
+    if filed:
+        counts = Counter(r["course"] for r in filed)
+        where = ", ".join(f"{n} {(cfg.course_for(code).name if cfg.course_for(code) else code)}" for code, n in counts.most_common())
+        lines.append(f"- Filed {len(filed)} clip{'s' if len(filed) != 1 else ''} since yesterday: {where}.")
+    if waiting:
+        lines.append("- Oso couldn't tell which course these belong to; ask him: " + "; ".join(f'"{w}"' for w in waiting[:10])
+                     + ("" if len(waiting) <= 10 else f"; and {len(waiting) - 10} more") + ".")
     lines.append("")
     return lines
 

@@ -6,7 +6,7 @@ The goal is a confirmed list of facts, not a guess. Nothing is written until the
 
 ## Steps
 
-1. **Find the syllabus.** Call `list_notes` with folder `Clippings`. The syllabus is usually the newest file there, clipped with the Obsidian Web Clipper (a Markdown note) or dropped in as a PDF. Pick the one whose title or name matches the course name; if more than one could be it, or none looks like a syllabus, ask the student which. If there is no syllabus, ask for it; do not invent dates. If no course name was given, take it from the syllabus.
+1. **Find the syllabus.** Call `list_notes` with folder `Clippings`. The syllabus is usually the newest file there, clipped with the Obsidian Web Clipper (a Markdown note) or dropped in as a PDF. Pick the one whose title or name matches the course name; if more than one could be it, or none looks like a syllabus, ask the student which. If none of the clips there is the syllabus, call `recently_filed_clips`: Oso files clips into courses on its own, and may have filed the syllabus as a reading; if one of those is the syllabus, use it (`read_note` on its `dest`), and `file_syllabus` moves it into the new course later. If there is still no syllabus, ask for it; do not invent dates. If no course name was given, take it from the syllabus.
 2. **Read it** with `read_note` (follow `next_start` until the whole file is read) and extract:
    - the course code as Canvas labels it (for example `EGR-1301-001`; check `list_deadlines` for codes the Canvas feed already uses) and a short name
    - every dated item: assignments, quizzes, exams, projects, readings, with due dates and times

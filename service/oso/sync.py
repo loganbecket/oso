@@ -52,7 +52,7 @@ def ingest(cfg: Config, now: datetime | None = None) -> dict[str, object]:
         if not got:
             return {"skipped": "another Oso task was still running"}
         with db.connect() as conn:
-            results["filed"] = _safe(lambda: filing.file_clippings(cfg), 0)
+            results["filed"] = _safe(lambda: filing.file_clippings(cfg, conn), 0)
             results["converted"] = len(_safe(lambda: convert.convert_vault(cfg), []))
             results["books"] = _safe(lambda: books.process(cfg, conn), {})
             results["handwriting_queued"] = _safe(lambda: handwriting.queue_new(conn, cfg), 0)
@@ -105,7 +105,7 @@ def _run(cfg: Config, now: datetime | None = None) -> dict[str, object]:
         _safe(lambda: filing.retire_inbox(cfg), 0)
         results["alerts"] = _safe(lambda: alerts.write_inbox(conn, cfg, now), 0)
         results["calendar"] = _deliver_calendar(conn, cfg, now)
-        results["filed"] = _safe(lambda: filing.file_clippings(cfg), 0)
+        results["filed"] = _safe(lambda: filing.file_clippings(cfg, conn), 0)
         results["drive_mirrored"] = _safe(lambda: drive.mirror(cfg), 0)
         results["sites"] = _safe(lambda: sites.check(cfg, conn, now), {})
         results["converted"] = len(_safe(lambda: convert.convert_vault(cfg), []))

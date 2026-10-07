@@ -63,7 +63,12 @@ def test_filing_moves_clips_with_a_course(tmp_path: Path):
     clips.mkdir(parents=True)
     (clips / "Orbital mechanics.md").write_text("---\ntype: reading\ncourse: physics\nsource: https://x\n---\n\nbody\n")
     (clips / "Unfiled.md").write_text("---\ntype: reading\ncourse: \n---\n\nbody\n")
-    assert filing.file_clippings(cfg) == 1
+    filing_profiles = filing.course_profiles
+    filing.course_profiles = lambda cfg: {}  # no search model here: nothing to match by content
+    try:
+        assert filing.file_clippings(cfg) == 1
+    finally:
+        filing.course_profiles = filing_profiles
     moved = cfg.vault / "Courses" / "Physics" / "Readings" / "Orbital mechanics.md"
     assert moved.exists() and "course: PHYS-110" in moved.read_text()
     assert (clips / "Unfiled.md").exists()

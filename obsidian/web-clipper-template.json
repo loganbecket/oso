@@ -12,11 +12,6 @@
       "type": "text"
     },
     {
-      "name": "course",
-      "value": "",
-      "type": "text"
-    },
-    {
       "name": "book",
       "value": "",
       "type": "text"

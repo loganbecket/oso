@@ -157,6 +157,17 @@ def open_quiz(quiz_id: int) -> str:
     return "The quiz is opening, read-only, with the right answers shown." if quiz["submitted_at"] else "The quiz is opening for you to take."
 
 
+def delete_quiz(quiz_id: int) -> str:
+    """Remove a quiz for good, in any state: it no longer counts anywhere."""
+    from . import profile
+
+    with db.connect() as conn:
+        try:
+            return profile.delete_quiz(conn, cfgmod.load(), quiz_id)
+        except profile.ProfileError as e:
+            return str(e)
+
+
 def books() -> str:
     from . import books as bk
 

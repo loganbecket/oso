@@ -365,6 +365,8 @@ def delete_quiz(conn: sqlite3.Connection, cfg: Config, quiz_id: int) -> str:
     if qids:
         conn.execute(f"DELETE FROM quiz_answers WHERE question_id IN ({marks})", qids)
         conn.execute(f"DELETE FROM quiz_responses WHERE question_id IN ({marks})", qids)
+        if conn.execute("SELECT 1 FROM sqlite_master WHERE name = 'regrades'").fetchone():
+            conn.execute(f"DELETE FROM regrades WHERE question_id IN ({marks})", qids)
     conn.execute("DELETE FROM quiz_work WHERE quiz_id = ?", (quiz_id,))
     conn.execute("DELETE FROM quiz_questions WHERE quiz_id = ?", (quiz_id,))
     conn.execute("UPDATE quizzes SET retake_of = NULL WHERE retake_of = ?", (quiz_id,))
@@ -557,14 +559,10 @@ def grading_view(conn: sqlite3.Connection, cfg: Config, quiz_id: int) -> dict:
 
 
 def _grading_rule(conn: sqlite3.Connection, course: str) -> str:
-    """How to grade, plus a warning when blind second gradings have found the first grading too generous."""
-    from . import tutor
-
-    rule = ("Grade each answer against its stored criteria only, and name the criterion it met or missed. A confident, "
+    """How to grade."""
+    return ("Grade each answer against its stored criteria only, and name the criterion it met or missed. A confident, "
             "long, or sympathetic answer earns nothing the criteria don't give it. Wrong is wrong; partly right only "
             "where the criteria give partial credit.")
-    gen = tutor.generosity(conn, course)
-    return rule + (" " + gen["line"] if gen and gen.get("line") else "")
 
 
 def finish_quiz(conn: sqlite3.Connection, quiz_id: int, now: str | None = None) -> dict:

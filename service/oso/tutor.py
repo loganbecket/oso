@@ -21,8 +21,7 @@ Conversation evidence steers but never confirms: confusion counts like a wrong p
 well like half a right one, and nothing from conversation alone can make a topic solid.
 
 **Honesty checks** (computed, so Claude can't talk them away): practice running well above real grades on the
-same topics, "hard" questions that turn out easy, and quiz grading that a second, blind
-grading finds too generous.
+same topics, and "hard" questions that turn out easy.
 """
 
 from __future__ import annotations
@@ -103,12 +102,6 @@ CREATE TABLE IF NOT EXISTS topic_stages (
     stage      TEXT NOT NULL,
     since      TEXT NOT NULL,
     PRIMARY KEY (course, topic)
-);
-CREATE TABLE IF NOT EXISTS second_grades (
-    question_id INTEGER PRIMARY KEY,
-    first       TEXT NOT NULL,
-    second      TEXT NOT NULL,
-    graded_at   TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS regrades (
     id          INTEGER PRIMARY KEY,
@@ -397,22 +390,6 @@ def course_flags(conn: sqlite3.Connection, cfg: Config, course: str, ev: list[di
     return flags
 
 
-def generosity(conn: sqlite3.Connection, course: str | None = None) -> dict | None:
-    """How often the first grading was more generous than the blind second grading."""
-    ensure(conn)
-    q = """SELECT g.first, g.second FROM second_grades g JOIN quiz_questions q ON q.id = g.question_id JOIN quizzes z ON z.id = q.quiz_id"""
-    rows = conn.execute(q + (" WHERE LOWER(z.course) = LOWER(?)" if course else ""), (course,) if course else ()).fetchall()
-    if not rows:
-        return None
-    more = sum(1 for r in rows if profile.CREDIT[r["first"]] > profile.CREDIT[r["second"]])
-    less = sum(1 for r in rows if profile.CREDIT[r["first"]] < profile.CREDIT[r["second"]])
-    out = {"compared": len(rows), "first_more_generous": more, "first_stricter": less}
-    if more >= 3 and more >= 2 * max(less, 1) and more / len(rows) >= 0.2:
-        out["line"] = (f"Quiz grading was more generous than the second grader on {more} of {len(rows)} answers compared. "
-                       "Grade strictly to the stored criteria: full credit only when every full-credit criterion is met.")
-    return out
-
-
 def topics(conn: sqlite3.Connection, cfg: Config, course: str, now: datetime | None = None, record: bool = False) -> list[dict]:
     """Every topic in a course with its stage, next step, status line, misconceptions, and trail."""
     ensure(conn)
@@ -525,9 +502,6 @@ def course_view(conn: sqlite3.Connection, cfg: Config, course: str, now: datetim
     now = now or datetime.now(UTC)
     ts = topics(conn, cfg, c.code, now)
     flags = course_flags(conn, cfg, c.code, now=now)
-    gen = generosity(conn, c.code)
-    if gen and gen.get("line"):
-        flags["grading_too_generous"] = gen
     g, cur = goal(conn, c.code), current_percent(conn, c.code)
     view = {
         "course": c.code, "name": c.name,
@@ -591,56 +565,3 @@ def write_how_i_learn(conn: sqlite3.Connection, cfg: Config, now: datetime) -> P
     if old is None or old.split("---", 2)[-1] != text.split("---", 2)[-1]:
         path.write_text(text, encoding="utf-8")
     return path
-
-
-# ---- grading honesty: second grades and regrades ------------------------------------------------------------
-
-
-def needs_second_grade(conn: sqlite3.Connection, quiz_id: int) -> bool:
-    """Every fifth quiz, and any quiz with written answers (Claude graded) scoring 90% or more."""
-    ensure(conn)
-    quiz = conn.execute("SELECT * FROM quizzes WHERE id = ?", (quiz_id,)).fetchone()
-    if quiz is None:
-        return False
-    claude_graded = conn.execute(
-        "SELECT COUNT(*) FROM quiz_questions WHERE quiz_id = ? AND (qtype != 'multiple_choice' OR answer_key IS NULL)", (quiz_id,)
-    ).fetchone()[0]
-    if not claude_graded:
-        return False
-    nth = conn.execute("SELECT COUNT(*) FROM quizzes WHERE id <= ? AND finished_at IS NOT NULL", (quiz_id,)).fetchone()[0]
-    return nth % 5 == 0 or (quiz["score"] or 0) >= 90
-
-
-def blind_view(conn: sqlite3.Connection, cfg: Config, quiz_id: int) -> dict:
-    """The quiz for the second grader: questions, his answers, written work, and the stored criteria, without the first grades."""
-    view = profile.grading_view(conn, cfg, quiz_id)
-    view["questions"] = [q for q in view.get("questions", []) if "graded_by_window" not in q]
-    return view
-
-
-def record_second_grade(conn: sqlite3.Connection, quiz_id: int, answers: list[dict], now: str | None = None) -> dict:
-    """Store the second grader's results. Where they differ, the second grade counts."""
-    ensure(conn)
-    when = now or _now()
-    changed = []
-    for a in answers:
-        n = int(a.get("number") or 0)
-        row = conn.execute(
-            """SELECT q.id, a.result, a.mistake FROM quiz_questions q JOIN quiz_answers a ON a.question_id = q.id
-               WHERE q.quiz_id = ? AND q.number = ?""", (quiz_id, n)
-        ).fetchone()
-        if row is None:
-            continue
-        second = profile._pick(a.get("result"), profile.RESULTS, f"Question {n}'s result")
-        conn.execute("INSERT OR REPLACE INTO second_grades (question_id, first, second, graded_at) VALUES (?, ?, ?, ?)",
-                     (row["id"], row["result"], second, when))
-        if second != row["result"]:
-            mistake = a.get("mistake") or row["mistake"] or ("concept_gap" if second in ("wrong", "partly_right") else None)
-            if second == "right":
-                mistake = None
-            conn.execute("UPDATE quiz_answers SET result = ?, mistake = ? WHERE question_id = ?", (second, mistake, row["id"]))
-            changed.append(n)
-    quiz = conn.execute("SELECT finished_at FROM quizzes WHERE id = ?", (quiz_id,)).fetchone()
-    if quiz and quiz["finished_at"]:
-        conn.execute("UPDATE quizzes SET score = ? WHERE id = ?", (profile._progress(conn, quiz_id)["score"], quiz_id))
-    return {"quiz_id": quiz_id, "changed": changed, "score": profile._progress(conn, quiz_id)["score"]}

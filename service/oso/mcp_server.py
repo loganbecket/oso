@@ -397,17 +397,11 @@ def record_answers(quiz_id: int, answers: list[dict]) -> dict:
 
 @mcp.tool()
 def finish_quiz(quiz_id: int) -> dict:
-    """Close a quiz after grading; returns its score and per-question results. When `second_grading` is present, have the
-    oso-examiner agent grade it blind from `second_grading` and pass its grades to `record_second_grade` before reporting."""
-    from . import profile, tutor
+    """Close a quiz after grading; returns its score and per-question results."""
+    from . import profile
 
     with db.connect() as conn:
-        out = profile.finish_quiz(conn, quiz_id)
-        if tutor.needs_second_grade(conn, quiz_id) and not conn.execute(
-            "SELECT 1 FROM second_grades g JOIN quiz_questions q ON q.id = g.question_id WHERE q.quiz_id = ?", (quiz_id,)
-        ).fetchone():
-            out["second_grading"] = tutor.blind_view(conn, _cfg(), quiz_id)
-        return out
+        return profile.finish_quiz(conn, quiz_id)
 
 
 @mcp.tool()
@@ -417,15 +411,6 @@ def show_quiz(quiz_id: int) -> str:
     from . import actions
 
     return actions.open_quiz(quiz_id)
-
-
-@mcp.tool()
-def record_second_grade(quiz_id: int, answers: list[dict]) -> dict:
-    """The second grader's results ({number, result, mistake}) for a quiz's Claude-graded questions. Where they differ, the second grade counts."""
-    from . import tutor
-
-    with db.connect() as conn:
-        return tutor.record_second_grade(conn, quiz_id, answers)
 
 
 @mcp.tool()

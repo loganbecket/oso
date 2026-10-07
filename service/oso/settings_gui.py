@@ -199,6 +199,7 @@ def open_settings(cfg: cfgmod.Config) -> None:
     ttk.Label(qtop, text="Your quizzes", font=("TkDefaultFont", 12, "bold")).pack(side="left")
     names = ["All courses"] + [c.name for c in cfg.courses]
     course_var = tk.StringVar(value="All courses")
+    result_box(quizzes_tab, qtop)
     quiz_rows = _scrolling(quizzes_tab, padding=(0, 8, 0, 0))
     quiz_rows.columnconfigure(1, weight=1)
 
@@ -224,7 +225,20 @@ def open_settings(cfg: cfgmod.Config) -> None:
                       wraplength=560, justify="left").grid(row=i, column=1, sticky="w", pady=2)
             ttk.Label(quiz_rows, text=score, width=14).grid(row=i, column=2, sticky="w", pady=2)
             ttk.Button(quiz_rows, text="Take" if q["status"] == "handed_out" else "Review",
-                       command=lambda n=q["quiz_id"]: show(actions.open_quiz(n))).grid(row=i, column=3, sticky="e", padx=(8, 16), pady=2)
+                       command=lambda n=q["quiz_id"]: show(actions.open_quiz(n))).grid(row=i, column=3, sticky="e", padx=(8, 4), pady=2)
+            ttk.Button(quiz_rows, text="Delete", command=lambda q=q, day=day, c=c: delete_quiz(q, day, c)).grid(
+                row=i, column=4, sticky="e", padx=(4, 16), pady=2)
+
+    def delete_quiz(q: dict, day: str, c) -> None:
+        sure = messagebox.askyesno(
+            "Delete this quiz?",
+            f"Delete the {c.name if c else q['course']} quiz from {day} ({', '.join(q['topics'][:4])})?\n\n"
+            "Its questions, answers, and grades are removed for good, and it no longer counts toward where you stand "
+            "in any topic. This can't be undone.",
+            icon="warning", default="no", parent=root)
+        if sure:
+            show(actions.delete_quiz(q["quiz_id"]))
+            list_quizzes()
 
     quiz_refresh = ttk.Button(qtop, text="Refresh", command=list_quizzes)
     quiz_refresh.pack(side="right", padx=(0, 16))

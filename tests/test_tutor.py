@@ -1,5 +1,5 @@
 """A study partner that knows him: conversation notes, trajectories, misconceptions, honest verdicts, grading
-criteria, second grading, the honesty flags, where study time goes, and how he learns."""
+criteria, the honesty flags, where study time goes, and how he learns."""
 
 import sqlite3
 from datetime import UTC, datetime, timedelta
@@ -155,23 +155,6 @@ def test_criteria_are_fixed_before_he_answers_and_come_back_for_grading(env):
     assert view["questions"][0]["criteria"] == criteria and "stored criteria" in view["grading"]
     profile.record_answers(conn, qid, [{"number": 1, "result": "partly_right", "mistake": "incomplete", "criterion": "partial: no reason given"}])
     assert conn.execute("SELECT criterion FROM quiz_answers").fetchone()["criterion"] == "partial: no reason given"
-
-
-def test_second_grader_blind_and_its_grade_counts(env):
-    conn, cfg = env
-    ids = [quiz(conn, cfg, "Limits", ["right", "wrong"], 10 - i) for i in range(5)]
-    assert not tutor.needs_second_grade(conn, ids[3]) and tutor.needs_second_grade(conn, ids[4])  # every fifth
-    high = quiz(conn, cfg, "Limits", ["right", "right"], 4)
-    assert tutor.needs_second_grade(conn, high)  # and any Claude-graded quiz at 90% or more
-    blind = tutor.blind_view(conn, cfg, ids[4])
-    assert all("result" not in q and "graded_by_window" not in q for q in blind["questions"])
-    for qid in ids[:4]:
-        tutor.record_second_grade(conn, qid, [{"number": 1, "result": "wrong", "mistake": "concept_gap"}, {"number": 2, "result": "wrong"}])
-    out = tutor.record_second_grade(conn, ids[4], [{"number": 1, "result": "partly_right", "mistake": "incomplete"}, {"number": 2, "result": "wrong"}])
-    assert out["changed"] == [1] and out["score"] == 25.0
-    gen = tutor.generosity(conn, C)
-    assert gen["first_more_generous"] == 5 and "more generous than the second grader" in gen["line"]
-    assert "more generous" in profile.grading_view(conn, cfg, quiz(conn, cfg, "Limits", ["right"], 0))["grading"]
 
 
 def test_where_study_time_goes(env):

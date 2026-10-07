@@ -113,9 +113,6 @@ def course_profile(conn: sqlite3.Connection, cfg: Config, course: str, now: date
     now = now or datetime.now(UTC)
     topics = topic_states(conn, cfg, c.code, now, record=record)
     flags = tutor.course_flags(conn, cfg, c.code, now=now)
-    gen = tutor.generosity(conn, c.code)
-    if gen and gen.get("line"):
-        flags["grading_too_generous"] = gen
     return {
         "course": c.code,
         "name": c.name,

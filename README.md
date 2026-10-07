@@ -37,7 +37,7 @@ There is no Oso server. Your notes stay on your computer and in your own Google 
 
 **What Oso learns about you.** Every quiz and every check of your own work is recorded: each question's topic, whether you got it right, the kind of mistake, how long it took, and whether you needed a hint. Claude also quietly notes what you show in study conversations: when you're confused, a specific wrong idea you hold, explaining something correctly in your own words, how you say you learn best, and the grades you're aiming for. From all of it, Oso works out where each topic stands (untested, needs focus, explained but not yet shown, practicing, solid, or maintaining) and what to do next, aims explanations, quizzes, study guides, and the study plan at it, eases off once a topic is solid, and warns you in the morning briefing when an exam is close and you aren't ready. Nothing you say in conversation can make a topic solid by itself: only results can.
 
-**Honest, not flattering.** Claude can't declare a topic solid or a grade good; Oso computes those from evidence, and Claude reports them as they are, gaps first, with the evidence for anything positive. Every question Claude will grade has its grading criteria written before you answer, and a grade only changes when a criterion supports it. Every fifth quiz, and any written quiz scoring 90% or more, is graded a second time without seeing the first grades, and the second grade counts. If your practice scores run well above your real graded work on the same topics, the briefing says so and practice gets harder.
+**Honest, not flattering.** Claude can't declare a topic solid or a grade good; Oso computes those from evidence, and Claude reports them as they are, gaps first, with the evidence for anything positive. Every question Claude will grade has its grading criteria written before you answer. If you think a grade is wrong, tell Claude and make your case: it looks at your answer fresh against the criteria and changes the grade, up or down, only if the answer supports it. If your practice scores run well above your real graded work on the same topics, the briefing says so and practice gets harder.
 
 Each Sunday, once there are a couple of weeks of results, Claude writes a short note on how you practice: how early you start before exams, whether you retest what you missed, and where your practice goes. Everything is in `Oso/Profile/` in your vault, one note per course (each topic's stage, next step, and the dated trail behind it) plus `Habits.md` and `How I learn.md`; the raw records stay in Oso's database on your computer, and `oso profile --raw` lists them. If a grade, a rating, or a note is wrong, tell Claude ("question 3 on my last physics quiz was right", "I wasn't confused about that"); it confirms with you and fixes the record, and a grade changes only if the grading criteria support it. To throw away a whole quiz, such as a test run, tell Claude "delete that quiz" (or run `oso profile --delete-quiz N`). `oso fresh-start` clears all of it.
 
@@ -88,7 +88,7 @@ Your vault lives in a folder that Google Drive keeps in sync, so your phone and 
 ### 1.5 Obsidian
 
 1. Download Obsidian from [obsidian.md](https://obsidian.md) and install it. It is free and runs on all three platforms.
-2. Open Obsidian and choose **Create new vault**. Name it `Vault` (or anything you like) and, for the location, pick a folder **inside your Drive folder** from step 1.4 (on Linux, the folder you chose for rclone). This is how your phone and Claude see your notes.
+2. Open Obsidian and choose **Create new vault**. Name it `Vault` (or anything you like) and, for the location, pick a folder **inside your Drive folder** from step 1.4 (on Linux, the folder you chose for rclone). This is how Claude, including the Claude app on your phone, sees your notes.
 3. Turn on community plugins: open **Settings**, then **Community plugins**, and click **Turn on community plugins**.
 
 **Web Clipper** (saving web pages and papers into your vault):
@@ -101,12 +101,10 @@ Your vault lives in a folder that Google Drive keeps in sync, so your phone and 
 
 1. In **Settings**, **Community plugins**, click **Browse**, search for **Spaced Repetition**, click **Install**, then **Enable**.
 2. Oso's flashcard skill writes cards into `Courses/<term>/<course>/Notes/` tagged for this plugin. To review, open the command palette (Ctrl+P, or Cmd+P on a Mac), run **Spaced Repetition: Review flashcards**, and rate each card. The plugin schedules the next time you see it.
-3. On your phone, the Obsidian app with the same plugin reviews the same cards.
 
 **Optional but useful:**
 
 - **Dataview** (community plugin): lets a note show a live list of other notes, for example every reading for a course or every page Oso flagged as low confidence. Install and enable it the same way; the course page Oso creates includes a query that uses it.
-- On your phone: install the Obsidian app and open the same vault from Google Drive.
 
 ### 1.6 Claude Code
 

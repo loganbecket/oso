@@ -157,6 +157,26 @@ def open_quiz(quiz_id: int) -> str:
     return "The quiz is opening, read-only, with the right answers shown." if quiz["submitted_at"] else "The quiz is opening for you to take."
 
 
+def retake_quiz(quiz_id: int) -> str:
+    """The same questions again, once, opened in the quiz window."""
+    from . import profile, quizwin
+
+    with db.connect() as conn:
+        try:
+            new_id = profile.retake(conn, cfgmod.load(), quiz_id)
+        except profile.ProfileError as e:
+            return str(e)
+    quizwin.launch(new_id)
+    return "The retake is opening. Right answers on a retake don't count toward where you stand (you've seen them); wrong ones do."
+
+
+def new_version(quiz_id: int) -> str:
+    from . import quizwin
+
+    quizwin.launch_new_version(quiz_id)
+    return "Claude is writing a new version in the background; the quiz window opens when it's ready."
+
+
 def delete_quiz(quiz_id: int) -> str:
     """Remove a quiz for good, in any state: it no longer counts anywhere."""
     from . import profile

@@ -192,3 +192,47 @@ def test_the_standing_rule_is_in_every_study_command_and_the_vault_instructions(
     from oso import instructions
 
     assert "Be a direct, honest tutor." in instructions.TEMPLATE and "note_signal" in instructions.TEMPLATE
+
+
+def test_one_retake_where_only_wrong_answers_count(env):
+    conn, cfg = env
+    first = quiz(conn, cfg, "Limits", ["right", "wrong"], 3)
+    again = profile.retake(conn, cfg, first)
+    assert [r["question"] for r in conn.execute("SELECT question FROM quiz_questions WHERE quiz_id = ?", (again,))] == \
+        [r["question"] for r in conn.execute("SELECT question FROM quiz_questions WHERE quiz_id = ?", (first,))]
+    with pytest.raises(profile.ProfileError, match="already been retaken once"):
+        profile.retake(conn, cfg, first)
+    with pytest.raises(profile.ProfileError, match="already a retake"):
+        profile.retake(conn, cfg, again)
+    before = len([e for e in mastery.evidence(conn, C) if e["topic"] == "Limits"])
+    profile.record_answers(conn, again, [{"number": 1, "result": "right"}, {"number": 2, "result": "wrong", "mistake": "concept_gap"}], now=at(1))
+    ev = [e for e in mastery.evidence(conn, C) if e["topic"] == "Limits"]
+    assert len(ev) == before + 1 and ev[-1]["credit"] == 0.0  # the right answer he'd seen doesn't count; the wrong one does
+    from oso import quizwin
+
+    profile.delete_quiz(conn, cfg, first)
+    assert conn.execute("SELECT COUNT(*) FROM quizzes").fetchone()[0] == 0  # the retake goes with its quiz
+
+
+def test_a_new_version_is_written_from_the_original_and_linked_to_it(env):
+    from oso import quizwin
+
+    conn, cfg = env
+    m = tutor.note_signal(conn, cfg, "misconception", C, "Limits", belief="a limit is the value at the point", now=at(5))["misconception"]
+    first = quiz(conn, cfg, "Limits", ["right", "wrong"], 3)
+    seen = {}
+
+    def ask(prompt):
+        seen["prompt"] = prompt
+        return '{"questions": [' \
+               '{"number": 1, "topic": "Limits", "theme": "squeeze", "type": "multiple_choice", "difficulty": "medium", "question": "lim?", ' \
+               '"choices": ["0", "1", "does not exist"], "answer": "B", "misconception": ' + str(m) + '},' \
+               '{"number": 2, "topic": "Limits", "type": "short_answer", "difficulty": "hard", "question": "Why?", ' \
+               '"criteria": {"expected": "because", "full_credit": "names the squeeze theorem"}}]}'
+
+    new_id = quizwin.write_new_version(conn, cfg, first, ask=ask)
+    assert '"his_result": "wrong"' in seen["prompt"] and "a limit is the value at the point" in seen["prompt"]
+    row = conn.execute("SELECT kind, retake_of, mode FROM quizzes WHERE id = ?", (new_id,)).fetchone()
+    assert (row["kind"], row["retake_of"], row["mode"]) == ("new_version", first, "window")
+    with pytest.raises(profile.ProfileError, match="couldn't read"):
+        quizwin.write_new_version(conn, cfg, first, ask=lambda p: "Sorry, I can't.")

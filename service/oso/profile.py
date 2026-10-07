@@ -114,7 +114,8 @@ class ProfileError(ValueError):
 
 
 COLUMNS = {
-    "quizzes": {"mode": "TEXT NOT NULL DEFAULT 'chat'"},
+    "quizzes": {"mode": "TEXT NOT NULL DEFAULT 'chat'",
+                "kind": "TEXT NOT NULL DEFAULT 'quiz'"},  # quiz, retake (the same questions again), or new_version
     "quiz_questions": {"choices": "TEXT", "answer_key": "TEXT",
                        "criteria": "TEXT",            # JSON: how Claude will grade it, fixed before he answers; never shown to him
                        "misconception_id": "INTEGER"},  # the open misconception this question is aimed at
@@ -144,7 +145,7 @@ def _pick(value, allowed: tuple[str, ...], what: str) -> str:
 
 
 def start_quiz(conn: sqlite3.Connection, cfg: Config, course: str, questions: list[dict], requested: str | None = None,
-               sources: list[str] | None = None, retake_of: int | None = None, now: str | None = None,
+               sources: list[str] | None = None, retake_of: int | None = None, now: str | None = None, kind: str = "quiz",
                window: bool = False) -> int:
     """Record a quiz as it is handed out. Each question: number, topic, theme, type, difficulty, the
     question text, and its source note; multiple choice also has `choices` (list) and `answer` (the key:
@@ -194,10 +195,10 @@ def start_quiz(conn: sqlite3.Connection, cfg: Config, course: str, questions: li
                      json.dumps(criteria) if criteria else None, int(aimed) if aimed is not None else None))
     topics = list(dict.fromkeys(r[1] for r in rows))
     cur = conn.execute(
-        """INSERT INTO quizzes (course, topics, sources, requested, retake_of, handed_out_at, question_count, mode)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+        """INSERT INTO quizzes (course, topics, sources, requested, retake_of, handed_out_at, question_count, mode, kind)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (c.code, json.dumps(topics), json.dumps(sources or []), requested, retake_of, when, len(rows),
-         "window" if window else "chat"),
+         "window" if window else "chat", kind if kind in ("quiz", "new_version") else "quiz"),
     )
     quiz_id = cur.lastrowid
     conn.executemany(
@@ -342,6 +343,36 @@ def correct(conn: sqlite3.Connection, quiz_id: int | None = None, number: int | 
     return f"Quiz {quiz_id}, question {number} ({q['topic']}) is now {verdict}."
 
 
+def retake(conn: sqlite3.Connection, cfg: Config, quiz_id: int, now: str | None = None) -> int:
+    """The same questions again, blank, once. On a retake, right answers count for nothing toward where he stands
+    (he has seen the answers); wrong ones count in full."""
+    ensure(conn)
+    quiz = conn.execute("SELECT * FROM quizzes WHERE id = ?", (quiz_id,)).fetchone()
+    if quiz is None:
+        raise ProfileError(f"There is no quiz {quiz_id}.")
+    if quiz["kind"] == "retake":
+        raise ProfileError("That is already a retake; each quiz can be retaken once.")
+    if not quiz["submitted_at"]:
+        raise ProfileError("That quiz hasn't been taken yet.")
+    if conn.execute("SELECT 1 FROM quizzes WHERE retake_of = ? AND kind = 'retake'", (quiz_id,)).fetchone():
+        raise ProfileError("That quiz has already been retaken once.")
+    when = now or _now()
+    cur = conn.execute(
+        """INSERT INTO quizzes (course, topics, sources, requested, retake_of, handed_out_at, question_count, mode, kind)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 'window', 'retake')""",
+        (quiz["course"], quiz["topics"], quiz["sources"], f"retake of quiz {quiz_id}", quiz_id, when, quiz["question_count"]),
+    )
+    new_id = cur.lastrowid
+    conn.execute(
+        """INSERT INTO quiz_questions (quiz_id, number, topic, theme, qtype, difficulty, question, source, choices, answer_key,
+                                       criteria, misconception_id)
+           SELECT ?, number, topic, theme, qtype, difficulty, question, source, choices, answer_key, criteria, misconception_id
+           FROM quiz_questions WHERE quiz_id = ?""",
+        (new_id, quiz_id),
+    )
+    return int(new_id)
+
+
 def delete_quiz(conn: sqlite3.Connection, cfg: Config, quiz_id: int) -> str:
     """Remove a quiz completely, as if it was never given: its questions, answers, window responses, and
     written-work pages. Retakes of it stay but no longer point to it. Topics that only this quiz had added
@@ -352,6 +383,8 @@ def delete_quiz(conn: sqlite3.Connection, cfg: Config, quiz_id: int) -> str:
     quiz = conn.execute("SELECT * FROM quizzes WHERE id = ?", (quiz_id,)).fetchone()
     if quiz is None:
         raise ProfileError(f"There is no quiz {quiz_id}.")
+    for r in conn.execute("SELECT id FROM quizzes WHERE retake_of = ? AND kind = 'retake'", (quiz_id,)).fetchall():
+        delete_quiz(conn, cfg, r["id"])  # its retake goes with it
     qids = [r["id"] for r in conn.execute("SELECT id FROM quiz_questions WHERE quiz_id = ?", (quiz_id,))]
     topics = {r["topic"] for r in conn.execute("SELECT topic FROM quiz_questions WHERE quiz_id = ?", (quiz_id,))}
     for page in [r["page"] for r in conn.execute("SELECT page FROM quiz_work WHERE quiz_id = ?", (quiz_id,))]:
@@ -646,7 +679,7 @@ def recent_quizzes(conn: sqlite3.Connection, course: str | None = None, limit: i
         out.append({
             "quiz_id": q["id"], "course": q["course"], "topics": json.loads(q["topics"]), "requested": q["requested"],
             "handed_out_at": q["handed_out_at"], "status": status(q), "score": q["score"], "minutes": minutes(q, conn),
-            "questions": q["question_count"], "retake_of": q["retake_of"],
+            "questions": q["question_count"], "retake_of": q["retake_of"], "kind": q["kind"],
         })
     return out
 

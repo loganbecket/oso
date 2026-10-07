@@ -44,11 +44,13 @@ def evidence(conn: sqlite3.Connection, course: str) -> list[dict]:
     out = []
     for r in conn.execute(
         """SELECT q.topic, q.difficulty, q.misconception_id, a.result, a.attempts, a.hint, a.mistake, a.answered_at AS at,
-                  z.id AS quiz_id
+                  z.id AS quiz_id, z.kind
            FROM quiz_answers a JOIN quiz_questions q ON q.id = a.question_id JOIN quizzes z ON z.id = q.quiz_id
            WHERE LOWER(z.course) = LOWER(?)""",
         (course,),
     ):
+        if r["kind"] == "retake" and r["result"] == "right":
+            continue  # he has seen this answer before: getting it right shows little; getting it wrong counts
         credit = CREDIT.get(r["result"], 0.0)
         if (r["attempts"] > 1 or r["hint"]) and credit > 0.5:
             credit = 0.5

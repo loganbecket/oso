@@ -466,5 +466,150 @@ def run(quiz_id: int) -> None:
     root.mainloop()
 
 
+# ---- a new version, written by Claude in the background ----------------------------------------------------
+
+NEW_VERSION_PROMPT = """Write a new version of a practice quiz for a college student, for Oso, his study assistant.
+
+The original quiz, with each question's result, is below as JSON. Write the same number of questions on the same
+topics, themes, question types, and difficulties, testing the same ideas with different numbers, setups, and wording,
+so he cannot answer from memory of the original. Lean toward what he got wrong. Aim a question at each open
+misconception listed, with wrong choices built from that wrong idea, and set its "misconception" to that id.
+The original's source notes are listed; read them with the Read tool (paths are relative to the current folder)
+only if you need the material. Only ask what the materials can answer.
+
+Answer with JSON only, no other text:
+{{"questions": [{{"number": 1, "topic": "...", "theme": "...", "type": "multiple_choice", "difficulty": "medium",
+"question": "...", "choices": ["text of choice A", "text of choice B", "..."], "answer": "B", "source": "path",
+"misconception": null}}, {{"number": 2, "topic": "...", "theme": "...", "type": "short_answer", "difficulty": "hard",
+"question": "...", "source": "path", "criteria": {{"expected": "...", "full_credit": "...", "partial_credit": "...",
+"wrong_answers": {{"a common wrong answer": "why it is wrong"}}}}, "misconception": null}}]}}
+
+Rules: multiple choice has the text of each choice without letters, every wrong choice a plausible mistake, and
+"answer" is the right letter. Every other question has its "criteria". Difficulty is honest: hard means several
+steps or a real idea, not bigger numbers. Questions are plain text; equations in plain notation a student can read.
+
+Course: {course}
+Open misconceptions: {misconceptions}
+Source notes: {sources}
+
+Original quiz:
+{original}"""
+
+
+def new_version_prompt(conn, cfg: Config, quiz_id: int) -> str:
+    from . import tutor
+
+    tutor.ensure(conn)
+    quiz = conn.execute("SELECT * FROM quizzes WHERE id = ?", (quiz_id,)).fetchone()
+    if quiz is None:
+        raise profile.ProfileError(f"There is no quiz {quiz_id}.")
+    original = []
+    for r in conn.execute(
+        """SELECT q.number, q.topic, q.theme, q.qtype, q.difficulty, q.question, q.choices, q.answer_key, q.criteria, a.result
+           FROM quiz_questions q LEFT JOIN quiz_answers a ON a.question_id = q.id WHERE q.quiz_id = ? ORDER BY q.number""",
+        (quiz_id,),
+    ):
+        original.append({"number": r["number"], "topic": r["topic"], "theme": r["theme"], "type": r["qtype"],
+                         "difficulty": r["difficulty"], "question": r["question"],
+                         "choices": json.loads(r["choices"]) if r["choices"] else None, "answer": r["answer_key"],
+                         "criteria": json.loads(r["criteria"]) if r["criteria"] else None, "his_result": r["result"]})
+    c = cfg.course_for(quiz["course"])
+    mis = tutor.open_misconceptions(conn, quiz["course"])
+    return NEW_VERSION_PROMPT.format(
+        course=f"{c.name} ({c.code})" if c else quiz["course"],
+        misconceptions="; ".join(f"{m['id']}: {m['topic']}: {m['belief']}" for m in mis) or "none",
+        sources=", ".join(json.loads(quiz["sources"] or "[]")) or "none listed",
+        original=json.dumps(original, ensure_ascii=False, indent=1),
+    )
+
+
+def write_new_version(conn, cfg: Config, quiz_id: int, ask=None) -> int:
+    """Have Claude write a new version of a quiz and record it, linked to the original. Returns the new quiz's id.
+    `ask(prompt)` is replaced in tests."""
+    import re
+
+    prompt = new_version_prompt(conn, cfg, quiz_id)
+    if ask is None:
+        exe = shutil.which("claude")
+        if not exe:
+            raise profile.ProfileError("Claude Code isn't installed on this computer, so Oso can't write a new version here. "
+                                       "Ask Claude in Cowork for a new quiz on the same topics instead.")
+
+        def ask(p: str) -> str:
+            r = subprocess.run([exe, "-p", p, "--model", cfg.exam_model, "--output-format", "text", "--allowedTools", "Read",
+                                "--max-turns", "10"], cwd=str(cfg.vault), capture_output=True, text=True, encoding="utf-8",
+                               timeout=900, check=False)
+            if r.returncode != 0 or not r.stdout.strip():
+                raise profile.ProfileError("Claude couldn't write the new version just now. Try again in a few minutes.")
+            return r.stdout
+
+    text = ask(prompt)
+    try:
+        data = json.loads(re.search(r"\{.*\}", text, re.S).group(0))
+        questions = data["questions"]
+    except (AttributeError, ValueError, KeyError, TypeError) as e:
+        raise profile.ProfileError("Claude's new version came back in a form Oso couldn't read. Try again.") from e
+    quiz = conn.execute("SELECT course, sources FROM quizzes WHERE id = ?", (quiz_id,)).fetchone()
+    return profile.start_quiz(conn, cfg, quiz["course"], questions, requested=f"new version of quiz {quiz_id}",
+                              sources=json.loads(quiz["sources"] or "[]"), retake_of=quiz_id, window=True, kind="new_version")
+
+
+def generate(quiz_id: int) -> None:
+    """A small window while Claude writes the new version, then the quiz itself."""
+    import threading
+    import tkinter as tk
+    from tkinter import messagebox, ttk
+
+    cfg = cfgmod.load()
+    root = tk.Tk()
+    root.title("Oso")
+    root.geometry("460x140")
+    ttk.Label(root, text="Claude is writing a new version of this quiz.\nIt opens here when it's ready, usually in a minute or two.",
+              justify="left", padding=16).pack(anchor="w")
+    bar = ttk.Progressbar(root, mode="indeterminate", length=420)
+    bar.pack(padx=16)
+    bar.start(12)
+    box: dict = {}
+
+    def work() -> None:
+        try:
+            with db.connect() as conn:
+                box["id"] = write_new_version(conn, cfg, quiz_id)
+        except Exception as e:  # noqa: BLE001
+            box["error"] = str(e) if isinstance(e, profile.ProfileError) else f"Oso couldn't make the new version ({type(e).__name__})."
+
+    threading.Thread(target=work, daemon=True).start()
+
+    def wait() -> None:
+        if "id" in box or "error" in box:
+            bar.stop()
+            if "error" in box:
+                messagebox.showerror("Oso", box["error"], parent=root)
+            root.destroy()
+        else:
+            root.after(500, wait)
+
+    root.after(500, wait)
+    root.mainloop()
+    if "id" in box:
+        run(box["id"])
+
+
+def launch_new_version(quiz_id: int) -> None:
+    """Start writing a new version in its own process, like `launch`."""
+    exe = Path(sys.executable)
+    if sys.platform == "win32" and (exe.parent / "pythonw.exe").exists():
+        exe = exe.parent / "pythonw.exe"
+    kwargs = {"stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL, "close_fds": True}
+    if sys.platform == "win32":
+        kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+    else:
+        kwargs["start_new_session"] = True
+    subprocess.Popen([str(exe), "-m", "oso.quizwin", "--new-version", str(quiz_id)], **kwargs)
+
+
 if __name__ == "__main__":
-    run(int(sys.argv[1]))
+    if sys.argv[1] == "--new-version":
+        generate(int(sys.argv[2]))
+    else:
+        run(int(sys.argv[1]))

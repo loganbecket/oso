@@ -214,26 +214,44 @@ def open_settings(cfg: cfgmod.Config) -> None:
         except Exception as e:  # noqa: BLE001
             ttk.Label(quiz_rows, text=f"Oso couldn't list the quizzes ({e}).").grid(row=0, column=0, sticky="w")
             return
+        retakes = {q["retake_of"]: q for q in rows if q.get("kind") == "retake"}
+        rows = [q for q in rows if q.get("kind") != "retake"]  # a retake shows on its quiz's row
         if not rows:
             ttk.Label(quiz_rows, text="No quizzes yet. Ask Claude to quiz you.", foreground="#666").grid(row=0, column=0, sticky="w")
+
+        def score_of(q: dict) -> str:
+            return f"{q['score']:g}%" if q["score"] is not None else {"handed_out": "not taken yet"}.get(q["status"], "not graded yet")
+
         for i, q in enumerate(rows):
             c = cfg.course_for(q["course"])
             day = _dt.fromisoformat(q["handed_out_at"]).astimezone(cfg.tz).strftime("%a %b %d")
-            score = f"{q['score']:g}%" if q["score"] is not None else {"handed_out": "not taken yet"}.get(q["status"], "not graded yet")
+            again = retakes.get(q["quiz_id"])
+            what = f"{c.name if c else q['course']}: {', '.join(q['topics'][:4])} ({q['questions']} questions)"
+            if q.get("kind") == "new_version":
+                what = "New version. " + what
             ttk.Label(quiz_rows, text=day, width=11).grid(row=i, column=0, sticky="w", pady=2)
-            ttk.Label(quiz_rows, text=f"{c.name if c else q['course']}: {', '.join(q['topics'][:4])} ({q['questions']} questions)",
-                      wraplength=560, justify="left").grid(row=i, column=1, sticky="w", pady=2)
-            ttk.Label(quiz_rows, text=score, width=14).grid(row=i, column=2, sticky="w", pady=2)
-            ttk.Button(quiz_rows, text="Take" if q["status"] == "handed_out" else "Review",
-                       command=lambda n=q["quiz_id"]: show(actions.open_quiz(n))).grid(row=i, column=3, sticky="e", padx=(8, 4), pady=2)
-            ttk.Button(quiz_rows, text="Delete", command=lambda q=q, day=day, c=c: delete_quiz(q, day, c)).grid(
-                row=i, column=4, sticky="e", padx=(4, 16), pady=2)
+            ttk.Label(quiz_rows, text=what, wraplength=420, justify="left").grid(row=i, column=1, sticky="w", pady=2)
+            ttk.Label(quiz_rows, text=score_of(q) + (f", retake {score_of(again)}" if again else ""), width=24).grid(
+                row=i, column=2, sticky="w", pady=2)
+            buttons = ttk.Frame(quiz_rows)
+            buttons.grid(row=i, column=3, sticky="e", padx=(8, 16), pady=2)
+            taken = q["status"] != "handed_out"
+            ttk.Button(buttons, text="Review" if taken else "Take",
+                       command=lambda n=q["quiz_id"]: show(actions.open_quiz(n))).pack(side="left", padx=2)
+            if taken and again:
+                ttk.Button(buttons, text="Review retake" if again["status"] != "handed_out" else "Take retake",
+                           command=lambda n=again["quiz_id"]: show(actions.open_quiz(n))).pack(side="left", padx=2)
+            elif taken:
+                ttk.Button(buttons, text="Retake", command=lambda n=q["quiz_id"]: (show(actions.retake_quiz(n)), list_quizzes())).pack(side="left", padx=2)
+            if taken:
+                ttk.Button(buttons, text="New version", command=lambda n=q["quiz_id"]: show(actions.new_version(n))).pack(side="left", padx=2)
+            ttk.Button(buttons, text="Delete", command=lambda q=q, day=day, c=c: delete_quiz(q, day, c)).pack(side="left", padx=2)
 
     def delete_quiz(q: dict, day: str, c) -> None:
         sure = messagebox.askyesno(
             "Delete this quiz?",
             f"Delete the {c.name if c else q['course']} quiz from {day} ({', '.join(q['topics'][:4])})?\n\n"
-            "Its questions, answers, and grades are removed for good, and it no longer counts toward where you stand "
+            "Its questions, answers, and grades (and its retake, if any) are removed for good, and it no longer counts toward where you stand "
             "in any topic. This can't be undone.",
             icon="warning", default="no", parent=root)
         if sure:

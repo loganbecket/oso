@@ -61,7 +61,7 @@ class Config:
     repo: str = "loganbecket/oso"  # GitHub repository Oso installs and updates from
     channel: str = "stable"  # stable (newest tagged version) or latest (master)
     installed_version: str | None = None  # tag or short commit of the installed service
-    strong_percent: int = 80  # a topic is strong at this weighted accuracy or better...
+    strong_percent: int = 95  # a topic is strong at this weighted accuracy or better...
     strong_min_results: int = 6  # ...over at least this many results in the last 60 days
     untested_below: int = 3  # fewer results than this and a topic counts as untested
     half_life_days: int = 21  # a result this old counts half as much as one from today
@@ -137,7 +137,7 @@ def load(path: Path | None = None) -> Config:
         repo=str(raw.get("repo", "loganbecket/oso")),
         channel=str(raw.get("channel", "stable")),
         installed_version=raw.get("installed_version") or None,
-        strong_percent=int(raw.get("strong_percent", 80)),
+        strong_percent=_strong_percent(raw),
         strong_min_results=int(raw.get("strong_min_results", 6)),
         untested_below=int(raw.get("untested_below", 3)),
         half_life_days=int(raw.get("half_life_days", 21)),
@@ -152,11 +152,23 @@ def load(path: Path | None = None) -> Config:
     )
 
 
+# Raised when a default changes in a way that should reach settings saved under the old default.
+SETTINGS_VERSION = 2
+
+
+def _strong_percent(raw: dict) -> int:
+    value = int(raw.get("strong_percent", 95))
+    if int(raw.get("settings_version", 1)) < 2 and value == 80:  # the old default; 80% was too easy to call strong
+        return 95
+    return value
+
+
 def save(cfg: Config, path: Path | None = None) -> Path:
     path = path or config_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     lines = [
         "# Oso configuration. Secrets are not stored here.",
+        f"settings_version = {SETTINGS_VERSION}",
         f'vault = "{_toml_str(str(cfg.vault))}"',
         f'timezone = "{cfg.timezone}"',
         f'quiet_hours = "{cfg.quiet_hours}"' if cfg.quiet_hours else '# quiet_hours = "22:00-07:00"',

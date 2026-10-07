@@ -105,6 +105,6 @@ def install_task(every_minutes: int = 60) -> str:
     note = "" if watch_error is None else f" The folder watcher could not be set up ({watch_error}); new files wait for the next check."
     from . import shortcut
 
-    note += f" {shortcut.create() or 'Oso is in the Start menu; pin it to the taskbar if you like.'}"
+    note += f" {shortcut.create() or 'Oso is in the Start menu, and Ctrl+Alt+O opens it from anywhere.'}"
     return (f"Installed '{TASK_NAME}': runs every {every_minutes} minutes, wakes the laptop to run, and catches up after sleep. "
             f"New files in your course folders are taken in as soon as they arrive.{note}")

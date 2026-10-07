@@ -11,6 +11,10 @@ import sys
 from pathlib import Path
 
 
+# Opens the Oso window from anywhere on Windows (Windows honors a shortcut key on Start menu shortcuts).
+HOTKEY = "Ctrl+Alt+O"
+
+
 def _python() -> str:
     exe = Path(sys.executable)
     windowless = exe.with_name("pythonw.exe")
@@ -49,8 +53,8 @@ def _windows(path: Path) -> str | None:
     script = (
         "$s = (New-Object -ComObject WScript.Shell).CreateShortcut('{lnk}'); "
         "$s.TargetPath = '{python}'; $s.Arguments = '-m oso settings'; "
-        "$s.WorkingDirectory = '{home}'; $s.Description = 'Oso status and settings'; $s.Save()"
-    ).format(lnk=q(path), python=q(_python()), home=q(Path.home()))
+        "$s.WorkingDirectory = '{home}'; $s.Description = 'Oso status and settings'; $s.Hotkey = '{hotkey}'; $s.Save()"
+    ).format(lnk=q(path), python=q(_python()), home=q(Path.home()), hotkey=HOTKEY)
     r = subprocess.run(["powershell", "-NoProfile", "-Command", script], capture_output=True, text=True, timeout=60)
     if r.returncode != 0:
         return "The Oso shortcut could not be added to the Start menu."

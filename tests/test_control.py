@@ -131,3 +131,13 @@ def test_windows_shortcut_command(tmp_path, monkeypatch):
     assert shortcut._windows(tmp_path / "Programs" / "Oso.lnk") is None
     script = calls[0][-1]
     assert "WScript.Shell" in script and "-m oso settings" in script and "Oso.lnk" in script
+    assert "$s.Hotkey = 'Ctrl+Alt+O'" in script
+
+
+def test_strong_bar_moves_from_the_old_default(tmp_path):
+    from oso.config import _strong_percent
+
+    assert _strong_percent({}) == 95
+    assert _strong_percent({"strong_percent": 80}) == 95  # saved under the old default
+    assert _strong_percent({"strong_percent": 85}) == 85  # chosen by the student
+    assert _strong_percent({"strong_percent": 80, "settings_version": 2}) == 80  # chosen after the change

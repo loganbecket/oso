@@ -34,7 +34,7 @@ def open_settings(cfg: cfgmod.Config) -> None:
 
     root = tk.Tk()
     root.title("Oso")
-    root.geometry("960x720")
+    root.geometry("1000x760")
     pad = {"padx": 8, "pady": 4}
     notebook = ttk.Notebook(root)
     notebook.pack(fill="both", expand=True)
@@ -58,14 +58,22 @@ def open_settings(cfg: cfgmod.Config) -> None:
             root.focus_force()
         root.after(1000, watch_for_raise)
 
-    # ---- Status ----------------------------------------------------------------------------------------
-    result = tk.Text(status_tab, height=7, wrap="word", state="disabled", relief="solid", borderwidth=1)
+    # ---- Status and Actions ----------------------------------------------------------------------------
+    actions_tab = ttk.Frame(notebook, padding=12)
+    notebook.insert(settings_outer, actions_tab, text="Actions")
+    results = []
+
+    def result_box(parent) -> None:
+        box = tk.Text(parent, height=6, wrap="word", state="disabled", relief="solid", borderwidth=1)
+        box.pack(side="bottom", fill="x", pady=(10, 0))
+        results.append(box)
 
     def show(text: str) -> None:
-        result.configure(state="normal")
-        result.delete("1.0", "end")
-        result.insert("1.0", text)
-        result.configure(state="disabled")
+        for box in results:
+            box.configure(state="normal")
+            box.delete("1.0", "end")
+            box.insert("1.0", text)
+            box.configure(state="disabled")
 
     busy = {"on": False}
 
@@ -96,9 +104,13 @@ def open_settings(cfg: cfgmod.Config) -> None:
         "connect_canvas": ("Opening the Canvas sign-in", actions.connect_canvas),
         "backup": ("Backing up", actions.backup_now),
     }
-    ttk.Label(status_tab, text="How Oso is doing", font=("TkDefaultFont", 12, "bold")).pack(anchor="w")
-    lines_frame = ttk.Frame(status_tab)
-    lines_frame.pack(fill="x", pady=(6, 10))
+    result_box(status_tab)
+    top = ttk.Frame(status_tab)
+    top.pack(fill="x")
+    ttk.Label(top, text="How Oso is doing", font=("TkDefaultFont", 12, "bold")).pack(side="left")
+    ttk.Button(top, text="Refresh", command=lambda: (show("Up to date."), refresh())).pack(side="right", padx=(0, 16))
+    lines_frame = _scrolling(status_tab, padding=(0, 8, 0, 0))
+    lines_frame.columnconfigure(1, weight=1)
 
     def refresh() -> None:
         for w in lines_frame.winfo_children():
@@ -113,49 +125,49 @@ def open_settings(cfg: cfgmod.Config) -> None:
             ttk.Label(lines_frame, text=c["text"], wraplength=660, justify="left").grid(row=i, column=1, sticky="w", pady=1)
             action = c.get("action")
             if action == "connect_calendar":
-                ttk.Button(lines_frame, text=ACTIONS[action], command=lambda: show(_connect_calendar(cfg))).grid(row=i, column=2, sticky="e", padx=(8, 0))
+                ttk.Button(lines_frame, text=ACTIONS[action], command=lambda: show(_connect_calendar(cfg))).grid(row=i, column=2, sticky="ew", padx=(16, 16), pady=3)
             elif action in fixes:
                 label, fn = fixes[action]
                 ttk.Button(lines_frame, text=ACTIONS[action], command=lambda label=label, fn=fn: run(label, fn)).grid(
-                    row=i, column=2, sticky="e", padx=(8, 0))
+                    row=i, column=2, sticky="ew", padx=(16, 16), pady=3)
 
-    ttk.Label(status_tab, text="Do something", font=("TkDefaultFont", 12, "bold")).pack(anchor="w", pady=(4, 2))
-    acts = ttk.Frame(status_tab)
-    acts.pack(anchor="w")
-    buttons = [
-        ("Refresh", lambda: (show("Up to date."), refresh())),
-        ("Health check and fix", lambda: run("Checking and fixing", lambda: actions.health_check(fix=True))),
-        ("Sync now", lambda: run("Starting a check", actions.sync_now)),
-        ("Update Oso", lambda: run("Updating Oso", actions.update_oso)),
-        ("Transcribe now", lambda: run("Starting transcription", actions.transcribe_now)),
-        ("Back up now", lambda: run("Backing up", actions.backup_now)),
-        ("Sign in to Canvas", lambda: run("Opening the Canvas sign-in", actions.connect_canvas)),
-        ("Disconnect Canvas", lambda: run("Disconnecting Canvas", actions.disconnect_canvas)),
-        ("Connect Google Calendar…", lambda: show(_connect_calendar(cfg))),
-        ("Books", lambda: run("Looking at books", actions.books)),
-        ("Read a book again…", lambda: show(_reread_book(root))),
-        ("Websites", lambda: run("Looking at websites", actions.websites)),
-        ("Check websites now", lambda: run("Checking websites", lambda: actions.websites(check=True))),
-        ("Add a website…", lambda: show(_add_website(root, cfg))),
+    groups = [
+        ("Keep Oso running", [
+            ("Health check and fix", lambda: run("Checking and fixing", lambda: actions.health_check(fix=True))),
+            ("Sync now", lambda: run("Starting a check", actions.sync_now)),
+            ("Update Oso", lambda: run("Updating Oso", actions.update_oso)),
+            ("Back up now", lambda: run("Backing up", actions.backup_now)),
+            ("Transcribe now", lambda: run("Starting transcription", actions.transcribe_now)),
+        ]),
+        ("Connections", [
+            ("Sign in to Canvas", lambda: run("Opening the Canvas sign-in", actions.connect_canvas)),
+            ("Disconnect Canvas", lambda: run("Disconnecting Canvas", actions.disconnect_canvas)),
+            ("Connect Google Calendar…", lambda: show(_connect_calendar(cfg))),
+        ]),
+        ("Books and websites", [
+            ("Books", lambda: run("Looking at books", actions.books)),
+            ("Read a book again…", lambda: show(_reread_book(root))),
+            ("Websites", lambda: run("Looking at websites", actions.websites)),
+            ("Check websites now", lambda: run("Checking websites", lambda: actions.websites(check=True))),
+            ("Add a website…", lambda: show(_add_website(root, cfg))),
+        ]),
     ]
-    for i, (text, cmd) in enumerate(buttons):
-        ttk.Button(acts, text=text, command=cmd).grid(row=i // 5, column=i % 5, padx=4, pady=3, sticky="we")
-    result.pack(fill="x", pady=(10, 0))
-    ttk.Label(status_tab, text="Starting over (fresh start) is only in PowerShell, on purpose: run 'oso fresh-start'.",
-              foreground="#666").pack(anchor="w", pady=(6, 0))
+    ttk.Label(actions_tab, text="Starting over (fresh start) is only in PowerShell, on purpose: run 'oso fresh-start'.",
+              foreground="#666").pack(side="bottom", anchor="w", pady=(6, 0))
+    result_box(actions_tab)
+    acts = ttk.Frame(actions_tab)
+    acts.pack(anchor="nw", fill="x")
+    for col, (title, items) in enumerate(groups):
+        acts.columnconfigure(col, weight=1, uniform="groups")
+        group = ttk.LabelFrame(acts, text=title, padding=10)
+        group.grid(row=0, column=col, sticky="nsew", padx=6)
+        for text, cmd in items:
+            ttk.Button(group, text=text, command=cmd).pack(fill="x", pady=3)
     refresh()
     show("Ask Claude \"open my settings\" any time to come back here.")
 
     # ---- Settings (scrolls: there are many) -----------------------------------------------------------
-    canvas = tk.Canvas(settings_outer, highlightthickness=0)
-    bar = ttk.Scrollbar(settings_outer, orient="vertical", command=canvas.yview)
-    frm = ttk.Frame(canvas, padding=12)
-    frm.bind("<Configure>", lambda _e: canvas.configure(scrollregion=canvas.bbox("all")))
-    canvas.create_window((0, 0), window=frm, anchor="nw")
-    canvas.configure(yscrollcommand=bar.set)
-    canvas.pack(side="left", fill="both", expand=True)
-    bar.pack(side="right", fill="y")
-    canvas.bind_all("<MouseWheel>", lambda e: canvas.yview_scroll(int(-e.delta / 120), "units"))
+    frm = _scrolling(settings_outer, padding=12)
 
     row = 0
 
@@ -163,12 +175,12 @@ def open_settings(cfg: cfgmod.Config) -> None:
         nonlocal row
         ttk.Label(frm, text=text).grid(row=row, column=0, sticky="w", **pad)
         if hint:
-            ttk.Label(frm, text=hint, foreground="#666").grid(row=row, column=2, sticky="w", **pad)
+            ttk.Label(frm, text=hint, foreground="#666", wraplength=280, justify="left").grid(row=row, column=2, sticky="w", **pad)
 
     # Vault
     label("Vault folder", "Your Obsidian vault, inside your Google Drive folder")
     vault_var = tk.StringVar(value=str(cfg.vault))
-    ttk.Entry(frm, textvariable=vault_var, width=48).grid(row=row, column=1, sticky="we", **pad)
+    ttk.Entry(frm, textvariable=vault_var, width=36).grid(row=row, column=1, sticky="we", **pad)
     row += 1
     ttk.Button(frm, text="Choose…", command=lambda: vault_var.set(filedialog.askdirectory() or vault_var.get())).grid(row=row, column=1, sticky="w", **pad)
     row += 1
@@ -206,7 +218,7 @@ def open_settings(cfg: cfgmod.Config) -> None:
     # Transcription and models
     ttk.Separator(frm).grid(row=row, column=0, columnspan=3, sticky="we", pady=8)
     row += 1
-    label("Page image height for transcription", "pixels; 1200 reads well and keeps usage down")
+    label("Picture size for reading handwriting", "pixels tall; bigger reads small writing better but uses more of your Claude plan; 1200 is a good middle")
     height_var = tk.IntVar(value=cfg.render_height_px)
     ttk.Spinbox(frm, from_=600, to=2400, increment=100, textvariable=height_var, width=6).grid(row=row, column=1, sticky="w", **pad)
     row += 1
@@ -269,7 +281,7 @@ def open_settings(cfg: cfgmod.Config) -> None:
     row += 1
     label("Backup folder", "optional: a NAS share or drive; Oso copies your vault and records there nightly")
     backup_var = tk.StringVar(value=cfg.backup_folder or "")
-    ttk.Entry(frm, textvariable=backup_var, width=48).grid(row=row, column=1, sticky="we", **pad)
+    ttk.Entry(frm, textvariable=backup_var, width=36).grid(row=row, column=1, sticky="we", **pad)
     row += 1
     canvas_notify_var = tk.BooleanVar(value=cfg.canvas_notify)
     ttk.Checkbutton(frm, text="Show a notification when Canvas needs me to sign in again", variable=canvas_notify_var).grid(row=row, column=0, columnspan=3, sticky="w", **pad)
@@ -303,16 +315,16 @@ def open_settings(cfg: cfgmod.Config) -> None:
     feed_state = "stored" if secrets.get(secrets.CANVAS_FEED_URL) else "not set"
     label("Canvas calendar feed URL", f"currently {feed_state}; paste a new one to replace it")
     feed_var = tk.StringVar()
-    ttk.Entry(frm, textvariable=feed_var, width=48, show="•").grid(row=row, column=1, sticky="we", **pad)
+    ttk.Entry(frm, textvariable=feed_var, width=36, show="•").grid(row=row, column=1, sticky="we", **pad)
     row += 1
     label("Canvas address", "only if your school allows access tokens")
     base_var = tk.StringVar(value=secrets.get(secrets.CANVAS_BASE_URL) or "")
-    ttk.Entry(frm, textvariable=base_var, width=48).grid(row=row, column=1, sticky="we", **pad)
+    ttk.Entry(frm, textvariable=base_var, width=36).grid(row=row, column=1, sticky="we", **pad)
     row += 1
     tok_state = "stored" if secrets.get(secrets.CANVAS_TOKEN) else "not set"
     label("Canvas access token", f"currently {tok_state}; paste a new one to replace it")
     tok_var = tk.StringVar()
-    ttk.Entry(frm, textvariable=tok_var, width=48, show="•").grid(row=row, column=1, sticky="we", **pad)
+    ttk.Entry(frm, textvariable=tok_var, width=36, show="•").grid(row=row, column=1, sticky="we", **pad)
     row += 1
 
     # Buttons and result
@@ -379,7 +391,7 @@ def open_settings(cfg: cfgmod.Config) -> None:
     ttk.Button(btns, text="Save", command=lambda: save(False)).grid(row=0, column=0, padx=4)
     ttk.Button(btns, text="Save and check", command=lambda: save(True)).grid(row=0, column=1, padx=4)
     row += 1
-    settings_result = tk.Text(frm, height=8, width=100, state="disabled", wrap="word")
+    settings_result = tk.Text(frm, height=8, width=90, state="disabled", wrap="word")
     settings_result.grid(row=row, column=0, columnspan=3, sticky="we", **pad)
 
     def show_saved(text: str) -> None:
@@ -397,6 +409,33 @@ def open_settings(cfg: cfgmod.Config) -> None:
     root.protocol("WM_DELETE_WINDOW", close)
     root.after(1000, watch_for_raise)
     root.mainloop()
+
+
+def _scrolling(parent, padding=0) -> ttk.Frame:
+    """A frame inside parent that scrolls when its contents are taller than the window."""
+    outer = ttk.Frame(parent)
+    outer.pack(fill="both", expand=True)
+    canvas = tk.Canvas(outer, highlightthickness=0)
+    bar = ttk.Scrollbar(outer, orient="vertical", command=canvas.yview)
+    inner = ttk.Frame(canvas, padding=padding)
+    inner.bind("<Configure>", lambda _e: canvas.configure(scrollregion=canvas.bbox("all")))
+    window = canvas.create_window((0, 0), window=inner, anchor="nw")
+    canvas.bind("<Configure>", lambda e: canvas.itemconfigure(window, width=e.width))
+    canvas.configure(yscrollcommand=bar.set)
+    canvas.pack(side="left", fill="both", expand=True)
+    bar.pack(side="right", fill="y")
+
+    def wheel(e) -> None:
+        # Scroll only the area under the pointer, and only when there is something to scroll.
+        w = canvas.winfo_containing(e.x_root, e.y_root)
+        while w is not None and w is not canvas:
+            w = w.master
+        if w is canvas and canvas.yview() != (0.0, 1.0):
+            canvas.yview_scroll(-1 if (getattr(e, "num", 0) == 4 or e.delta > 0) else 1, "units")
+
+    for event in ("<MouseWheel>", "<Button-4>", "<Button-5>"):
+        canvas.bind_all(event, wheel, add="+")
+    return inner
 
 
 def _safe(fn) -> str:

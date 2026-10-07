@@ -87,7 +87,8 @@ def test_dropping_scores(env):
     quiz(conn, cfg, {"Kinematics": ["right"] * 6, "Forces": ["right"] * 6}, 6)
     quiz(conn, cfg, {"Kinematics": ["right"] * 4, "Forces": ["right", "right", "right", "wrong"]}, 1)
     r = reasons(conn, cfg)["Exam 2"]
-    assert r == ["scores dropping (100% then 88%)"]
+    assert r[-1] == "scores dropping (100% then 88%)"
+    assert r[0].startswith("shaky: Forces")  # 90% is not strong
 
 
 def test_unmapped_exam_uses_whole_course(env):

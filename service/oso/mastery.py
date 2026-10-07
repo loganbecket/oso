@@ -44,20 +44,16 @@ def evidence(conn: sqlite3.Connection, course: str) -> list[dict]:
     out = []
     for r in conn.execute(
         """SELECT q.topic, q.difficulty, q.misconception_id, a.result, a.attempts, a.hint, a.mistake, a.answered_at AS at,
-                  z.id AS quiz_id, r.confidence
+                  z.id AS quiz_id
            FROM quiz_answers a JOIN quiz_questions q ON q.id = a.question_id JOIN quizzes z ON z.id = q.quiz_id
-           LEFT JOIN quiz_responses r ON r.question_id = q.id
            WHERE LOWER(z.course) = LOWER(?)""",
         (course,),
     ):
         credit = CREDIT.get(r["result"], 0.0)
         if (r["attempts"] > 1 or r["hint"]) and credit > 0.5:
             credit = 0.5
-        if r["confidence"] == "guessing" and credit > 0.5:
-            credit = 0.5  # a right guess is weaker evidence than knowing
         out.append({"topic": r["topic"], "credit": credit, "mistake": r["mistake"], "at": r["at"], "source": f"quiz {r['quiz_id']}",
-                    "difficulty": r["difficulty"], "confidence": r["confidence"],
-                    "sure_wrong": r["confidence"] == "sure" and r["result"] in ("wrong", "partly_right")})
+                    "difficulty": r["difficulty"]})
     for r in conn.execute(
         "SELECT id, topic, correct, mistake, checked_at FROM checks WHERE LOWER(course) = LOWER(?)", (course,)
     ):

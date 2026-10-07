@@ -11,7 +11,7 @@ folded into the note already there.
 (conversation notes, practice quizzes, checks of his work, graded Canvas work), never declared by Claude:
 
 - untested: no evidence yet. Next: find out.
-- needs focus: recent confusion, an open misconception, a "sure but wrong" answer, or weak results. Next: explain, then check.
+- needs focus: recent confusion, an open misconception, or weak results. Next: explain, then check.
 - explained: Claude has explained it since the confusion and nothing has shown it since. Next: check understanding.
 - practicing: some understanding shown; results mixed or few. Next: practice.
 - solid: strong recent results, including medium or hard questions, plus a good explanation in his own words. Next: review now and then.
@@ -21,7 +21,7 @@ Conversation evidence steers but never confirms: confusion counts like a wrong p
 well like half a right one, and nothing from conversation alone can make a topic solid.
 
 **Honesty checks** (computed, so Claude can't talk them away): practice running well above real grades on the
-same topics, being sure and wrong, "hard" questions that turn out easy, and quiz grading that a second, blind
+same topics, "hard" questions that turn out easy, and quiz grading that a second, blind
 grading finds too generous.
 """
 
@@ -279,8 +279,8 @@ def stage_for(ev: list[dict], misconceptions: list[dict], cfg: Config, now: date
     talk = [e for e in ev if not e["test"]]
     accuracy = _weighted([e for e in ev if e.get("credit") is not None], now, cfg.half_life_days)
     test_accuracy = _weighted(tests, now, cfg.half_life_days)
-    # Confusion, or "sure but wrong", is resolved by a later good result or by explaining it well.
-    negatives = [e for e in talk if e["kind"] in NEGATIVE] + [e for e in tests if e.get("sure_wrong")]
+    # Confusion is resolved by a later good result or by explaining it well.
+    negatives = [e for e in talk if e["kind"] in NEGATIVE]
     unresolved = []
     for n in negatives:
         later = [e for e in ev if e["at"] > n["at"] and ((e["test"] and e["credit"] >= 0.75) or e.get("kind") == "explained_well")]
@@ -331,8 +331,6 @@ def stage_for(ev: list[dict], misconceptions: list[dict], cfg: Config, now: date
 
 
 def _describe(e: dict) -> str:
-    if e.get("sure_wrong"):
-        return f"sure but wrong ({e['source']}, {e['at'][:10]})"
     words = f" ('{e['words'][:80]}')" if e.get("words") else ""
     return f"{e['kind'].replace('_', ' ')} {e['at'][:10]}{words}"
 
@@ -391,13 +389,6 @@ def course_flags(conn: sqlite3.Connection, cfg: Config, course: str, ev: list[di
             flags["practice_too_easy"] = {"points": round(gap), "assessments": len(gaps),
                                           "line": f"Practice scores run about {gap:.0f} points higher than real graded work on the same topics "
                                                   f"({len(gaps)} assessments); practice is too easy."}
-    # Being sure and wrong.
-    week = [e for e in ev if e["test"] and e.get("confidence") == "sure" and now - _parse(e["at"]) <= timedelta(days=7)]
-    wrong = [e for e in week if e["credit"] < 1]
-    if len(wrong) >= 2:
-        where = Counter(e["topic"] for e in wrong).most_common(2)
-        flags["overconfident"] = {"sure": len(week), "wrong": len(wrong),
-                                  "line": f"Sure on {len(week)} answers this week and {len(wrong)} were wrong, mostly on {', '.join(t for t, _ in where)}."}
     # Difficulty labels against results.
     hard = [e for e in ev if e["test"] and e.get("difficulty") == "hard"][-10:]
     if len(hard) >= 5 and sum(e["credit"] for e in hard) / len(hard) >= 0.9:

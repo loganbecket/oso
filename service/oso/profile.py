@@ -118,11 +118,9 @@ COLUMNS = {
     "quiz_questions": {"choices": "TEXT", "answer_key": "TEXT",
                        "criteria": "TEXT",            # JSON: how Claude will grade it, fixed before he answers; never shown to him
                        "misconception_id": "INTEGER"},  # the open misconception this question is aimed at
-    "quiz_responses": {"confidence": "TEXT"},         # sure, think_so, or guessing, from the quiz window
     "quiz_answers": {"criterion": "TEXT",            # which grading criterion the answer met or missed
                      "note": "TEXT"},                # Claude's short feedback, shown when he reviews the quiz
 }
-CONFIDENCE = ("sure", "think_so", "guessing")
 
 
 def ensure(conn: sqlite3.Connection) -> None:
@@ -490,11 +488,10 @@ def window_submit(conn: sqlite3.Connection, quiz_id: int, responses: dict[int, d
         r = responses.get(q["number"]) or {}
         response = (str(r.get("response")).strip() or None) if r.get("response") is not None else None
         conn.execute(
-            """INSERT INTO quiz_responses (question_id, response, seconds, changes, first_answer_at, confidence) VALUES (?, ?, ?, ?, ?, ?)
+            """INSERT INTO quiz_responses (question_id, response, seconds, changes, first_answer_at) VALUES (?, ?, ?, ?, ?)
                ON CONFLICT(question_id) DO UPDATE SET response = excluded.response, seconds = excluded.seconds,
-                 changes = excluded.changes, first_answer_at = excluded.first_answer_at, confidence = excluded.confidence""",
-            (q["id"], response, round(float(r.get("seconds") or 0), 1), int(r.get("changes") or 0), r.get("first_answer_at"),
-             r.get("confidence") if r.get("confidence") in CONFIDENCE else None),
+                 changes = excluded.changes, first_answer_at = excluded.first_answer_at""",
+            (q["id"], response, round(float(r.get("seconds") or 0), 1), int(r.get("changes") or 0), r.get("first_answer_at")),
         )
         if q["qtype"] == "multiple_choice" and q["answer_key"]:
             if response is None:
@@ -528,7 +525,7 @@ def grading_view(conn: sqlite3.Connection, cfg: Config, quiz_id: int) -> dict:
         return {"quiz_id": quiz_id, "status": "handed_out", "note": "The student has not submitted this quiz yet."}
     rows = conn.execute(
         """SELECT q.number, q.topic, q.theme, q.qtype, q.question, q.choices, q.answer_key, q.criteria, q.misconception_id,
-                  r.response, r.seconds, r.changes, r.confidence, a.result
+                  r.response, r.seconds, r.changes, a.result
            FROM quiz_questions q LEFT JOIN quiz_responses r ON r.question_id = q.id
            LEFT JOIN quiz_answers a ON a.question_id = q.id
            WHERE q.quiz_id = ? ORDER BY q.number""",
@@ -537,7 +534,7 @@ def grading_view(conn: sqlite3.Connection, cfg: Config, quiz_id: int) -> dict:
     questions = []
     for r in rows:
         item = {"number": r["number"], "topic": r["topic"], "theme": r["theme"], "type": r["qtype"], "question": r["question"],
-                "response": r["response"], "seconds": r["seconds"], "changes": r["changes"], "confidence": r["confidence"]}
+                "response": r["response"], "seconds": r["seconds"], "changes": r["changes"]}
         if r["criteria"]:
             item["criteria"] = json.loads(r["criteria"])
         if r["misconception_id"]:

@@ -31,13 +31,10 @@ def at(days_ago: float) -> str:
     return (NOW - timedelta(days=days_ago)).isoformat(timespec="seconds")
 
 
-def quiz(conn, cfg, topic, results, days_ago, difficulty="medium", course=C, confidence=None, misconception=None):
+def quiz(conn, cfg, topic, results, days_ago, difficulty="medium", course=C, misconception=None):
     qs = [{"number": i + 1, "topic": topic, "type": "short_answer", "difficulty": difficulty, "misconception": misconception}
           for i in range(len(results))]
     qid = profile.start_quiz(conn, cfg, course, qs, now=at(days_ago))
-    if confidence:
-        profile.window_submit(conn, qid, {i + 1: {"response": "x", "seconds": 5, "changes": 0, "confidence": confidence}
-                                          for i in range(len(results))}, now=at(days_ago))
     profile.record_answers(conn, qid, [{"number": i + 1, "result": r, "mistake": None if r == "right" else "concept_gap"}
                                        for i, r in enumerate(results)], now=at(days_ago))
     profile.finish_quiz(conn, qid, now=at(days_ago))
@@ -125,20 +122,6 @@ def test_misconceptions_close_only_on_evidence(env):
     assert len(tutor.open_misconceptions(conn, C)) == 1
 
 
-def test_sure_but_wrong_moves_a_topic_to_focus_and_guessing_counts_less(env):
-    conn, cfg = env
-    quiz(conn, cfg, "Forces", ["right"] * 6, 3, course="PHYS-110")
-    tutor.note_signal(conn, cfg, "explained_well", "PHYS-110", "Forces", now=at(2.5))
-    assert stage(conn, cfg, "Forces", course="PHYS-110")["stage"] == "solid"
-    quiz(conn, cfg, "Forces", ["wrong", "wrong", "right"], 1, course="PHYS-110", confidence="sure")
-    s = stage(conn, cfg, "Forces", course="PHYS-110")
-    assert s["stage"] == "needs_focus" and "sure but wrong" in s["status"]
-    flags = tutor.course_flags(conn, cfg, "PHYS-110", now=NOW)
-    assert flags["overconfident"]["line"].startswith("Sure on 3 answers this week and 2 were wrong, mostly on Forces")
-    quiz(conn, cfg, "Limits", ["right"], 1, confidence="guessing")
-    assert [e["credit"] for e in mastery.evidence(conn, C) if e["topic"] == "Limits"] == [0.5]
-
-
 def test_practice_too_easy_flag_appears_at_the_threshold_and_clears(env):
     conn, cfg = env
 
@@ -167,7 +150,7 @@ def test_criteria_are_fixed_before_he_answers_and_come_back_for_grading(env):
         profile.start_quiz(conn, cfg, C, [q], window=True)
     criteria = {"expected": "1", "full_credit": "1, with a reason", "partial_credit": "1 with no reason", "wrong_answers": {"0": "plugged in 0"}}
     qid = profile.start_quiz(conn, cfg, C, [{**q, "criteria": criteria}], window=True)
-    profile.window_submit(conn, qid, {1: {"response": "1", "seconds": 30, "changes": 0, "confidence": "think_so"}})
+    profile.window_submit(conn, qid, {1: {"response": "1", "seconds": 30, "changes": 0}})
     view = profile.grading_view(conn, cfg, qid)
     assert view["questions"][0]["criteria"] == criteria and "stored criteria" in view["grading"]
     profile.record_answers(conn, qid, [{"number": 1, "result": "partly_right", "mistake": "incomplete", "criterion": "partial: no reason given"}])

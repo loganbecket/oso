@@ -44,7 +44,6 @@ def test_window_steps_through_and_submits(tmp_path: Path, monkeypatch):
 
         root.update()
         find(root, ttk.Radiobutton, "B. why").invoke()
-        find(root, ttk.Radiobutton, "Sure").invoke()
         find(root, ttk.Button, "Next").invoke()
         root.update()
         box = find(root, tk.Text)
@@ -63,7 +62,6 @@ def test_window_steps_through_and_submits(tmp_path: Path, monkeypatch):
     with db.connect() as conn:
         view = profile.grading_view(conn, cfg, qid)
     assert view["questions"][0]["graded_by_window"] == "right" and view["questions"][1]["response"] is None
-    assert view["questions"][0]["confidence"] == "sure" and view["questions"][1]["confidence"] is None
 
 
 def test_a_taken_quiz_opens_read_only_with_the_answers(tmp_path: Path, monkeypatch):
@@ -84,7 +82,7 @@ def test_a_taken_quiz_opens_read_only_with_the_answers(tmp_path: Path, monkeypat
             {"number": 2, "topic": "F", "type": "short_answer", "difficulty": "medium", "question": "Newton's second law?",
              "criteria": {"expected": "F = ma (net force)", "partial_credit": "F = ma without net"}},
         ], window=True)
-        profile.window_submit(conn, qid, {1: {"response": "A", "seconds": 4, "changes": 0, "confidence": "sure"},
+        profile.window_submit(conn, qid, {1: {"response": "A", "seconds": 4, "changes": 0},
                                           2: {"response": "F = ma", "seconds": 20, "changes": 0}})
         profile.record_answers(conn, qid, [{"number": 2, "result": "partly_right", "mistake": "incomplete",
                                             "note": "It's the net force that equals ma."}])
@@ -117,5 +115,5 @@ def test_a_taken_quiz_opens_read_only_with_the_answers(tmp_path: Path, monkeypat
 
     gc.collect()
     assert seen[0] == [("A. ex   ✗ your answer", "disabled"), ("B. why   ✓ correct answer", "disabled")]
-    assert "Wrong · how sure you were: Sure" in seen[1]
+    assert "Wrong" in seen[1] and not any("sure" in t.lower() for t in seen[1] + seen[2])
     assert "Correct answer: F = ma (net force)" in seen[2] and "Partly right" in seen[2] and "It's the net force that equals ma." in seen[2]

@@ -42,7 +42,6 @@ class QuizSession:
         self.seconds: dict[int, float] = {q["number"]: 0.0 for q in questions}
         self.changes: dict[int, int] = {q["number"]: 0 for q in questions}
         self.first_at: dict[int, str | None] = {q["number"]: None for q in questions}
-        self.confidence: dict[int, str | None] = {q["number"]: None for q in questions}
         self._shown_at = clock()
 
     @property
@@ -72,17 +71,13 @@ class QuizSession:
             self.first_at[n] = self.wall()
         self.answers[n] = value
 
-    def sure(self, value: str | None) -> None:
-        """How sure he is of the current answer: sure, think_so, or guessing. Never required."""
-        self.confidence[self.current["number"]] = value or None
-
     def unanswered(self) -> list[int]:
         return [n for n, a in self.answers.items() if a is None]
 
     def responses(self) -> dict[int, dict]:
         self._bank_time()
         return {n: {"response": self.answers[n], "seconds": self.seconds[n], "changes": self.changes[n],
-                    "first_answer_at": self.first_at[n], "confidence": self.confidence[n]} for n in self.answers}
+                    "first_answer_at": self.first_at[n]} for n in self.answers}
 
 
 def load_questions(conn, quiz_id: int) -> tuple[dict, list[dict]]:
@@ -99,7 +94,6 @@ def load_questions(conn, quiz_id: int) -> tuple[dict, list[dict]]:
 
 RESULT_WORDS = {"right": "Right", "partly_right": "Partly right", "wrong": "Wrong", "skipped": "Skipped"}
 RESULT_COLORS = {"right": "#2e7d32", "partly_right": "#b26a00", "wrong": "#c62828", "skipped": "#c62828"}
-CONFIDENCE_WORDS = {"sure": "Sure", "think_so": "Think so", "guessing": "Guessing"}
 
 
 def review_data(conn, quiz_id: int) -> tuple[dict, list[dict], list[str]]:
@@ -110,7 +104,7 @@ def review_data(conn, quiz_id: int) -> tuple[dict, list[dict], list[str]]:
         raise profile.ProfileError(f"There is no quiz {quiz_id}.")
     qs = []
     for r in conn.execute(
-        """SELECT q.number, q.question, q.qtype, q.choices, q.answer_key, q.criteria, r.response, r.confidence,
+        """SELECT q.number, q.question, q.qtype, q.choices, q.answer_key, q.criteria, r.response,
                   a.result, a.note, a.criterion
            FROM quiz_questions q LEFT JOIN quiz_responses r ON r.question_id = q.id LEFT JOIN quiz_answers a ON a.question_id = q.id
            WHERE q.quiz_id = ? ORDER BY q.number""",
@@ -122,7 +116,7 @@ def review_data(conn, quiz_id: int) -> tuple[dict, list[dict], list[str]]:
             expected = crit.get("expected") or crit.get("full_credit") if isinstance(crit, dict) else str(crit)
         qs.append({"number": r["number"], "question": r["question"] or "", "type": r["qtype"],
                    "choices": json.loads(r["choices"]) if r["choices"] else [], "key": r["answer_key"],
-                   "response": r["response"], "confidence": r["confidence"], "result": r["result"],
+                   "response": r["response"], "result": r["result"],
                    "note": r["note"], "criterion": r["criterion"], "expected": expected})
     pages = [w["page"] for w in conn.execute("SELECT page FROM quiz_work WHERE quiz_id = ? ORDER BY id", (quiz_id,))]
     return dict(quiz), qs, pages
@@ -199,8 +193,7 @@ def review(quiz_id: int) -> None:
                 ttk.Label(body, text=f"Correct answer: {q['expected']}", foreground=RESULT_COLORS["right"], wraplength=700,
                           justify="left").pack(anchor="w", pady=(8, 0))
         verdict = RESULT_WORDS.get(q["result"] or "", "Not graded yet")
-        line = verdict + (f" · how sure you were: {CONFIDENCE_WORDS[q['confidence']]}" if q["confidence"] in CONFIDENCE_WORDS else "")
-        ttk.Label(body, text=line, foreground=RESULT_COLORS.get(q["result"] or "", "#666"),
+        ttk.Label(body, text=verdict, foreground=RESULT_COLORS.get(q["result"] or "", "#666"),
                   font=("TkDefaultFont", 10, "bold")).pack(anchor="w", pady=(10, 0))
         if q["note"]:
             ttk.Label(body, text=q["note"], wraplength=700, justify="left").pack(anchor="w", pady=(4, 0))
@@ -333,13 +326,6 @@ def run(quiz_id: int) -> None:
     text.pack(fill="x", pady=(8, 8))
     body = ttk.Frame(frm)
     body.pack(fill="both", expand=True)
-    sure_row = ttk.Frame(frm)
-    sure_row.pack(fill="x", pady=(8, 0))
-    sure_var = tk.StringVar()
-    ttk.Label(sure_row, text="How sure are you?").pack(side="left", padx=(0, 8))
-    for value, label in (("sure", "Sure"), ("think_so", "Think so"), ("guessing", "Guessing")):
-        ttk.Radiobutton(sure_row, text=label, value=value, variable=sure_var,
-                        command=lambda: session.sure(sure_var.get())).pack(side="left", padx=4)
     nav = ttk.Frame(frm)
     nav.pack(fill="x", pady=(8, 0))
 
@@ -364,7 +350,6 @@ def run(quiz_id: int) -> None:
         for w in body.winfo_children():
             w.destroy()
         entry = None
-        sure_var.set(session.confidence[q["number"]] or "")
         current = session.answers[q["number"]] or ""
         if q["type"] == "multiple_choice" and q["choices"]:
             choice_var.set(current)

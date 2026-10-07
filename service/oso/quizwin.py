@@ -355,8 +355,9 @@ def run(quiz_id: int) -> None:
             choice_var.set(current)
             for i, opt in enumerate(q["choices"]):
                 letter = chr(ord("A") + i)
-                ttk.Radiobutton(body, text=f"{letter}. {opt}", value=letter, variable=choice_var,
-                                command=save_current).pack(anchor="w", pady=2)
+                # The classic radio button: round on every system (the themed one is a diamond on Linux).
+                tk.Radiobutton(body, text=f"{letter}. {opt}", value=letter, variable=choice_var, command=save_current,
+                               anchor="w", justify="left", wraplength=680).pack(anchor="w", pady=2)
         else:
             if q["type"] == "worked_problem":
                 ttk.Label(body, text=f"Write your work on paper or the tablet, on a page labeled Q{q['number']} in the top corner. "

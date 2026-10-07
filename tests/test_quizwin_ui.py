@@ -43,7 +43,7 @@ def test_window_steps_through_and_submits(tmp_path: Path, monkeypatch):
             return None
 
         root.update()
-        find(root, ttk.Radiobutton, "B. why").invoke()
+        find(root, tk.Radiobutton, "B. why").invoke()
         find(root, ttk.Button, "Next").invoke()
         root.update()
         box = find(root, tk.Text)

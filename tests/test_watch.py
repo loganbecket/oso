@@ -121,3 +121,18 @@ def test_a_lock_held_by_a_live_program_is_respected(cfg):
     with lock.held(wait_seconds=0) as got:
         assert not got
     p.unlink()
+
+
+def test_windows_check_runs_windowless():
+    from oso import install_windows
+
+    xml = install_windows._XML.format(minutes=15, command="C:\\oso\\pythonw.exe", user="PC\\Campbell")
+    assert "<Command>C:\\oso\\pythonw.exe</Command><Arguments>-m oso sync</Arguments>" in xml
+
+
+def test_python_dash_m_oso_runs_the_cli():
+    import subprocess
+    import sys
+
+    r = subprocess.run([sys.executable, "-m", "oso", "--help"], capture_output=True, text=True)
+    assert r.returncode == 0 and "sync" in r.stdout

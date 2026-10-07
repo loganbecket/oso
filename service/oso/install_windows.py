@@ -37,7 +37,7 @@ _XML = """<?xml version="1.0" encoding="UTF-16"?>
     <Hidden>true</Hidden>
   </Settings>
   <Actions Context="Author">
-    <Exec><Command>{command}</Command><Arguments>sync</Arguments></Exec>
+    <Exec><Command>{command}</Command><Arguments>-m oso sync</Arguments></Exec>
   </Actions>
 </Task>
 """
@@ -93,7 +93,7 @@ def _create(name: str, xml: str) -> str | None:
 def install_task(every_minutes: int = 60) -> str:
     if sys.platform != "win32":
         return "Scheduled task installation only applies on Windows. On this machine, run 'oso sync' from cron or a timer."
-    exe = shutil.which("oso") or sys.argv[0]
+    exe = watcher_command()  # windowless Python, so the check never opens a command window
     # Naming the user keeps the logon trigger to this account; without it Windows demands an administrator.
     user = f"{os.environ.get('USERDOMAIN', '')}\\{os.environ.get('USERNAME', '')}".lstrip("\\")
     error = _create(TASK_NAME, _XML.format(minutes=every_minutes, command=escape(exe), user=escape(user)))

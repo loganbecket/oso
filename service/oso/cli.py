@@ -245,6 +245,8 @@ def _dispatch(args: argparse.Namespace) -> int:
             result = canvas_session.connect(conn, quiet=args.quiet)
             if args.quiet and not result.startswith("Canvas connected"):
                 canvas_session.notify_sign_in()  # the quiet try didn't finish: ask him, as before
+            elif not args.quiet:
+                canvas_session.notify(result)  # opened from the Oso window, where nothing shows what was printed
         print(result)
         return 0
 

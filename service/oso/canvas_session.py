@@ -37,12 +37,9 @@ from . import secrets
 log = logging.getLogger("oso.canvas_session")
 
 SESSION = "canvas_session"
-# The cookies Canvas needs, kept if the full set is too long for the credential store (Windows allows ~2.5 KB).
-ESSENTIAL = ("canvas_session", "_legacy_normandy_session", "_csrf_token", "log_session_id", "pseudonym_credentials")
 USERNAME = "canvas_username"
 PASSWORD = "canvas_password"
 AUTO_EVERY_MINUTES = 60  # at most one quiet reconnect attempt this often
-MAX_STORED = 2400
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS canvas_sessions (
@@ -83,10 +80,7 @@ def load() -> dict[str, str] | None:
 
 
 def save(cookies: dict[str, str]) -> None:
-    text = json.dumps(cookies, separators=(",", ":"))
-    if len(text) > MAX_STORED:
-        text = json.dumps({k: v for k, v in cookies.items() if k in ESSENTIAL}, separators=(",", ":"))
-    secrets.set(SESSION, text)
+    secrets.set(SESSION, json.dumps(cookies, separators=(",", ":")))
 
 
 def forget() -> None:
@@ -359,6 +353,10 @@ def connect(conn: sqlite3.Connection, quiet: bool = False) -> str:
         return f"{e} Sign in to Canvas from Windows or macOS."
     if not cookies:
         return "Canvas was not connected: the sign-in window closed before sign-in finished."
-    save(cookies)
+    try:
+        save(cookies)
+    except Exception as e:  # noqa: BLE001
+        log.warning("could not store the Canvas sign-in: %s", type(e).__name__)
+        return "You signed in to Canvas, but Oso couldn't save the sign-in in the credential store. Try signing in again."
     mark_connected(conn)
     return "Canvas connected. Oso will read your grades and coursework on every check."

@@ -134,13 +134,13 @@ def env(tmp_path: Path, monkeypatch):
     return cfg, store
 
 
-def test_base_url_from_feed_and_cookie_trimming(env):
+def test_base_url_from_feed_and_full_session_kept(env):
     cfg, store = env
     assert canvas_session.base_url() is None
     store[secrets.CANVAS_FEED_URL] = "https://tamu.instructure.com/feeds/calendars/user_abc.ics"
     assert canvas_session.base_url() == "https://tamu.instructure.com"
     canvas_session.save({"canvas_session": "s" * 1500, "_csrf_token": "t", "tracker": "x" * 2000})
-    assert set(canvas_session.load()) == {"canvas_session", "_csrf_token"}
+    assert set(canvas_session.load()) == {"canvas_session", "_csrf_token", "tracker"}
 
 
 def test_verify(env, server):
@@ -340,3 +340,33 @@ def test_modules_files_pages_and_links(env, server):
         assert [r["text"] for r in canvas_store.recent_events(conn, datetime(2026, 11, 1, 9, 0, tzinfo=TZ))] == ["Downloaded 7 files from Canvas modules and files"]
         again = api.mirror()
         assert again["module_files"] == 0 and again["files"] == 0 and api.new_files == []  # unchanged: nothing downloaded twice
+
+
+def test_long_secret_is_split_to_fit_windows(monkeypatch):
+    store: dict[str, str] = {}
+
+    def put(service, name, value):
+        assert len(value) <= 1280  # Windows' limit per entry
+        store[name] = value
+
+    def drop(service, name):
+        if name not in store:
+            raise secrets.keyring.errors.PasswordDeleteError(name)
+        del store[name]
+
+    monkeypatch.setattr(secrets.keyring, "get_password", lambda service, name: store.get(name))
+    monkeypatch.setattr(secrets.keyring, "set_password", put)
+    monkeypatch.setattr(secrets.keyring, "delete_password", drop)
+
+    session = {"canvas_session": "x" * 3000, "_csrf_token": "y" * 200}
+    canvas_session.save(session)
+    assert canvas_session.load() == session
+    assert len(store) == 5  # the marker and four parts
+
+    canvas_session.save({"canvas_session": "short"})
+    assert canvas_session.load() == {"canvas_session": "short"}
+    assert set(store) == {canvas_session.SESSION}
+
+    canvas_session.save(session)
+    canvas_session.forget()
+    assert store == {}

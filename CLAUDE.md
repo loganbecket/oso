@@ -14,6 +14,7 @@ Read `docs/spec.md` for what Oso does and why.
 - Read-only toward every school system. The only external write is one dedicated Google Calendar.
 - Credentials live in the operating system's credential store. Never in files, logs, or prompts.
 - Every failure the student can see must be a plain sentence, not a stack trace.
+- When a change takes care of a student's feedback note, add the note's code (`feedback.code`) and the release version to `service/oso/shipped_feedback.txt`. Never put the note's words in the repo.
 - American English spelling in code, comments, and docs.
 - master must always install and run: it is what the latest channel ships, and stable is the highest `vX.Y.Z` tag.
 

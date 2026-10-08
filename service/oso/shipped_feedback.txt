@@ -1,0 +1,2 @@
+# Feedback notes a release took care of: the note's code (feedback.code), then the version.
+68a70ce3dc0d 0.12.0

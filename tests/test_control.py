@@ -246,3 +246,34 @@ def test_fresh_start_keeps_feedback(tmp_path):
     (cfg.vault / "Today.md").write_text("x")
     gone = {p.relative_to(cfg.vault).as_posix() for p in fresh.plan(cfg)}
     assert "Oso/Profile" in gone and "Today.md" in gone and not any(g.startswith("Oso/Feedback") for g in gone) and "Oso" not in gone
+
+
+def test_shipped_feedback_is_deleted_and_told_once(env, monkeypatch, tmp_path):
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+
+    from oso import db, feedback, notes, today
+
+    cfg, _ = env
+    now = datetime(2026, 10, 9, 7, 0, tzinfo=ZoneInfo("America/Chicago"))
+    idea = feedback.save(cfg, "lead with class stuff", "idea", "Briefings lead with class changes", now=now - timedelta(days=1))
+    bug = feedback.save(cfg, "quiz is broken", "bug", "Quiz window freezes", now=now - timedelta(days=1))
+    fm, _ = notes.read_front_matter(idea.read_text())
+    shipped = tmp_path / "shipped.txt"
+    shipped.write_text(f"# comment\n{feedback.code(fm)} 0.12.0\n")
+    monkeypatch.setattr(feedback, "SHIPPED", shipped)
+    with db.connect(tmp_path / "oso.db") as conn:
+        assert feedback.close_shipped(cfg, conn, now) == 1
+        assert not idea.exists() and bug.exists()
+        text = today.render(conn, cfg, now)
+        assert '## Your feedback\n- Your idea "Briefings lead with class changes" is in Oso 0.12.0.' in text
+        assert feedback.close_shipped(cfg, conn, now) == 0
+        assert "## Your feedback" not in today.render(conn, cfg, now + timedelta(days=2))
+
+
+def test_shipped_feedback_codes_are_well_formed():
+    from oso import feedback
+
+    for c, version in feedback.shipped().items():
+        assert len(c) == 12 and all(ch in "0123456789abcdef" for ch in c), c
+        assert version.count(".") == 2, version

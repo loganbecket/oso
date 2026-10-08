@@ -15,6 +15,7 @@ Read `docs/spec.md` for what Oso does and why.
 - Credentials live in the operating system's credential store. Never in files, logs, or prompts.
 - Every failure the student can see must be a plain sentence, not a stack trace.
 - When a change takes care of a student's feedback note, add the note's code (`feedback.code`) and the release version to `service/oso/shipped_feedback.txt`. Never put the note's words in the repo.
+- Every new or changed feature is documented in the same change: a one-line entry in the README's feature list and its own page in `docs/features/` (what it is, what it's for, how to use it, getting the most out of it), plus the install guide when it needs setup.
 - American English spelling in code, comments, and docs.
 - master must always install and run: it is what the latest channel ships, and stable is the highest `vX.Y.Z` tag.
 
@@ -24,4 +25,4 @@ Read `docs/spec.md` for what Oso does and why.
 - `plugin/` Claude plugin: skills and MCP server configuration
 - `install.ps1`, `install.sh` installers that download from GitHub (no Git needed)
 - `obsidian/` the Web Clipper template
-- `docs/` spec and plan
+- `docs/` spec, install guide, troubleshooting, commands, and one page per feature in `docs/features/`

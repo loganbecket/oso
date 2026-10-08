@@ -76,7 +76,7 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("connect-email", help="let Oso read the Gmail account your school email is forwarded to (read-only)")
     s.add_argument("--client-file", help="the OAuth client file from Google Cloud (only if Oso asks for it)")
     sub.add_parser("disconnect-email", help="stop reading email and forget its access")
-    s = sub.add_parser("connect-tasks", help="keep his tasks in a Google Tasks list named Oso, on his phone")
+    s = sub.add_parser("connect-tasks", help="keep your tasks in a Google Tasks list named Oso, on your phone")
     s.add_argument("--client-file", help="the OAuth client file from Google Cloud (only if Oso asks for it)")
     sub.add_parser("disconnect-tasks", help="stop using Google Tasks and forget its access")
     sub.add_parser("connect-groupme", help="let Oso read your GroupMe groups, with the access token from dev.groupme.com")

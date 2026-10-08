@@ -1,11 +1,8 @@
 """Urgent changes: what needs to reach the student before the next briefing.
 
-The service cannot write to Google Calendar itself. It records urgent changes and appends them to
-`Oso/Alerts.md`, one line per alert with everything the alerts skill needs. That skill runs as a
-Cowork scheduled task in Anthropic's cloud, where Oso's local tools are out of reach, so it reads
-`Alerts.md` through Google Drive and creates calendar events, checking the Oso calendar first so an
-alert is never posted twice. When the skill runs locally it can also use `pending_alerts` and
-`mark_alert_reported`.
+Each urgent change is recorded and appended to `Oso/Alerts.md`, one line per alert. With Google Calendar
+connected, the service puts each one on the Oso calendar itself, with reminders (`gcal.deliver`). The alerts skill
+reads `Alerts.md` and the `pending_alerts` tool to report them, and marks them reported with `mark_alert_reported`.
 """
 
 from __future__ import annotations

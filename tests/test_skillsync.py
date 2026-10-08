@@ -97,3 +97,13 @@ def test_plugin_skill_front_matter_has_no_angle_brackets():
     for d in plugin.iterdir():
         head = (d / "SKILL.md").read_text(encoding="utf-8").split("---")[1]
         assert "<" not in head and ">" not in head, d.name
+
+
+def test_plugin_version_matches_release():
+    """The Claude app only updates an installed plugin when its version changes."""
+    import json
+    import tomllib
+    root = Path(__file__).parent.parent
+    plugin = json.loads((root / "plugin" / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
+    release = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
+    assert plugin["version"] == release

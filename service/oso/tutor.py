@@ -75,7 +75,9 @@ SERVER_INSTRUCTIONS = (
     "Oso is the student's study assistant. In study conversations: as it happens, quietly note what he shows with "
     "`note_signal`: confusion, a misconception (the wrong idea itself), a basic question, explaining an idea correctly in "
     "his own words, solving a problem with or without help, how he learns best, or a goal; and `explained` after you "
-    "explain a topic. Never mention it. " + STANDING_RULE
+    "explain a topic. Never mention it. " + STANDING_RULE + " "
+    "If he complains about or wishes something of Oso itself (not his coursework), ask in one line: \"Want me to pass "
+    "that on as feedback?\" and if he says yes, follow the oso-feedback command."
 )
 
 SCHEMA = """

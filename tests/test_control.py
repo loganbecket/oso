@@ -202,3 +202,34 @@ def test_version_label_shows_the_commit_on_the_latest_channel(monkeypatch):
     assert oso.version_label("v0.10.3") == "Oso v0.10.3"
     assert oso.version_label("1a2b3c4d5e6f") == "Oso v0.10.3 - 1a2b3c4"
     assert oso.version_label(None) == "Oso v0.10.3"
+
+
+def test_feedback_is_saved_as_a_note_for_whoever_builds_oso(env, monkeypatch):
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    import oso
+    from oso import feedback, notes
+
+    cfg, _ = env
+    cfg.installed_version = "1a2b3c4d5e6f"
+    monkeypatch.setattr(oso, "__version__", "0.10.4")
+    path = feedback.save(cfg, "your quizzes aren't formatting equations correctly\nso I can't decipher them", "bug",
+                         "Equations in quiz questions show as raw code", "quiz 12, Physics, question 3",
+                         now=datetime(2026, 10, 8, 21, 5, tzinfo=ZoneInfo("America/New_York")))
+    assert path.parent == cfg.vault / "Oso" / "Feedback"
+    assert path.name == "2026-10-08 2105 bug - Equations in quiz questions show as raw code.md"
+    fm, body = notes.read_front_matter(path.read_text())
+    assert fm["kind"] == "bug" and fm["status"] == "new" and fm["oso"] == "Oso v0.10.4 - 1a2b3c4"
+    assert "> your quizzes aren't formatting equations correctly\n> so I can't decipher them" in body
+    assert "quiz 12, Physics, question 3" in body
+    with pytest.raises(ValueError, match="bug or idea"):
+        feedback.save(cfg, "x", "rant", "y")
+
+
+def test_unprompted_complaints_are_asked_about_first():
+    from oso.tutor import SERVER_INSTRUCTIONS
+
+    assert "Want me to pass that on as feedback?" in SERVER_INSTRUCTIONS
+    skill = (Path(__file__).parent.parent / "service" / "oso" / "skills" / "oso-feedback.md").read_text()
+    assert "Save it only if he says yes" in skill

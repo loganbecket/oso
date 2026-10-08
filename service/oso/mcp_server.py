@@ -407,6 +407,17 @@ def finish_quiz(quiz_id: int) -> dict:
 
 
 @mcp.tool()
+def save_feedback(words: str, kind: str, summary: str, doing: str | None = None) -> str:
+    """Pass on feedback about Oso itself (only after he asks or agrees): his words exactly, kind "bug" or "idea", a
+    one-line summary, and what he was doing (e.g. "quiz 12, Physics, question 3")."""
+    from . import feedback
+
+    cfg = _cfg()
+    path = feedback.save(cfg, words, kind, summary, doing)
+    return f"Saved as {path.relative_to(cfg.vault).as_posix()}."
+
+
+@mcp.tool()
 def file_clip(name: str, course: str) -> str:
     """Put a clipped page where he says: a course (code or name), from Clippings or from another course's Readings;
     or "none" when it belongs to no course (it stays in Clippings and Oso stops asking)."""

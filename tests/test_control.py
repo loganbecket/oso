@@ -233,3 +233,16 @@ def test_unprompted_complaints_are_asked_about_first():
     assert "Want me to pass that on as feedback?" in SERVER_INSTRUCTIONS
     skill = (Path(__file__).parent.parent / "service" / "oso" / "skills" / "oso-feedback.md").read_text()
     assert "Save it only if he says yes" in skill
+
+
+def test_fresh_start_keeps_feedback(tmp_path):
+    from oso import fresh
+    from oso.config import Config
+
+    cfg = Config(vault=tmp_path / "vault")
+    (cfg.vault / "Oso" / "Feedback").mkdir(parents=True)
+    (cfg.vault / "Oso" / "Feedback" / "note.md").write_text("x")
+    (cfg.vault / "Oso" / "Profile").mkdir()
+    (cfg.vault / "Today.md").write_text("x")
+    gone = {p.relative_to(cfg.vault).as_posix() for p in fresh.plan(cfg)}
+    assert "Oso/Profile" in gone and "Today.md" in gone and not any(g.startswith("Oso/Feedback") for g in gone) and "Oso" not in gone

@@ -17,17 +17,19 @@ The goal is a confirmed list of facts, not a guess. Nothing is written until the
    - the term, like `2026 Fall` or `2027 Spring`, from the syllabus or its dates (January to May is Spring, June and July Summer, August to December Fall)
    - prerequisites, if listed
    - any website the instructor posts materials on (outside Canvas), if the syllabus names one
+   - **class times (required)**: every meeting (lecture, lab, discussion) with its days, start and end times, and room; the first and last day of classes; and days with no class (holidays, breaks). Canvas doesn't have these, so they come from the syllabus or from him. If the syllabus doesn't give them, ask for them (his registration schedule has them); setup isn't finished without them
    - the topics, in the order taught, with the week each is covered and which exams cover it when the syllabus says (a schedule table usually lists them week by week). Use the course's own names for topics, at the grain of a lecture or chapter section ("Projectile motion", not "Physics")
 3. **Check for related courses.** Call `list_courses`. If an earlier course is a prerequisite or clearly the one this builds on (Calculus II before Calculus III), propose relating them, so searches in the new course include the earlier course's notes.
 4. **Show everything as one list** and ask the student to confirm or correct it, including the term and any related courses. Dates that are relative ("week 6") need the student to confirm the actual date. Show the topic list compactly (one line per week). If the syllabus names an instructor website, offer to have Oso follow it for new materials, and ask whether there are others. Mention that the course folder will be `Courses/<term>/<name>` with the syllabus inside it. Do not write anything until they confirm.
 5. **After confirmation:**
    - call `add_course` with the code, the name, the term, the related course codes, and the AI policy text; this creates the course folder and its subfolders
    - call `course_topics` with the code and the confirmed topics (name, week, exams)
+   - call `class_times` with the code, the meetings, the first and last day of classes, and the days with no class; the classes go on his calendar and stay current as instructors cancel or move them
    - for each instructor website the student wants followed, call `update_course` with `add_site`
    - call `file_syllabus` with the code and the syllabus path from step 1; it moves the file into the course folder as `Syllabus` and tags it with the course
    - call `add_item` once per dated item, with `kind` of assignment, quiz, exam, reading, or event, the ISO due date, and the weight if known
    - write `Courses/<folder>/Course.md` in the vault using the template below
-6. **Report** in two or three sentences: the course is set up, how many dates and grade weights were saved, and that the Canvas feed fills in anything the syllabus missed on the next check.
+6. **Report** in two or three sentences: the course is set up and its classes are on his calendar, how many dates and grade weights were saved, and that the Canvas feed fills in anything the syllabus missed on the next check.
 
 ## Course.md template
 
@@ -47,6 +49,10 @@ late_policy: |
 # Calculus I
 
 Syllabus: [[Courses/<folder>/Syllabus]]
+
+## Class times
+| Meeting | Days | Time | Room |
+| --- | --- | --- | --- |
 
 ## Grading
 | Component | Weight |

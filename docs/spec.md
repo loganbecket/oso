@@ -34,7 +34,7 @@ At the start of each semester, feed Oso the syllabus and course materials for ev
 
 ### Setting up a semester
 
-The student drops each syllabus into the vault and runs the setup skill once per course. Oso reads the syllabus, proposes deadlines, exam dates, grade weights, office hours, and the professor's AI policy, and shows them for confirmation before anything goes live. Each course gets a folder in the vault and a course page holding those facts. Setup can be re-run for one course mid-term; the student's own corrections survive.
+The student drops each syllabus into the vault and runs the setup skill once per course. Oso reads the syllabus, proposes deadlines, exam dates, grade weights, office hours, and the professor's AI policy, and shows them for confirmation before anything goes live. Each course gets a folder in the vault and a course page holding those facts. Setup also requires the class times (every lecture, lab, and discussion, with room, the first and last day of classes, and days off), from the syllabus or asked for, since Canvas doesn't have them. Classes go on the Oso calendar three weeks ahead, rolling forward, and a class canceled or moved in an email, GroupMe, or a Canvas announcement changes that one meeting on the calendar. Setup can be re-run for one course mid-term; the student's own corrections survive.
 
 ### Capturing what the student reads and writes
 

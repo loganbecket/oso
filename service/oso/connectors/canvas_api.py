@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
@@ -25,6 +25,7 @@ log = logging.getLogger("oso.canvas_api")
 
 NAME = "canvas_api"
 MAX_FILE_MB = 50
+ANNOUNCEMENT_NEWS = timedelta(days=3)  # an announcement newer than this is read for schedule changes
 
 
 class SessionExpired(Exception):
@@ -129,6 +130,7 @@ class CanvasApi:
         instructors put their files), the Files section, and announcements. Safe to run on every check."""
         counts = {"files": 0, "module_files": 0, "module_pages": 0, "announcements": 0}
         self.new_files: list[tuple[str, str]] = []  # (course code, plain description) for Today.md
+        self.new_announcements: list[dict] = []  # recent ones, for Claude to read for schedule changes (messages.py)
         for course in self.courses or self._courses():
             code = course.get("course_code") or str(course["id"])
             folder = notes.course_dir(self.cfg, code)
@@ -139,7 +141,7 @@ class CanvasApi:
             counts["module_files"] += m["files"]
             counts["module_pages"] += m["pages"]
             counts["files"] += self._mirror_files(course["id"], code, folder / "Canvas", seen)
-            counts["announcements"] += self._mirror_announcements(course["id"], folder / "Announcements")
+            counts["announcements"] += self._mirror_announcements(course["id"], code, folder / "Announcements")
         return counts
 
     # ---- modules -------------------------------------------------------------------------------
@@ -305,8 +307,9 @@ class CanvasApi:
                 self.new_files.append((code, f"New file: {name}"))
         return n
 
-    def _mirror_announcements(self, course_id: int, dest: Path) -> int:
+    def _mirror_announcements(self, course_id: int, code: str, dest: Path) -> int:
         n = 0
+        recent = datetime.now(self.tz) - ANNOUNCEMENT_NEWS
         try:
             anns = self._pages("/api/v1/announcements", {"context_codes[]": f"course_{course_id}", "per_page": 50})
         except requests.HTTPError:
@@ -322,6 +325,13 @@ class CanvasApi:
             body = f"# {a.get('title', 'Announcement')}\n\n{_strip_html(a.get('message') or '')}\n"
             target.write_text(notes.with_front_matter(fm, body), encoding="utf-8")
             n += 1
+            if posted and posted >= recent:  # older ones are history, not news
+                course = self.cfg.course_for(code)
+                self.new_announcements.append({
+                    "source": "canvas", "external_id": str(a.get("id") or target.name), "sender": course.name if course else code,
+                    "subject": a.get("title"), "channel": course.code if course else code, "sent_at": posted.isoformat(timespec="minutes"),
+                    "text": _strip_html(a.get("message") or "")[:6000], "link": a.get("html_url"),
+                })
         return n
 
     # ---- http --------------------------------------------------------------------------------

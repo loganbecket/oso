@@ -295,6 +295,10 @@ def _from(h: dict) -> str:
         return f"email from {h.get('sender') or 'school'}"
     if h["source"] == "rule":
         return "your rule"
+    if h["source"] == "class":
+        return "class schedule"
+    if h["source"] == "canvas":
+        return f"Canvas, {h.get('sender') or 'an announcement'}"
     return "added in chat"
 
 

@@ -716,6 +716,30 @@ def skill_instructions(name: str) -> str:
 
 
 @mcp.tool()
+def class_times(course: str, meetings: list[dict] | None = None, first_day: str | None = None, last_day: str | None = None,
+                no_class: list[str] | None = None) -> dict | str:
+    """When a course meets. Without meetings: what's saved. With them (each {kind, days like "MWF" or "TR", starts, ends,
+    location}), first_day, last_day, and no_class dates: save, replacing the old times, and update the Oso calendar."""
+    from . import classes, happenings
+
+    cfg = _cfg()
+    now = datetime.now(cfg.tz)
+    with db.connect() as conn:
+        code = (cfg.course_for(course).code if cfg.course_for(course) else course)
+        if meetings is None:
+            return classes.times(conn, code) or "No class times saved for that course yet."
+        if not first_day or not last_day:
+            return "Not saved: class times need the first and last day of classes."
+        try:
+            out = classes.set_times(conn, cfg, code, meetings, first_day, last_day, no_class, now)
+        except (ValueError, KeyError) as e:
+            return f"Not saved: {e}"
+        conn.commit()
+        problem = happenings.push(conn, cfg, now)
+    return {**out, **({"note": problem} if problem else {})}
+
+
+@mcp.tool()
 def save_rule(name: str, words: str, kind: str, applies_to: str | None = None, form: dict | None = None,
               apply_to_existing: bool = False) -> dict | str:
     """Keep a rule he asked for (oso-rules). kind: how (applies_to: a command or "everything") or when (form)."""

@@ -124,8 +124,10 @@ Rules:
   "Friday", and "next week" from the message's date. If there is no date at all, leave the fact out unless it is an action.
 - "course" is the code of one of his courses, or null. "kind" (deadlines only) is assignment, quiz, exam, reading, or other.
 - "title" is short and plain, as it would appear on a calendar. "summary" is one sentence.
-- A class canceled or moved that is not listed below is an "event" titled with the course and what happened
-  ("PHYS 101 canceled", "PHYS 101 moved to Hall 204"), at the class time, with "change" "new".
+- A class meeting canceled or moved (time or room) that is in his classes below: an "event" with "about" set to
+  that meeting's id and "change" "canceled" or "moved" (with the new "when" and "ends", or the new "where").
+  Only that one meeting; "class is remote today" is a move with "where" "Online". A class that isn't listed is an
+  "event" titled with the course and what happened ("PHYS 101 canceled"), at the class time, with "change" "new".
 - Something to bring to a class or do before it is an "action" ("Bring a calculator to PHYS 101") due when that
   class starts, unless it is coursework with a due date, which is a "deadline".
 - "urgent" is true for anything moved or canceled within two days, or due within two days.
@@ -134,6 +136,7 @@ Rules:
 His courses: {courses}
 Known deadlines (next 30 days): {items}
 Known events and actions: {known}
+His classes this week: {classes}
 
 The messages follow as JSON."""
 
@@ -171,10 +174,16 @@ def _context(conn: sqlite3.Connection, cfg: Config, now: datetime) -> dict:
         ((now - timedelta(days=1)).isoformat(timespec="minutes"), soon),
     ).fetchall()
     items = "; ".join(f"item:{r['id']} {r['course_code'] or ''} {r['title']} ({r['kind']}) due {r['due_at'][:16]}" for r in rows) or "none"
-    hs = happenings.upcoming(conn, cfg, now, 30)
+    from . import classes
+
+    lessons = classes.upcoming(conn, cfg, now, 7)
+    in_class = {h["id"] for h in lessons}
+    hs = [h for h in happenings.upcoming(conn, cfg, now, 30) if h["id"] not in in_class and h["source"] != "class"]
     known_ = "; ".join(f"happening:{h['id']} {h['kind']} {h['title']} {h['starts_at'] or 'no date'}{' at ' + h['location'] if h['location'] else ''}"
                        for h in hs[:80]) or "none"
-    return {"courses": courses, "items": items, "known": known_}
+    lessons_ = "; ".join(f"happening:{h['id']} {h['course_code']} {h['title']} {h['starts_at']}{' at ' + h['location'] if h['location'] else ''}"
+                         for h in lessons) or "not known"
+    return {"courses": courses, "items": items, "known": known_, "classes": lessons_}
 
 
 def _batches(conn: sqlite3.Connection) -> list[tuple[str, list[sqlite3.Row]]]:
@@ -191,6 +200,9 @@ def _batches(conn: sqlite3.Connection) -> list[tuple[str, list[sqlite3.Row]]]:
     for name, msgs in groups.items():
         for i in range(0, len(msgs), GROUP_BATCH):
             out.append((f"the GroupMe group \"{name}\"", msgs[i:i + GROUP_BATCH]))
+    canvas = [r for r in rows if r["source"] == "canvas"]
+    for i in range(0, len(canvas), EMAIL_BATCH):
+        out.append(("Canvas announcements from his instructors", canvas[i:i + EMAIL_BATCH]))
     return out
 
 

@@ -482,7 +482,9 @@ def attention(conn: sqlite3.Connection, cfg: Config, now: datetime | None = None
             reasons.append(f"{len(focus)} topic{'s' if len(focus) != 1 else ''} need focus ({', '.join(focus[:3])})")
         score += 0.5 * len(practicing)
         if exams:
-            days = max(0, (datetime.fromisoformat(exams[0]).date() - now.date()).days)
+            due = datetime.fromisoformat(exams[0])
+            due = due.astimezone(now.tzinfo) if due.tzinfo and now.tzinfo else due
+            days = max(0, (due.date() - now.date()).days)  # in his time zone, so it's right near midnight
             score += 10 / (days + 1)
             reasons.append(f"exam in {days} day{'s' if days != 1 else ''}")
         g, cur = goal(conn, c.code), current_percent(conn, c.code)

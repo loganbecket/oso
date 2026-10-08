@@ -144,3 +144,26 @@ def test_strong_bar_moves_from_the_old_default(tmp_path):
     assert _strong_percent({"strong_percent": 80}) == 95  # saved under the old default
     assert _strong_percent({"strong_percent": 85}) == 85  # chosen by the student
     assert _strong_percent({"strong_percent": 80, "settings_version": 2}) == 80  # chosen after the change
+
+
+def test_canvas_sign_in_opens_in_its_own_process(env, monkeypatch):
+    started = []
+    monkeypatch.setattr(actions, "_start", lambda *a: started.append(a))
+    assert "sign-in window is opening" in actions.connect_canvas()
+    assert started == [("connect-canvas",)]  # the window needs a program's main thread, which the Oso window's buttons don't have
+
+
+def test_email_uses_the_calendar_client_when_no_file_was_kept(env, monkeypatch):
+    import json
+
+    from oso import gcal, secrets
+
+    store = {gcal.TOKEN: json.dumps({"token": "t", "refresh_token": "r", "client_id": "id.apps", "client_secret": "s",
+                                     "token_uri": "https://oauth2.googleapis.com/token"})}
+    monkeypatch.setattr(secrets, "get", lambda name: store.get(name))
+    monkeypatch.setattr(secrets, "set", lambda name, value: store.__setitem__(name, value))
+    config = gcal.client_config()
+    assert config["installed"]["client_id"] == "id.apps" and config["installed"]["client_secret"] == "s"
+    assert json.loads(store[gcal.CLIENT]) == config  # kept for next time
+    store.clear()
+    assert gcal.client_config() is None  # no calendar, no file: then Oso asks for the file

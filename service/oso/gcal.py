@@ -57,12 +57,31 @@ def sign_in(scopes: list[str], client_file: Path | None = None):
         config = json.loads(Path(client_file).read_text(encoding="utf-8"))
         secrets.set(CLIENT, json.dumps(config))
     else:
-        raw = secrets.get(CLIENT)
-        if not raw:
+        config = client_config()
+        if config is None:
             raise NotConnected("Oso needs the Google client file (the one used for the Oso calendar) once more.")
-        config = json.loads(raw)
     flow = InstalledAppFlow.from_client_config(config, scopes)
     return flow.run_local_server(port=0, prompt="consent", access_type="offline", open_browser=True)
+
+
+def client_config() -> dict | None:
+    """The Google client Oso signs in with: the one kept from a sign-in, or, for a calendar connected before Oso
+    kept it, the same client read back from the calendar's stored access (which records its id and secret)."""
+    raw = secrets.get(CLIENT)
+    if raw:
+        return json.loads(raw)
+    token = secrets.get(TOKEN)
+    if not token:
+        return None
+    t = json.loads(token)
+    if not (t.get("client_id") and t.get("client_secret")):
+        return None
+    config = {"installed": {"client_id": t["client_id"], "client_secret": t["client_secret"],
+                            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                            "token_uri": t.get("token_uri") or "https://oauth2.googleapis.com/token",
+                            "redirect_uris": ["http://localhost"]}}
+    secrets.set(CLIENT, json.dumps(config))
+    return config
 
 
 def connect(client_file: Path, cfg: Config) -> str:

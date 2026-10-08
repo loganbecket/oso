@@ -87,10 +87,11 @@ def backup_now() -> str:
 
 
 def connect_canvas() -> str:
-    from . import canvas_session
-
-    with db.connect() as conn:
-        return canvas_session.connect(conn)
+    """Open the Canvas sign-in window in its own process: the window has to run on a program's main thread, and the
+    Oso window (and Claude's tools) call this from a background one."""
+    _start("connect-canvas")
+    return ("The Canvas sign-in window is opening. Sign in as usual; it closes by itself when you're in. "
+            "Then press Refresh to see Canvas connected.")
 
 
 def disconnect_canvas() -> str:

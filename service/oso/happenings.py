@@ -116,8 +116,8 @@ def change(conn: sqlite3.Connection, hid: int, now: datetime, *, canceled: bool 
 def _local(value: str, now: datetime) -> datetime:
     dt = datetime.fromisoformat(value)
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=now.tzinfo)
-    return dt
+        return dt.replace(tzinfo=now.tzinfo)
+    return dt.astimezone(now.tzinfo) if now.tzinfo else dt  # his time zone, so dates are right near midnight
 
 
 def upcoming(conn: sqlite3.Connection, cfg: Config, now: datetime, days: int = 14, include_canceled: bool = False) -> list[dict]:

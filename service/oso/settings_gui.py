@@ -614,9 +614,9 @@ def _email_client_file():
     False when he closed the dialog."""
     from pathlib import Path
 
-    from . import gcal, secrets
+    from . import gcal
 
-    if secrets.get(gcal.CLIENT):
+    if gcal.client_config():
         return None
     path = filedialog.askopenfilename(title="Choose the OAuth client file from Google Cloud (the one used for the Oso calendar)",
                                       filetypes=[("JSON", "*.json"), ("All files", "*")])

@@ -60,6 +60,15 @@ The service writes the day's facts into `Today.md` in the vault on every check: 
 
 In Cowork the student asks anything about their courses and gets an answer built from their own notes, with a citation to the note or page. Available on request: a study guide scoped to an exam, a practice test with the key held back until attempted, a lecture or chapter summary, flashcards into Obsidian, a review of their own attempt at a problem that teaches the method before showing the answer, and a study plan placed on the calendar working back from exam dates. Answers come back in the chat at the size asked for; Oso writes a file only when asked (flashcards excepted).
 
+### Rules
+
+The student shapes Oso by saying what they want from now on, in any conversation. Claude asks "Want me to keep that as a rule?" and saves nothing without a yes. A rule is one note in `Oso/Rules/`, in the student's words, and `/oso-rules` lists, changes, pauses, or deletes them (plain requests work too). Fresh start erases them.
+
+- **How Oso responds** ("give me the briefing as bullet highlights"): handed to the command it's about with that command's instructions, or, for everything, to every command and the vault's Claude instructions.
+- **When something happens** ("when a new test date shows up, block three hours to study three days before"): saved with a short form the sync follows: what to watch (new deadlines and exams, grades, Canvas changes, school email and GroupMe), when to act, and what to do. On every check the sync compares what's new against each form; a calendar block it places itself in the earliest free time that avoids classes, the Oso calendar, and quiet hours (the nearest earlier day when the day is full), and anything needing judgment starts Claude in the background with only Oso's tools. Each rule acts once per thing; its block moves with the exam and is removed if the exam is canceled. The briefing says in a line what a rule did or why it couldn't. A note edited by hand is reread by Claude before the rule runs again.
+
+There is no list of allowed rules: Claude turns down what Oso can't do, and Oso's own rules win (read-only toward school, only the Oso calendar written, honest reporting, the student's notes never edited); a rule that conflicts is turned down or narrowed, with the reason.
+
 ### Where the student uses it
 
 Cowork on laptop or phone is the one place to ask Oso anything. Obsidian is the one place to write and read notes. Claude in Chrome answers questions about the page being read. Google Calendar carries alerts and study blocks. Voice is the Claude mobile app's voice mode. The student never sees the service, the database, or a terminal.

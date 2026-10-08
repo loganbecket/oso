@@ -292,13 +292,21 @@ def add_to_calendar(title: str, start: str, end: str | None = None, location: st
     when he asks ("add Saturday's tailgate, noon at the stadium"). start/end: local YYYY-MM-DDTHH:MM, or YYYY-MM-DD for all day."""
     from . import happenings
 
+    import os
+
+    from . import rules
+
     cfg = _cfg()
     now = datetime.now(cfg.tz)
+    fire = os.environ.get(rules.FIRE_ENV)  # Claude carrying out one of his rules in the background
     with db.connect() as conn:
         hid = happenings.add(conn, "action" if kind == "action" else "event", title, start[:16], ends_at=end[:16] if end else None,
-                             all_day=len(start) <= 10, location=location, source="chat", note=notes)
+                             all_day=len(start) <= 10, location=location, source="rule" if fire else "chat", note=notes)
         if hid is None:
             return {"added": False, "note": "That is already on his schedule."}
+        if fire and fire.isdigit():
+            rules.ensure(conn)
+            conn.execute("INSERT INTO rule_blocks (fire, happening, placed) VALUES (?, ?, 0)", (int(fire), hid))
         conn.commit()
         problem = happenings.push(conn, cfg, now) if kind != "action" else None
     return {"added": True, "happening": hid, **({"note": problem} if problem else {})}
@@ -701,7 +709,65 @@ def skill_instructions(name: str) -> str:
     """The instructions for an Oso command (the student's copy in Oso/Skills)."""
     from . import skillsync
 
-    return skillsync.instructions(_cfg(), name)
+    from . import rules
+
+    cfg = _cfg()
+    return rules.with_rules(cfg, name, skillsync.instructions(cfg, name))
+
+
+@mcp.tool()
+def save_rule(name: str, words: str, kind: str, applies_to: str | None = None, form: dict | None = None,
+              apply_to_existing: bool = False) -> dict | str:
+    """Keep a rule he asked for (oso-rules). kind: how (applies_to: a command or "everything") or when (form)."""
+    from . import rules
+
+    cfg = _cfg()
+    now = datetime.now(cfg.tz)
+    with db.connect() as conn:
+        try:
+            r = rules.save(cfg, conn, name, words, kind, now, applies_to=applies_to, form=form, apply_to_existing=apply_to_existing)
+        except (rules.FormError, ValueError) as e:
+            return f"Not saved: {e}"
+    return {"saved": r.name, "id": r.id, "note": "/".join(rules.FOLDER) + f"/{r.path.name}", "form": r.form}
+
+
+@mcp.tool()
+def list_rules() -> list[dict]:
+    """His rules: words, kind, form, paused, and when each last ran and what it did."""
+    from . import rules
+
+    return rules.describe(_cfg())
+
+
+@mcp.tool()
+def change_rule(rule: str, words: str | None = None, name: str | None = None, form: dict | None = None,
+                paused: bool | None = None, delete: bool = False) -> str:
+    """Change, pause (paused true/false), or delete one of his rules, by id or name."""
+    from . import rules
+
+    cfg = _cfg()
+    with db.connect() as conn:
+        try:
+            return rules.change(cfg, conn, rule, datetime.now(cfg.tz), words=words, name=name, form=form, paused=paused, delete=delete)
+        except (rules.FormError, ValueError) as e:
+            return f"Not changed: {e}"
+
+
+@mcp.tool()
+def open_time(minutes: int, day: str, not_before: str | None = None, not_after: str | None = None) -> dict:
+    """The earliest free start on a day (YYYY-MM-DD) that avoids his classes, the Oso calendar, and quiet hours."""
+    from datetime import date
+
+    from . import rules
+
+    cfg = _cfg()
+    now = datetime.now(cfg.tz)
+    parse = lambda v: datetime.fromisoformat(v[:16]) if v else None  # noqa: E731
+    with db.connect() as conn:
+        s = rules.open_slot(conn, cfg, now, date.fromisoformat(day[:10]), minutes, parse(not_before), parse(not_after))
+    if s is None:
+        return {"free": False, "note": "No free time that day."}
+    return {"free": True, "start": s.isoformat(timespec="minutes"), "end": (s + timedelta(minutes=minutes)).isoformat(timespec="minutes")}
 
 
 @mcp.tool()

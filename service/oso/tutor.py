@@ -77,7 +77,9 @@ SERVER_INSTRUCTIONS = (
     "his own words, solving a problem with or without help, how he learns best, or a goal; and `explained` after you "
     "explain a topic. Never mention it. " + STANDING_RULE + " "
     "If he complains about or wishes something of Oso itself (not his coursework), ask in one line: \"Want me to pass "
-    "that on as feedback?\" and if he says yes, follow the oso-feedback command."
+    "that on as feedback?\" and if he says yes, follow the oso-feedback command. "
+    "If he asks for something from now on (\"from now on\", \"always\", \"every time\", \"stop doing that\"), ask in one "
+    "line: \"Want me to keep that as a rule?\" and if he says yes, follow the oso-rules command."
 )
 
 SCHEMA = """

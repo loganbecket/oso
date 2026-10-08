@@ -33,7 +33,7 @@ This is a student's course vault managed by Oso. Use the Oso tools (`list_deadli
 - The instructions behind each Oso command are in `Oso/Skills/`; the student may edit them. New versions that clash with their edits: oso-skill-updates.
 - Where the student stands per topic (a stage and next step from quizzes, checks, graded Canvas work, and conversation notes), and fixing a result or note recorded wrong: oso-profile; summaries are in `Oso/Profile/`, with `How I learn.md`.
 - Finish, reopen, or relate courses, or follow an instructor's website: oso-courses. Pages and documents from followed sites are in each course's `Web/` folder.
-- Grades and what-if: oso-grades. What Oso read from Canvas (grades, scores, missing work, instructor comments): `canvas_info`. Study plan: oso-plan. His week (the Oso calendar, events and things to do from school email and GroupMe, conflicts): `schedule`; add or change something on it when he asks: `add_to_calendar`, `change_calendar`; stop reading a group or sender: `mute`. Handwriting: run `oso transcribe` (or oso-transcribe). Feedback about Oso itself (a bug, something confusing, an idea): oso-feedback; when he complains about Oso unprompted, ask "Want me to pass that on as feedback?" first. Looking after Oso ("open my settings", "Oso status", update, sync, back up, something broken): oso-doctor.
+- Grades and what-if: oso-grades. What Oso read from Canvas (grades, scores, missing work, instructor comments): `canvas_info`. Study plan: oso-plan. His week (the Oso calendar, events and things to do from school email and GroupMe, conflicts): `schedule`; add or change something on it when he asks: `add_to_calendar`, `change_calendar`; stop reading a group or sender: `mute`. Handwriting: run `oso transcribe` (or oso-transcribe). Feedback about Oso itself (a bug, something confusing, an idea): oso-feedback; when he complains about Oso unprompted, ask "Want me to pass that on as feedback?" first. Looking after Oso ("open my settings", "Oso status", update, sync, back up, something broken): oso-doctor. Rules he set for Oso ("from now on", "every time", "stop doing that"): oso-rules; they are notes in `Oso/Rules/`.
 
 ## Tutoring
 
@@ -50,6 +50,16 @@ This is a student's course vault managed by Oso. Use the Oso tools (`list_deadli
 """
 
 
+RULES = """
+
+## His rules
+
+He asked for these. Follow them in every conversation, over the defaults above, except Oso's own rules: honest about where he stands, read-only toward school systems, his own notes never edited.
+
+{rules}
+"""
+
+
 def write(cfg: Config) -> Path | None:
     if not cfg.write_vault_instructions:
         return None
@@ -59,7 +69,12 @@ def write(cfg: Config) -> Path | None:
         for c in sorted(cfg.courses, key=lambda c: (c.finished, c.term or "", c.name))
     ] or ["- No courses set up yet."]
     path = cfg.vault / "CLAUDE.md"
+    from . import rules
+
     text = TEMPLATE.format(courses="\n".join(rows))
+    mine = rules.how_rules(cfg, None)
+    if mine:
+        text += RULES.format(rules="\n".join(f"- {w}" for w in mine))
     if not path.exists() or path.read_text(encoding="utf-8", errors="replace") != text:
         path.write_text(text, encoding="utf-8")
     return path

@@ -69,6 +69,7 @@ def render(conn: sqlite3.Connection, cfg: Config, now: datetime) -> str:
     lines += _handwriting(conn)
     lines += _update_note(conn)
     lines += _feedback_note(conn, now)
+    lines += _rules_note(conn, now)
     lines += _skill_note()
     lines += _finished_note(conn, cfg, now)
     lines += _reading_note(conn, cfg, now)
@@ -319,6 +320,12 @@ def _feedback_note(conn: sqlite3.Connection, now: datetime) -> list[str]:
     except sqlite3.Error:
         return []
     return ["## Your feedback", *[f"- {x}" for x in done], ""] if done else []
+
+
+def _rules_note(conn: sqlite3.Connection, now: datetime) -> list[str]:
+    from . import rules
+
+    return rules.today_lines(conn, now)
 
 
 def _backup_note(conn: sqlite3.Connection, cfg: Config, now: datetime) -> list[str]:

@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from . import alerts, backup, books, canvas_session, canvas_store, convert, dashboard, db, drive, feedback, filing, handwriting, instructions, mastery, merge, reader, search, sites, secrets, skillsync, today, update
+from . import alerts, backup, books, canvas_session, canvas_store, convert, dashboard, db, drive, feedback, filing, handwriting, instructions, mastery, merge, reader, rules, search, sites, secrets, skillsync, today, update
 from .config import Config
 from .connectors import Connector
 from .connectors.canvas_api import CanvasApi, SessionExpired
@@ -108,6 +108,7 @@ def _run(cfg: Config, now: datetime | None = None) -> dict[str, object]:
         results.update(_read_messages(conn, cfg, now))
         _safe(lambda: filing.retire_inbox(cfg), 0)
         results["alerts"] = _safe(lambda: alerts.write_inbox(conn, cfg, now), 0)
+        results["rules"] = _safe(lambda: rules.run(cfg, conn, now), {})
         results["calendar"] = _deliver_calendar(conn, cfg, now)
         results["filed"] = _safe(lambda: filing.file_clippings(cfg, conn), 0)
         results["drive_mirrored"] = _safe(lambda: drive.mirror(cfg), 0)
@@ -181,6 +182,7 @@ def _read_messages(conn, cfg: Config, now: datetime) -> dict[str, object]:
         db.finish_sync(conn, run_id, ok=True, items_seen=int(counts.get("kept", 0)))
         results[name] = counts
         conn.commit()
+    results["rules_on_messages"] = _safe(lambda: rules.on_messages(cfg, conn, now), 0)  # before reading drops their text
     if results:
         results["messages"] = _safe(lambda: messages.read_new(conn, cfg, now), {})
     return results

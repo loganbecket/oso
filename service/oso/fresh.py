@@ -6,7 +6,7 @@ scheduled check, the Canvas sign-in, Obsidian's own settings and plugins (`.obsi
 (each course's `Books` folder, with what Oso has read of them), his feedback about Oso (`Oso/Feedback`), and the downloaded
 search model. Everything read from Canvas is cleared and read again on the next check.
 
-Deleted, with no backup: everything else in the vault, the courses and anything tied to them (muted
+Deleted, with no backup: everything else in the vault (his rules in `Oso/Rules` among it), the courses and anything tied to them (muted
 courses, Drive folder links), and Oso's database (deadlines, grades, alerts, transcription history, and the
 learner profile: every quiz, check, and topic rating, what was picked out of email and GroupMe, and what Claude noted in conversations: confusion, misconceptions,
 preferences, and goals), its

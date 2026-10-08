@@ -293,6 +293,8 @@ def _from(h: dict) -> str:
         return f"GroupMe, {h.get('channel') or 'a group'}"
     if h["source"] == "email":
         return f"email from {h.get('sender') or 'school'}"
+    if h["source"] == "rule":
+        return "your rule"
     return "added in chat"
 
 

@@ -4,6 +4,6 @@ description: Set up a new course from its syllabus. Use when the student runs /c
 argument-hint: "[course name]"
 ---
 
-Call the `skill_instructions` tool with name `create-course` and follow the instructions it returns. If that tool is unavailable, read `Oso/Skills/create-course.md` in the vault (through Google Drive if needed) and follow it.
+Call the `skill_instructions` tool with name `create-course` and follow the instructions it returns. If that tool is unavailable, read `Oso/Skills/create-course.md` in the vault (through Google Drive if needed) and follow it, along with any notes in `Oso/Rules/` about this command or everything.
 
 The student's request: $ARGUMENTS

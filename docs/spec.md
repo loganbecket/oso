@@ -22,7 +22,7 @@ At the start of each semester, feed Oso the syllabus and course materials for ev
 2. Markdown for knowledge, SQLite for facts. The model never has to remember either.
 3. One front door (Cowork), one notebook (Obsidian). A third app is a design failure.
 4. Skills and MCP servers are built once and work from both Cowork and Claude Code.
-5. Read-only toward the school. The only outside write is the student's own Google Calendar.
+5. Read-only toward the school. The only outside writes are the student's own Oso calendar and Oso task list in Google.
 6. Cite or decline. When the notes hold nothing relevant, say so.
 7. Zero-friction capture. Tablet pages, clipped pages, and course files flow in on their own.
 8. Low noise. Only urgent changes interrupt; the rest waits for the morning briefing.
@@ -59,6 +59,10 @@ The service writes the day's facts into `Today.md` in the vault on every check: 
 ### Studying
 
 In Cowork the student asks anything about their courses and gets an answer built from their own notes, with a citation to the note or page. Available on request: a study guide scoped to an exam, a practice test with the key held back until attempted, a lecture or chapter summary, flashcards into Obsidian, a review of their own attempt at a problem that teaches the method before showing the answer, and a study plan placed on the calendar working back from exam dates. Answers come back in the chat at the size asked for; Oso writes a file only when asked (flashcards excepted).
+
+### Tasks
+
+A checklist of things to get done that aren't coursework (laundry, an oil change, registering to vote), added by telling Claude, by voice or text, or on the phone in a Google Tasks list named Oso, and checked off in either place; the two are matched on every check. Things to do that Claude picks out of email, GroupMe, and Canvas join the list. Tasks have a day they should be done by, or none; the morning briefing shows what's open, overdue first, and suggests what fits today's free time. A reminder at a moment ("remind me to swing by the mail room on my way back to the dorm") is a pop-up event on the Oso calendar, timed from the class schedule. Google Tasks is the second outside write, after the Oso calendar, and only to the list Oso made.
 
 ### Rules
 

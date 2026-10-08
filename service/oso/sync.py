@@ -112,6 +112,7 @@ def _run(cfg: Config, now: datetime | None = None) -> dict[str, object]:
         results["classes"] = _safe(lambda: classes.extend(conn, cfg, now), 0)
         results["rules"] = _safe(lambda: rules.run(cfg, conn, now), {})
         results["calendar"] = _deliver_calendar(conn, cfg, now)
+        results["tasks"] = _tasks(conn, cfg, now)
         results["filed"] = _safe(lambda: filing.file_clippings(cfg, conn), 0)
         results["drive_mirrored"] = _safe(lambda: drive.mirror(cfg), 0)
         results["sites"] = _safe(lambda: sites.check(cfg, conn, now), {})
@@ -143,6 +144,23 @@ def _record_failure(name: str) -> None:
             f.write(f"\n--- {datetime.now().isoformat(timespec='seconds')} {name}\n{traceback.format_exc()}")
     except OSError:
         pass
+
+
+def _tasks(conn, cfg: Config, now: datetime) -> str | dict:
+    """Things to do picked out of messages join his tasks, and the list is matched with Google Tasks."""
+    from . import tasks
+
+    _safe(lambda: tasks.import_actions(conn, cfg, now), 0)
+    if not tasks.connected():
+        return "not connected"
+    run_id = db.record_sync(conn, "google_tasks")
+    try:
+        counts = tasks.sync(conn, cfg, now)
+    except Exception as e:  # noqa: BLE001
+        db.finish_sync(conn, run_id, ok=False, error=plain_error(e))
+        return plain_error(e)
+    db.finish_sync(conn, run_id, ok=True, items_seen=counts["from_google"])
+    return counts
 
 
 def _deliver_calendar(conn, cfg: Config, now: datetime) -> str | int:

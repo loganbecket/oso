@@ -24,6 +24,7 @@ ACTIONS = {
     "connect_canvas": "Sign in to Canvas",
     "connect_calendar": "Connect Google Calendar",
     "connect_email": "Connect email",
+    "connect_tasks": "Connect Google Tasks",
     "backup": "Back up now",
 }
 
@@ -146,6 +147,13 @@ def checks(fix: bool = False) -> list[dict]:
     else:
         out.append(("warn", "Google Calendar is not connected, so urgent changes only appear in Today.md and Oso/Alerts.md. See 'Connect the Oso calendar' in the README."), "connect_calendar")
 
+    from . import tasks
+
+    if tasks.connected():
+        out.append(("ok", "Google Tasks connected: his tasks are in the list named Oso"))
+    else:
+        out.append(("warn", "Google Tasks isn't connected, so his tasks aren't on his phone. Run 'oso connect-tasks'."), "connect_tasks")
+
     from . import groupme, mail, messages
 
     if mail.connected():
@@ -247,7 +255,7 @@ def _schedule_missing(cfg, fix: bool, what: str) -> tuple[str, str]:
 
 
 _NAMES = {"canvas_feed": "Canvas calendar feed", "canvas_api": "Canvas sign-in", "remarkable_usb": "reMarkable",
-          "google_calendar": "Google Calendar", "school_email": "School email", "groupme": "GroupMe"}
+          "google_calendar": "Google Calendar", "school_email": "School email", "groupme": "GroupMe", "google_tasks": "Google Tasks"}
 
 
 def _name(connector: str) -> str:

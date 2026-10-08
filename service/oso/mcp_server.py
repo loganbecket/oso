@@ -287,9 +287,10 @@ def schedule(days: int = 7) -> dict:
 
 @mcp.tool()
 def add_to_calendar(title: str, start: str, end: str | None = None, location: str | None = None, notes: str | None = None,
-                    kind: str = "event") -> dict:
-    """Add an event (or, with kind "action", something he needs to do by a date) to his schedule and the Oso calendar,
-    when he asks ("add Saturday's tailgate, noon at the stadium"). start/end: local YYYY-MM-DDTHH:MM, or YYYY-MM-DD for all day."""
+                    kind: str = "event", remind: bool = False) -> dict:
+    """Add an event to his schedule and the Oso calendar, when he asks ("add Saturday's tailgate, noon at the stadium").
+    start/end: local YYYY-MM-DDTHH:MM, or YYYY-MM-DD for all day. remind: a pop-up on his phone at the start, for a
+    reminder at a moment ("remind me to swing by the mail room after class"). Things to do by a day are tasks: add_task."""
     from . import happenings
 
     import os
@@ -301,7 +302,8 @@ def add_to_calendar(title: str, start: str, end: str | None = None, location: st
     fire = os.environ.get(rules.FIRE_ENV)  # Claude carrying out one of his rules in the background
     with db.connect() as conn:
         hid = happenings.add(conn, "action" if kind == "action" else "event", title, start[:16], ends_at=end[:16] if end else None,
-                             all_day=len(start) <= 10, location=location, source="rule" if fire else "chat", note=notes)
+                             all_day=len(start) <= 10, location=location, source="rule" if fire else "chat", note=notes,
+                             remind=remind)
         if hid is None:
             return {"added": False, "note": "That is already on his schedule."}
         if fire and fire.isdigit():
@@ -713,6 +715,61 @@ def skill_instructions(name: str) -> str:
 
     cfg = _cfg()
     return rules.with_rules(cfg, name, skillsync.instructions(cfg, name))
+
+
+@mcp.tool()
+def list_tasks(include_done: bool = False) -> list[dict]:
+    """His tasks (oso-tasks): open ones by due day, and with include_done those checked off in the last week."""
+    from . import tasks
+
+    with db.connect() as conn:
+        return tasks.listing(conn, include_done)
+
+
+@mcp.tool()
+def add_task(title: str, due: str | None = None, notes: str | None = None) -> dict:
+    """Add a task to his list (and Google Tasks). due: YYYY-MM-DD, the day it should be done by; omit for whenever."""
+    from . import tasks
+
+    cfg = _cfg()
+    with db.connect() as conn:
+        try:
+            tid = tasks.add(conn, title, due, notes)
+        except ValueError as e:
+            return {"added": False, "note": str(e)}
+        if tid is None:
+            return {"added": False, "note": "That's already on his list."}
+        conn.commit()
+        problem = _push_tasks(conn, cfg)
+    return {"added": True, "task": tid, **({"note": problem} if problem else {})}
+
+
+@mcp.tool()
+def change_task(task: str, title: str | None = None, due: str | None = None, clear_due: bool = False, notes: str | None = None,
+                done: bool | None = None, delete: bool = False) -> str:
+    """Change one of his tasks, by id or words from its name: rename, move its day, check it off (done true) or reopen
+    it (done false), or delete it."""
+    from . import tasks
+
+    cfg = _cfg()
+    with db.connect() as conn:
+        out = tasks.change(conn, task, title=title, due=due, clear_due=clear_due, notes=notes, done=done, delete=delete)
+        conn.commit()
+        problem = _push_tasks(conn, cfg)
+    return out + (f" {problem}" if problem else "")
+
+
+def _push_tasks(conn, cfg) -> str | None:
+    """Send the change to Google Tasks right away, so it's on his phone now."""
+    from . import tasks
+
+    if not tasks.connected():
+        return None
+    try:
+        tasks.sync(conn, cfg, datetime.now(cfg.tz))
+    except Exception as e:  # noqa: BLE001
+        return f"Saved, but Google Tasks couldn't be updated just now ({type(e).__name__}); the next check tries again."
+    return None
 
 
 @mcp.tool()

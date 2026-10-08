@@ -60,6 +60,8 @@ URGENT_WINDOW = timedelta(days=2)  # a change this close is flagged, like a move
 
 def ensure(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA)
+    if "remind" not in {r[1] for r in conn.execute("PRAGMA table_info(happenings)")}:
+        conn.execute("ALTER TABLE happenings ADD COLUMN remind INTEGER NOT NULL DEFAULT 0")  # a pop-up when it starts
 
 
 def _norm(title: str) -> str:
@@ -69,8 +71,9 @@ def _norm(title: str) -> str:
 def add(conn: sqlite3.Connection, kind: str, title: str, starts_at: str | None, *, ends_at: str | None = None,
         all_day: bool = False, location: str | None = None, course: str | None = None, channel: str | None = None,
         source: str = "chat", sender: str | None = None, message_id: int | None = None, link: str | None = None,
-        note: str | None = None, urgent: bool = False) -> int | None:
-    """Keep a new happening. Returns its id, or None when the same thing (same title, same day) is already kept."""
+        note: str | None = None, urgent: bool = False, remind: bool = False) -> int | None:
+    """Keep a new happening. Returns its id, or None when the same thing (same title, same day) is already kept.
+    remind: a pop-up on his phone when it starts ("remind me when class lets out")."""
     ensure(conn)
     day = (starts_at or "")[:10]
     for r in conn.execute("SELECT id, title FROM happenings WHERE status = 'active' AND kind = ? AND substr(COALESCE(starts_at, ''), 1, 10) = ?", (kind, day)):
@@ -79,10 +82,10 @@ def add(conn: sqlite3.Connection, kind: str, title: str, starts_at: str | None, 
     ts = now_iso()
     cur = conn.execute(
         """INSERT INTO happenings (kind, title, starts_at, ends_at, all_day, location, course_code, channel, source, sender,
-                                   message_id, link, note, urgent, first_seen, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                   message_id, link, note, urgent, remind, first_seen, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (kind, title, starts_at, ends_at, int(all_day), location, course, channel, source, sender, message_id, link, note,
-         int(urgent), ts, ts),
+         int(urgent), int(remind), ts, ts),
     )
     return int(cur.lastrowid)
 
@@ -152,6 +155,8 @@ def event_body(h: dict, cfg: Config) -> dict:
     }
     if h.get("location"):
         body["location"] = h["location"]
+    if h.get("remind"):
+        body["reminders"] = {"useDefault": False, "overrides": [{"method": "popup", "minutes": 0}]}
     start = h["starts_at"]
     if h.get("all_day") or len(start) <= 10:
         d = date.fromisoformat(start[:10])
@@ -329,7 +334,8 @@ def _exams(conn: sqlite3.Connection, cfg: Config, now: datetime, days: int) -> l
 
 
 def conflicts(conn: sqlite3.Connection, cfg: Config, now: datetime, days: int = 7) -> list[str]:
-    """Plain sentences: an evening event before an exam, two things at once, an action coming due, and recent changes."""
+    """Plain sentences: an evening event before an exam, two things at once, and recent changes. Things to do are
+    tasks (`tasks.py`)."""
     lines = []
     events = [e for e in schedule(conn, cfg, now, days) if not e["all_day"]]
     for x in _exams(conn, cfg, now, days + 1):
@@ -344,9 +350,6 @@ def conflicts(conn: sqlite3.Connection, cfg: Config, now: datetime, days: int = 
             b_start = datetime.fromisoformat(b["starts_at"])
             if b_start < a_end and b_start.date() == datetime.fromisoformat(a["starts_at"]).date():
                 lines.append(f"{a['title']} and {b['title']} overlap on {_when(b['starts_at'])}.")
-    for h in upcoming(conn, cfg, now, 2):
-        if h["kind"] == "action" and h["starts_at"]:
-            lines.append(f"To do by {_when(h['starts_at'], all_day=bool(h['all_day']))}: {h['title']} ({_from(h)}).")
     since = (now - timedelta(hours=24)).isoformat(timespec="minutes")
     for r in conn.execute("SELECT * FROM happenings WHERE urgent = 1 AND changed_at >= ? ORDER BY changed_at", (since,)):
         h = dict(r)
@@ -372,16 +375,11 @@ def today_sections(conn: sqlite3.Connection, cfg: Config, now: datetime) -> list
         lines += [f"- {x}" for x in heads]
         lines.append("")
     later = [e for e in schedule(conn, cfg, now, 7) if e["starts_at"][:10] > now.date().isoformat()]
-    actions = [h for h in upcoming(conn, cfg, now, 14) if h["kind"] == "action"]
-    if later or actions:
+    if later:
         lines.append("## Coming up")
         for e in later:
             where = f" at {e['location']}" if e["location"] else ""
             lines.append(f"- {_when(e['starts_at'], e['ends_at'], e['all_day'])}: {e['title']}{where} ({e['from']})")
-        for h in actions:
-            when = f"by {_when(h['starts_at'], all_day=bool(h['all_day']))}" if h["starts_at"] else "no date"
-            link = f" [open]({h['link']})" if h.get("link") else ""
-            lines.append(f"- To do, {when}: {h['title']} ({_from(h)}){link}")
         lines.append("")
     return lines
 

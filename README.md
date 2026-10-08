@@ -203,7 +203,7 @@ Without this step, urgent changes still appear in `Today.md`, in your morning br
 
 Most of what competes for your time arrives outside Canvas: an instructor's email moving a deadline, the registrar saying registration opens Monday, a GroupMe message moving tonight's meeting to the soccer fields. With these connected, Oso reads them on every check, has Claude pick out what matters (a deadline, an event, something you need to do, or a change to one of them), and keeps those facts with your deadlines. Events go on the Oso calendar, marked with where they came from, and the morning briefing weighs everything together: "You have an important test tomorrow in a class where your grade needs work, and your practice says you're not ready. Consider skipping tonight's mixer."
 
-What is kept is the facts, with a link back to the message. Message text is never copied into your vault, and Oso never sends, deletes, or changes anything in your email or GroupMe. Ads, social-network notices, and Canvas's own notification emails are set aside without Claude reading them.
+What is kept is the facts, with a link back to the message. Message text is never copied into your vault, and Oso never sends, deletes, or changes anything in your email or GroupMe. Ads, social-network notices, and Canvas's own notification emails are set aside without Claude reading them; with the Canvas sign-in, Oso reads announcements and inbox messages from Canvas itself.
 
 **School email.** Oso reads one Gmail account: the one your school email is forwarded to. If your school email isn't forwarded there yet, add a rule in your school email that forwards everything to that Gmail address.
 
@@ -222,6 +222,14 @@ Forwarded messages are unwrapped, so Oso sees who originally sent each one.
 Every group is read until you mute it: untick it on the Settings tab, or tell Claude "stop reading the memes group". To stop reading an email sender or mailing list, add it under **Email senders to ignore** on the Settings tab, or tell Claude. Reading messages uses some of your Claude plan; set a daily limit on the Settings tab if it uses too much (no limit by default).
 
 You can also tell Claude about things that reach your personal email or come up in conversation: "add Saturday's tailgate, noon at the stadium" puts it on the Oso calendar.
+
+**Google Tasks** (your task list on your phone):
+
+1. In the Google Cloud project from step 3.2, search for **Google Tasks API**, open it, and click **Enable**.
+2. In the Oso window's **Actions** tab, click **Connect Google Tasks**. Or run `oso connect-tasks`.
+3. Sign in with the same Google account and allow Oso to manage your tasks.
+
+Oso makes a list named **Oso** in Google Tasks. It's in the Google Tasks app on your phone and beside your Google Calendar, and it stays matched with Oso on every check.
 
 ### 3.4 Install the Oso plugin
 
@@ -246,7 +254,7 @@ The plugin is the set of instructions that teach Claude how to use Oso.
 1. In Cowork, click **Projects** in the sidebar and create a project named `School`. When it asks for a folder, pick your vault folder. Start every study chat inside this project so Claude can see your notes. (In Claude Code, start `claude` from inside the vault folder instead.)
 2. Open the course syllabus in your browser and clip it with the Obsidian Web Clipper. It lands in your vault's `Clippings` folder and stays there for course setup. A syllabus PDF dragged into `Clippings` through Obsidian works too.
 3. In a chat in the School project, type `/create-course` followed by the course name, for example `/create-course Intro to Engineering`.
-4. Claude finds the syllabus, reads it, and shows you every date, exam, and grade weight it found. Check them, correct anything wrong, and confirm. Only then does it create the course folder, move the syllabus into it as `Syllabus`, and save the dates.
+4. Claude finds the syllabus, reads it, and shows you every date, exam, and grade weight it found, and the class times (every lecture, lab, and discussion, with the room). Canvas doesn't have class times, so if the syllabus doesn't either, Claude asks you; your registration schedule has them. Your classes go on the Oso calendar and stay current when an instructor cancels or moves one. Check them, correct anything wrong, and confirm. Only then does it create the course folder, move the syllabus into it as `Syllabus`, and save the dates.
 5. Repeat for each course.
 
 ### 3.6 Schedule the morning briefing
@@ -295,6 +303,7 @@ New to Claude? Read [Getting the Most Out of Oso](docs/getting-the-most-out-of-o
 - **Updating Oso**: when a newer version exists, the morning briefing and `oso doctor` say so. Say *"update Oso"* in the Claude app, click **Update Oso** in the Oso window, or run `oso update` in your command window; it downloads the new version from GitHub, reinstalls the service, and keeps your notes, deadlines, and settings. On Windows the update runs in a new window that shows the installer and closes by itself when it's done; then restart the Claude app. By default Oso follows **stable**, meaning only versions marked as releases. To get every change as soon as it is published, set **Updates** to **latest** in `oso settings`. If a new version causes trouble, `oso update --version v0.1.1` (or any earlier release from v0.1.1 on) goes back to it. Oso comes in two pieces: the service on your computer, which `oso update` replaces, and the plugin inside the Claude app, which only the Claude app can update. With **Sync automatically** on (step 3.4) the plugin updates itself; otherwise click **Check for updates** on the Oso plugin under Customize, Plugins. The plugin rarely changes, since the instructions behind each command come with the service.
 - **Search**: on every check Oso indexes your notes and course materials, so Claude can find the right passage across every course in a fraction of a second, by meaning as well as exact words (a question about derivatives finds notes that only say "rate of change"). The first check after installing downloads a small search model (about 65 MB); indexing a large batch of new material can take a few minutes in the background, and later checks only index what changed.
 - **Feedback about Oso**: type `/oso-feedback`, or just say what's wrong or what you wish Oso did ("the equations in my quiz don't display right"). Claude asks before passing on anything you didn't send on purpose, then saves it, in your words, in `Oso/Feedback/` in your vault, where it travels with the nightly backup to whoever builds Oso.
+- **Tasks**: things to get done that aren't coursework, like laundry, an oil change, or registering to vote. Tell Claude ("add get an oil change this week"), or add them in the Oso list in Google Tasks on your phone; check them off in either place. Things to do from your email and GroupMe land there too. The morning briefing lists what's open and suggests what fits today's free time. For a reminder at a moment, say *"remind me to swing by the mail room after class"*: it pops up on your phone when that class lets out.
 - **Rules**: say what you want from now on ("give me the briefing as bullet highlights", "when a new test date shows up, block three hours to study three days before"). Claude asks whether to keep it as a rule, and it's saved in `Oso/Rules/` in your vault. `/oso-rules` lists them and changes, pauses, or deletes one. The briefing says when a rule did something.
 - **Making Oso's commands your own**: the instructions behind each Oso command (summarize, quiz, study guide, and the rest) are plain notes in your vault under `Oso/Skills/`. Edit one in Obsidian and Claude follows your version from then on. When Oso updates a command you haven't touched, your copy updates quietly. If you have changed it, your copy is kept, and the briefing tells you a new version is waiting; ask Claude to go through the Oso command updates, and it shows what changed on each side and lets you keep yours, take Oso's, or combine them. To throw away your edits, run `oso reset-skills` (or `oso reset-skills oso-summarize` for just one). Files you add to that folder yourself are never touched.
 - **Changing settings**: say *"open my settings"* in the Claude app, open **Oso** from the Start menu, or run `oso settings` in your command window. The Oso window opens on its status panel; the **Settings** tab is where you can change the vault folder, time zone, how often Oso checks for changes (15 minutes by default), what counts as urgent, quiet hours, which courses are muted, the tablet folder, and the Canvas feed or token. **Save and check** applies the change, reschedules the checks if needed, and runs the health check.
@@ -373,6 +382,7 @@ oso profile --raw         show every recorded quiz, question by question
 oso connect-canvas        sign in to Canvas so Oso can read grades and coursework
 oso connect-email         let Oso read the Gmail your school email is forwarded to (read-only)
 oso connect-groupme       let Oso read your GroupMe groups
+oso connect-tasks         keep your tasks in a Google Tasks list named Oso
 oso canvas --raw          show what Oso has read from Canvas
 oso books                 how far Oso has read each textbook (--reprocess TITLE reads one again)
 oso sites                 instructor websites Oso follows (--add COURSE URL, --check)

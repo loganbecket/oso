@@ -11,7 +11,7 @@ Read `docs/spec.md` for what Oso does and why.
 - The vault is the source of truth for knowledge; SQLite is the source of truth for deadlines and grades. The search index is a disposable copy of the vault, rebuilt from it on every sync.
 - The service writes only into `Oso/`, generated files (`Today.md`, `Dashboard.md`), and the course folders it fills (Canvas, Drive, Handwriting, filed clippings, and the chapter notes it writes from the books in `Books`). In `Oso/Skills/` it replaces a command's instructions only when the student has not edited them (`skillsync.py`). It never edits a note the student wrote.
 - Skill instructions live in `service/oso/skills/`; each plugin skill is a one-line pointer to them. Edit the instructions there, not in `plugin/`.
-- Read-only toward every school system. The only external write is one dedicated Google Calendar.
+- Read-only toward every school system. The only external writes are one dedicated Google Calendar and one dedicated Google Tasks list.
 - Credentials live in the operating system's credential store. Never in files, logs, or prompts.
 - Every failure the student can see must be a plain sentence, not a stack trace.
 - When a change takes care of a student's feedback note, add the note's code (`feedback.code`) and the release version to `service/oso/shipped_feedback.txt`. Never put the note's words in the repo.

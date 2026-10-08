@@ -124,6 +124,25 @@ def connect_email(client_file=None) -> str:
     return f"Connected {addr}. Oso reads new email there on every check; nothing is ever sent or changed."
 
 
+def connect_tasks(client_file=None) -> str:
+    from . import tasks
+
+    try:
+        tasks.connect(client_file)
+    except Exception as e:  # noqa: BLE001
+        if "client file" in str(e):
+            return str(e)
+        return f"Google Tasks didn't connect ({e})."
+    return "Connected Google Tasks. His tasks are in the list named Oso, on his phone and in Google Calendar."
+
+
+def disconnect_tasks() -> str:
+    from . import tasks
+
+    tasks.disconnect()
+    return "Oso forgot the Google Tasks connection. His tasks are still kept in Oso."
+
+
 def disconnect_email() -> str:
     from . import mail
 

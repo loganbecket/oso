@@ -76,6 +76,9 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("connect-email", help="let Oso read the Gmail account your school email is forwarded to (read-only)")
     s.add_argument("--client-file", help="the OAuth client file from Google Cloud (only if Oso asks for it)")
     sub.add_parser("disconnect-email", help="stop reading email and forget its access")
+    s = sub.add_parser("connect-tasks", help="keep his tasks in a Google Tasks list named Oso, on his phone")
+    s.add_argument("--client-file", help="the OAuth client file from Google Cloud (only if Oso asks for it)")
+    sub.add_parser("disconnect-tasks", help="stop using Google Tasks and forget its access")
     sub.add_parser("connect-groupme", help="let Oso read your GroupMe groups, with the access token from dev.groupme.com")
     sub.add_parser("disconnect-groupme", help="stop reading GroupMe and forget the token")
     s = sub.add_parser("transcribe", help="turn queued handwritten pages into notes, one page per Claude Code call")
@@ -215,6 +218,19 @@ def _dispatch(args: argparse.Namespace) -> int:
 
         print("A browser window will open. Sign in with the Gmail account your school email is forwarded to, and allow Oso to read it.")
         print(actions.connect_email(Path(args.client_file).expanduser() if args.client_file else None))
+        return 0
+
+    if args.cmd == "connect-tasks":
+        from . import actions
+
+        print("A browser window will open. Sign in with the Google account for Oso, and allow it to manage your tasks.")
+        print(actions.connect_tasks(Path(args.client_file).expanduser() if args.client_file else None))
+        return 0
+
+    if args.cmd == "disconnect-tasks":
+        from . import actions
+
+        print(actions.disconnect_tasks())
         return 0
 
     if args.cmd == "disconnect-email":

@@ -122,6 +122,13 @@ def open_settings(cfg: cfgmod.Config) -> None:
             return
         run("Opening the Google sign-in", lambda: actions.connect_email(client))
 
+    def connect_tasks() -> None:
+        client = _email_client_file()  # the same Google client as email; asked for only if Oso doesn't have it
+        if client is False:
+            show("No file chosen.")
+            return
+        run("Opening the Google sign-in", lambda: actions.connect_tasks(client))
+
     top = ttk.Frame(status_tab)
     top.pack(fill="x")
     result_box(status_tab, top)
@@ -150,6 +157,8 @@ def open_settings(cfg: cfgmod.Config) -> None:
             action = c.get("action")
             if action == "connect_email":
                 ttk.Button(lines_frame, text=ACTIONS[action], command=connect_email).grid(row=i, column=2, sticky="ew", padx=(16, 16), pady=3)
+            elif action == "connect_tasks":
+                ttk.Button(lines_frame, text=ACTIONS[action], command=connect_tasks).grid(row=i, column=2, sticky="ew", padx=(16, 16), pady=3)
             elif action == "connect_calendar":
                 ttk.Button(lines_frame, text=ACTIONS[action], command=lambda: show(_connect_calendar(cfg))).grid(row=i, column=2, sticky="ew", padx=(16, 16), pady=3)
             elif action in fixes:
@@ -172,6 +181,8 @@ def open_settings(cfg: cfgmod.Config) -> None:
             ("Connect Google Calendar…", lambda: show(_connect_calendar(cfg))),
             ("Connect email…", connect_email),
             ("Disconnect email", lambda: run("Disconnecting email", actions.disconnect_email)),
+            ("Connect Google Tasks…", connect_tasks),
+            ("Disconnect Google Tasks", lambda: run("Disconnecting Google Tasks", actions.disconnect_tasks)),
             ("Connect GroupMe…", lambda: show(_connect_groupme(root))),
             ("Disconnect GroupMe", lambda: run("Disconnecting GroupMe", actions.disconnect_groupme)),
         ]),

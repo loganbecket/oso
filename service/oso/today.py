@@ -51,6 +51,7 @@ def render(conn: sqlite3.Connection, cfg: Config, now: datetime) -> str:
     lines += _schedule(conn, cfg, now)
     lines += _missing(conn, cfg)
     lines += _section("Due this week", this_week, cfg, now)
+    lines += _tasks(conn, cfg, now)
 
     lines.append("## Exams")
     if exams:
@@ -323,6 +324,12 @@ def _feedback_note(conn: sqlite3.Connection, now: datetime) -> list[str]:
     return ["## Your feedback", *[f"- {x}" for x in done], ""] if done else []
 
 
+def _tasks(conn: sqlite3.Connection, cfg: Config, now: datetime) -> list[str]:
+    from . import tasks
+
+    return tasks.today_lines(conn, cfg, now)
+
+
 def _rules_note(conn: sqlite3.Connection, now: datetime) -> list[str]:
     from . import rules
 
@@ -444,4 +451,5 @@ def _tablet_line(conn: sqlite3.Connection, now: datetime) -> str:
 
 def _friendly(connector: str) -> str:
     return {"canvas_feed": "Canvas calendar feed", "canvas_api": "Canvas (token)", "remarkable_usb": "reMarkable", "google_calendar": "Google Calendar",
-            "school_email": "School email", "groupme": "GroupMe", "message_reading": "Reading messages"}.get(connector, connector)
+            "school_email": "School email", "groupme": "GroupMe", "message_reading": "Reading messages",
+            "google_tasks": "Google Tasks"}.get(connector, connector)

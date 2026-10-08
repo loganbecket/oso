@@ -141,4 +141,7 @@ def test_canvas_announcements_are_read_like_email(env, monkeypatch):
 
     messages.read_new(conn, cfg, NOW, ask=ask)
     assert "Arduino kit" in got["payload"]
-    assert "Bring Arduino kit to Physics lab (Canvas, Physics)" in today.render(conn, cfg, NOW)
+    from oso import tasks
+
+    tasks.import_actions(conn, cfg, NOW)
+    assert "- Bring Arduino kit to Physics lab (today) [from canvas]" in today.render(conn, cfg, NOW)

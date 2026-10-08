@@ -343,11 +343,14 @@ def test_today_has_the_schedule_conflicts_and_coming_up(env):
     happenings.add(conn, "event", "Study group", "2026-10-07T21:30", source="email", sender="Dr. Lee")
     happenings.add(conn, "event", "Tailgate", "2026-10-10T12:00", location="Stadium", source="chat")
     happenings.add(conn, "action", "Register for spring classes", "2026-10-08", source="email", sender="Registrar")
+    from oso import tasks
+
+    tasks.import_actions(conn, cfg, NOW)  # things to do are tasks
     text = today.render(conn, cfg, NOW)
     assert "## Today's schedule" in text and "9:00 PM–11:00 PM: Mixer (GroupMe, Sigma Chi)" in text
     assert "Mixer (Wed Oct 07, 9:00 PM–11:00 PM) is the evening before Physics Exam 2 (Thu Oct 08)." in text
     assert "Mixer and Study group overlap" in text
-    assert "To do by Thu Oct 08: Register for spring classes (email from Registrar)." in text
+    assert "## Tasks\n- Register for spring classes (by Thu Oct 08) [from email]" in text
     assert "## Coming up" in text and "Sat Oct 10, 12:00 PM: Tailgate at Stadium (added in chat)" in text
 
 

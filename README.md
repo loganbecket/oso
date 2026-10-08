@@ -6,7 +6,7 @@ Oso combines three parts:
 
 - **Obsidian**, a free notes app, holds everything you read and write.
 - **Claude**, on a Pro subscription, does the reasoning. You talk to Oso through the Claude app, on your computer or your phone.
-- **The Oso service**, a small program on your computer, pulls in Canvas, your school email, GroupMe, and your reMarkable tablet, keeps your deadlines, classes, and tasks, and watches for changes.
+- **The Oso service**, a small program on your computer, pulls in Canvas, your school email, and GroupMe, keeps your deadlines, classes, and tasks, and watches for changes.
 
 There is no Oso server. Your notes stay on your computer and in your own Google Drive, and reach Claude only when you ask it something.
 
@@ -29,7 +29,7 @@ Setup takes about an hour, most of it installing and signing in to apps. Follow 
 - **[Studying with Oso](docs/features/studying.md)**: explanations, summaries, study guides, practice tests in a timed quiz window, checks of your own work, flashcards, and study plans, all from your own course materials.
 - **[Where you stand](docs/features/where-you-stand.md)**: Oso tracks each topic from your actual results, tells you honestly where you're behind, and warns you when an exam is close and you aren't ready.
 - **[Textbooks](docs/features/textbooks.md)**: put your textbook in the course folder and Claude cites it by page, and checks your notes against it.
-- **[Notes and handwriting](docs/features/notes-and-handwriting.md)**: web clippings filed into the right course, course files made searchable, and handwritten notes from your reMarkable or scans turned into text.
+- **[Notes and handwriting](docs/features/notes-and-handwriting.md)**: web clippings filed into the right course, course files made searchable, and handwritten notes, scanned or photographed, turned into text.
 
 ### Your sources
 

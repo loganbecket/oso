@@ -8,7 +8,7 @@ Oso runs on Windows, macOS, and Linux. Setup takes about an hour, most of it ins
 4. [Install the Oso plugin](#install-the-oso-plugin)
 5. [Set up your courses](#set-up-your-courses)
 6. [Schedule the morning briefing](#schedule-the-morning-briefing)
-7. Optional: [your reMarkable tablet](#your-remarkable-tablet), [a shared Google Drive folder](#a-shared-google-drive-folder)
+7. Optional extras: [a shared Google Drive folder](#a-shared-google-drive-folder), [a reMarkable tablet](#your-remarkable-tablet) if you have one
 
 ---
 
@@ -219,21 +219,6 @@ In Cowork, create a scheduled task that runs every day at the time you wake up, 
 
 ---
 
-## Your reMarkable tablet
-
-Oso pulls your handwritten notes straight off the tablet over the USB cable. No reMarkable account or subscription is needed, and only your coursework comes over.
-
-**A folder on the tablet with the same name as a course folder in your vault belongs to that course.** For a course in `Courses/2026 Fall/Physics`, make a folder called `Physics` on the tablet and keep that class's notebooks in it, sub-folders included. Notebooks anywhere else on the tablet are never touched.
-
-1. On the tablet, open **Settings**, then **Storage**, and turn on **USB web interface**.
-2. Make one folder per course, named exactly as the course folder in your vault (capital letters do not matter). To keep them together, put them all inside one folder such as `School` and run `oso set-remarkable-folder School` once.
-3. Plug the tablet into your computer with its USB cable. The first time can take a minute. On Windows, if asked about a new network, choose **Private**.
-4. The next time Oso syncs (within 15 minutes, or run `oso sync`), it copies any notebook you changed. Leave it plugged in for a few minutes.
-
-If the computer doesn't see the tablet, make sure the tablet's software is up to date (Settings, General, Software). What happens to the pages next is in [Notes and handwriting](features/notes-and-handwriting.md).
-
----
-
 ## A shared Google Drive folder
 
 If a professor shares a Drive folder of lecture files, find it in your Drive folder on the computer and run:
@@ -243,3 +228,18 @@ oso set-drive-folder MATH-101-001 "<path to that folder>"
 ```
 
 using the course code Oso printed when you set the course up. Its files are copied into the course folder on every check.
+
+---
+
+## Your reMarkable tablet
+
+Optional, and only if you take notes on a reMarkable. Most students don't need this: scanned or photographed paper notes work just as well (see [Notes and handwriting](features/notes-and-handwriting.md)). Oso pulls your handwritten notes straight off the tablet over the USB cable. No reMarkable account or subscription is needed, and only your coursework comes over.
+
+**A folder on the tablet with the same name as a course folder in your vault belongs to that course.** For a course in `Courses/2026 Fall/Physics`, make a folder called `Physics` on the tablet and keep that class's notebooks in it, sub-folders included. Notebooks anywhere else on the tablet are never touched.
+
+1. On the tablet, open **Settings**, then **Storage**, and turn on **USB web interface**.
+2. Make one folder per course, named exactly as the course folder in your vault (capital letters do not matter). To keep them together, put them all inside one folder such as `School` and run `oso set-remarkable-folder School` once.
+3. Plug the tablet into your computer with its USB cable. The first time can take a minute. On Windows, if asked about a new network, choose **Private**.
+4. The next time Oso syncs (within 15 minutes, or run `oso sync`), it copies any notebook you changed. Leave it plugged in for a few minutes.
+
+If the computer doesn't see the tablet, make sure the tablet's software is up to date (Settings, General, Software). What happens to the pages next is in [Notes and handwriting](features/notes-and-handwriting.md).

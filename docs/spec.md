@@ -8,7 +8,7 @@ It is assembled, not built from scratch:
 
 - **Obsidian** holds everything the student reads and writes, as Markdown files in a vault.
 - **Claude** on a Pro subscription supplies the intelligence. The student uses Cowork on desktop and phone. Claude Code is used for installation and for jobs that must run locally against the vault.
-- **A Python service** on the student's computer (Windows, macOS, or Linux) does the plumbing: pulls Canvas and the reMarkable tablet, converts files, keeps the deadline and grade database, notices changes, and writes a daily facts file into the vault.
+- **A Python service** on the student's computer (Windows, macOS, or Linux) does the plumbing: pulls Canvas (and, for students who have one, a reMarkable tablet), converts files, keeps the deadline and grade database, notices changes, and writes a daily facts file into the vault.
 
 There is no API account, no custom harness, no server, and nobody administering it. The student installs Oso once from this repo and owns it.
 
@@ -24,7 +24,7 @@ At the start of each semester, feed Oso the syllabus and course materials for ev
 4. Skills and MCP servers are built once and work from both Cowork and Claude Code.
 5. Read-only toward the school. The only outside writes are the student's own Oso calendar and Oso task list in Google.
 6. Cite or decline. When the notes hold nothing relevant, say so.
-7. Zero-friction capture. Tablet pages, clipped pages, and course files flow in on their own.
+7. Zero-friction capture. Scanned pages, clipped pages, and course files flow in on their own.
 8. Low noise. Only urgent changes interrupt; the rest waits for the morning briefing.
 9. Fail visibly, in plain language, to the student.
 10. Owned by the student. No backend, no administrator.
@@ -38,7 +38,7 @@ The student drops each syllabus into the vault and runs the setup skill once per
 
 ### Capturing what the student reads and writes
 
-Pages written on the reMarkable are pulled over USB whenever the tablet is plugged in, transcribed to text with equations preserved, and filed under the right course with the original page image linked. Articles and papers read in the browser go into the vault with one click through the Obsidian Web Clipper, tagged with course and source. Files posted in Canvas or Google Drive are mirrored into the course folder; Word, PowerPoint, Excel, PDF, and LibreOffice files get a readable Markdown copy beside the original (Microsoft's MarkItDown, with LibreOffice converting its own formats when installed); Google Docs get a pointer note and are read through Claude's Drive connector. Every note carries course, topic, and type in its front matter. Claude finds material with its own file search over the course folder.
+Handwritten pages, scanned or photographed into a course's Handwriting folder (or pulled over USB from a reMarkable tablet, an optional extra for students who have one), are transcribed to text with equations preserved, and filed under the right course with the original page image linked. Articles and papers read in the browser go into the vault with one click through the Obsidian Web Clipper, tagged with course and source. Files posted in Canvas or Google Drive are mirrored into the course folder; Word, PowerPoint, Excel, PDF, and LibreOffice files get a readable Markdown copy beside the original (Microsoft's MarkItDown, with LibreOffice converting its own formats when installed); Google Docs get a pointer note and are read through Claude's Drive connector. Every note carries course, topic, and type in its front matter. Claude finds material with its own file search over the course folder.
 
 ### Knowing what is due
 
@@ -50,7 +50,7 @@ Every 15 minutes (adjustable) the service checks each source against its last sn
 
 ### Knowing what the student knows
 
-Every quiz (taken in Oso's quiz window, timed per question, with written work from the reMarkable or a scan) and every check of the student's own work is recorded: topic, result, kind of mistake, attempts, hints, and time. Each course's topic list comes from its syllabus, so a topic with no results is untested, never assumed known. From those results Oso rates each topic strong, shaky, or untested, aims quizzes and study guides at the weak ones, flags exams within a week that the student isn't ready for, and once a week describes practice habits (lead time before exams, follow-through on missed topics, trends, where practice goes) in behavior, never character. Summaries live in `Oso/Profile/`; the records live in SQLite. Oso does not read chats: test results are the evidence.
+Every quiz (taken in Oso's quiz window, timed per question, with written work on paper, scanned or photographed) and every check of the student's own work is recorded: topic, result, kind of mistake, attempts, hints, and time. Each course's topic list comes from its syllabus, so a topic with no results is untested, never assumed known. From those results Oso rates each topic strong, shaky, or untested, aims quizzes and study guides at the weak ones, flags exams within a week that the student isn't ready for, and once a week describes practice habits (lead time before exams, follow-through on missed topics, trends, where practice goes) in behavior, never character. Summaries live in `Oso/Profile/`; the records live in SQLite. Oso does not read chats: test results are the evidence.
 
 ### The morning briefing
 
@@ -91,7 +91,7 @@ The vault is the center. The service fills it and keeps the SQLite facts file be
 | Facts                       | One SQLite file                                                                                                                                        |
 | Search                      | A local index built at ingestion: exact-word (SQLite FTS5) plus meaning (a 65 MB embedding model run by Oso itself), queried through one Oso tool      |
 | Canvas                      | Calendar feed; REST API with a token where allowed                                                                                                     |
-| reMarkable                  | Built-in USB web interface: notebooks downloaded as PDFs when plugged in, pages rendered to PNG, transcribed by a Claude Code run on the laptop        |
+| reMarkable (optional)       | Built-in USB web interface: notebooks downloaded as PDFs when plugged in, pages rendered to PNG, transcribed by a Claude Code run on the laptop        |
 | Office, LibreOffice, PDF    | MarkItDown; LibreOffice headless for OpenDocument and legacy formats; pointer notes for Google Docs                                                    |
 | Google                      | Built-in Drive, Gmail, and Calendar connectors for Claude; the service writes urgent changes to its own Oso calendar directly through the Calendar API |
 | Browser                     | Claude in Chrome                                                                                                                                       |

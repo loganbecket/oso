@@ -35,8 +35,7 @@ def open_settings(cfg: cfgmod.Config) -> None:
     root = tk.Tk()
     from . import __version__
 
-    shown = cfg.installed_version or __version__
-    root.title(f"Oso {shown if shown.startswith('v') or len(shown) > 8 else 'v' + shown}")
+    root.title(f"Oso v{__version__}")
     root.geometry("1000x760")
     pad = {"padx": 8, "pady": 4}
     notebook = ttk.Notebook(root)

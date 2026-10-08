@@ -45,8 +45,10 @@ def checks(fix: bool = False) -> list[dict]:
         return [{"status": "fail", "text": str(e), "action": None}]
     from . import __version__
 
-    version = cfg.installed_version or __version__
-    out.append(("ok", f"Oso {version if version.startswith('v') or len(version) > 8 else 'v' + version}, following {cfg.channel} updates"))
+    label = f"Oso v{__version__}"
+    if cfg.channel == "latest" and cfg.installed_version and not cfg.installed_version.startswith("v"):
+        label += f" (latest changes, {cfg.installed_version[:7]})"
+    out.append(("ok", f"{label}, following {cfg.channel} updates"))
     out.append(("ok", f"Settings found at {cfgmod.config_path()}"))
 
     if cfg.vault.is_dir():

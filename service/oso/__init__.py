@@ -3,7 +3,12 @@
 Nothing in this package calls a model. Intelligence lives in the Claude plugin.
 """
 
-__version__ = "0.1.0"
+try:  # the version actually installed, from the package itself, so it can never go stale
+    from importlib.metadata import PackageNotFoundError, version as _version
+
+    __version__ = _version("oso")
+except Exception:  # noqa: BLE001 - running from a source folder that was never installed
+    __version__ = "unknown"
 
 import subprocess as _subprocess
 import sys as _sys

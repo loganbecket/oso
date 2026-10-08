@@ -277,6 +277,8 @@ The rule is simple: **a folder on the tablet with the same name as a course fold
 
 ## Part 5: Everyday use
 
+New to Claude? Read [Getting the Most Out of Oso](docs/getting-the-most-out-of-oso.md) for how to use chats, commands, and Oso's study tools well.
+
 - **Every morning** the briefing is in the Claude app on your phone: due today, due this week, what changed, days until each exam, and what to focus on.
 - **Reading online**: click the Web Clipper, choose the Oso template, type the course, save. The note is filed into that course's Readings folder on the next sync.
 - **Course files**: anything your professor posts to Canvas (with a Canvas token, see below) or to a shared Google Drive folder is copied into the course folder, and a readable text copy is made next to it so Claude can search it. Word, PowerPoint, Excel, PDF, and LibreOffice files all work; installing LibreOffice (free, [libreoffice.org](https://www.libreoffice.org)) gives the best results for LibreOffice files and older Office formats. Google Docs, Sheets, and Slides stay in Google Drive; Oso leaves a short note with the link, and Claude reads them through its Google Drive connector.

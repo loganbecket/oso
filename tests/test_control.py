@@ -167,3 +167,29 @@ def test_email_uses_the_calendar_client_when_no_file_was_kept(env, monkeypatch):
     assert json.loads(store[gcal.CLIENT]) == config  # kept for next time
     store.clear()
     assert gcal.client_config() is None  # no calendar, no file: then Oso asks for the file
+
+
+def test_stored_canvas_login_and_quiet_reconnect(env, monkeypatch):
+    import json as _json
+
+    from oso import canvas_session, secrets
+
+    store = {}
+    monkeypatch.setattr(secrets, "get", lambda name: store.get(name))
+    monkeypatch.setattr(secrets, "set", lambda name, value: store.__setitem__(name, value))
+    monkeypatch.setattr(secrets, "delete", lambda name: store.pop(name, None))
+    started = []
+    monkeypatch.setattr(actions, "_start", lambda *a: started.append(a))
+    with db.connect() as conn:
+        assert not canvas_session.reconnect_quietly(conn)  # nothing stored: he's asked instead
+        assert "credential store" in actions.set_canvas_login(" student1 ", 'p"a\\ss')
+        assert canvas_session.login() == ("student1", 'p"a\\ss')
+        assert canvas_session.reconnect_quietly(conn, now="2026-10-08T10:00:00+00:00")
+        assert not canvas_session.reconnect_quietly(conn, now="2026-10-08T10:30:00+00:00")  # at most hourly
+        assert canvas_session.reconnect_quietly(conn, now="2026-10-08T11:05:00+00:00")
+    assert started == [("connect-canvas", "--quiet")] * 2
+    # The fill script carries the values as safe text, whatever characters the password has.
+    js = canvas_session.FILL_JS % (_json.dumps("student1"), _json.dumps('p"a\\ss'))
+    assert '"p\\"a\\\\ss"' in js and "input[type=password]" in js
+    assert "forgot your Canvas sign-in, username, and password" in actions.disconnect_canvas()
+    assert canvas_session.login() is None

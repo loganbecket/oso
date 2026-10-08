@@ -65,7 +65,8 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("names", nargs="*", help="commands to reset, e.g. oso-summarize (default: all)")
     s = sub.add_parser("connect-calendar", help="let Oso put urgent changes on its own Google calendar")
     s.add_argument("--client-file", required=True, help="the OAuth client file downloaded from Google Cloud")
-    sub.add_parser("connect-canvas", help="sign in to Canvas so Oso can read your grades and coursework")
+    s = sub.add_parser("connect-canvas", help="sign in to Canvas so Oso can read your grades and coursework")
+    s.add_argument("--quiet", action="store_true", help="sign in out of sight with the stored username and password (used by the check)")
     sub.add_parser("disconnect-canvas", help="forget the Canvas sign-in")
     s = sub.add_parser("books", help="show how far Oso has read each textbook")
     s.add_argument("--reprocess", metavar="TITLE", help="read a book again from the start")
@@ -241,7 +242,10 @@ def _dispatch(args: argparse.Namespace) -> int:
         from . import canvas_session
 
         with db.connect() as conn:
-            print(canvas_session.connect(conn))
+            result = canvas_session.connect(conn, quiet=args.quiet)
+            if args.quiet and not result.startswith("Canvas connected"):
+                canvas_session.notify_sign_in()  # the quiet try didn't finish: ask him, as before
+        print(result)
         return 0
 
     if args.cmd == "disconnect-canvas":

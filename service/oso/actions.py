@@ -94,11 +94,22 @@ def connect_canvas() -> str:
             "Then press Refresh to see Canvas connected.")
 
 
+def set_canvas_login(username: str, password: str) -> str:
+    from . import canvas_session
+
+    if not username.strip() or not password:
+        return "Nothing changed: both the username and the password are needed."
+    canvas_session.set_login(username, password)
+    return ("Saved in Windows' credential store. The Canvas sign-in window fills them in from now on, and when Canvas "
+            "logs you out Oso signs in again on its own; you'll only need to approve Duo on your phone.")
+
+
 def disconnect_canvas() -> str:
     from . import canvas_session
 
     canvas_session.forget()
-    return "Oso forgot your Canvas sign-in. Due dates still come from the calendar feed."
+    canvas_session.forget_login()
+    return "Oso forgot your Canvas sign-in, username, and password. Due dates still come from the calendar feed."
 
 
 def connect_email(client_file=None) -> str:

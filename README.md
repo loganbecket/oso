@@ -313,7 +313,7 @@ The calendar feed only brings in due dates. To let Oso read your grades, scores,
 oso connect-canvas
 ```
 
-A small window opens with your school's Canvas sign-in page. Sign in as you normally do, including any two-step check; the window closes by itself once you're in. Oso never sees your password: it keeps only the signed-in session, in your computer's credential store, and reads your own Canvas pages on every check, never changing anything. (**Sign in to Canvas** in the Oso window does the same.)
+A small window opens with your school's Canvas sign-in page. Sign in as you normally do, including any two-step check; the window closes by itself once you're in. To skip typing, give Oso your school username and password once (Oso window, Actions tab, **Canvas username and password…**). They're kept in your computer's credential store, never in a file, and the sign-in window fills them in. When Canvas logs you out, Oso then signs in again on its own, out of sight; if your school's two-step check (such as Duo) wants approval, a notification tells you to approve it on your phone. Oso keeps the signed-in session in the credential store and reads your own Canvas pages on every check, never changing anything. (**Sign in to Canvas** in the Oso window opens the window any time.)
 
 Canvas ends sign-ins after a while. When that happens, Oso shows a notification ("Canvas needs you to sign in again"); click it, or run `oso connect-canvas`, and sign in again. Until you do, your briefing says so and due dates keep coming from the calendar feed. `oso canvas --raw` shows what Oso has read, and `oso disconnect-canvas` makes it forget the sign-in.
 

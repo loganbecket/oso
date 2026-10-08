@@ -165,6 +165,7 @@ def open_settings(cfg: cfgmod.Config) -> None:
         ]),
         ("Connections", [
             ("Sign in to Canvas", lambda: run("Opening the Canvas sign-in", actions.connect_canvas)),
+            ("Canvas username and password…", lambda: show(_canvas_login(root))),
             ("Disconnect Canvas", lambda: run("Disconnecting Canvas", actions.disconnect_canvas)),
             ("Connect Google Calendar…", lambda: show(_connect_calendar(cfg))),
             ("Connect email…", connect_email),
@@ -621,6 +622,19 @@ def _email_client_file():
     path = filedialog.askopenfilename(title="Choose the OAuth client file from Google Cloud (the one used for the Oso calendar)",
                                       filetypes=[("JSON", "*.json"), ("All files", "*")])
     return Path(path) if path else False
+
+
+def _canvas_login(root) -> str:
+    from tkinter import simpledialog
+
+    from . import actions
+
+    user = simpledialog.askstring("Canvas sign-in", "Your school username (the one you sign in to Canvas with):", parent=root)
+    if not user:
+        return "Nothing changed."
+    password = simpledialog.askstring("Canvas sign-in", "Your school password (paste it once; it's kept in Windows' credential store):",
+                                      parent=root, show="•")
+    return actions.set_canvas_login(user, password or "")
 
 
 def _connect_groupme(root) -> str:

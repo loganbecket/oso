@@ -71,6 +71,8 @@ def _run(cfg: Config, now: datetime | None = None) -> dict[str, object]:
         for c in cfg.courses:
             db.upsert_course(conn, c.code, c.name, c.folder)
 
+        if canvas_session.status(conn) == "needs_sign_in":
+            _safe(lambda: canvas_session.reconnect_quietly(conn), False)  # at most hourly, only with a stored login
         for connector in connectors(cfg, conn):
             run_id = db.record_sync(conn, connector.name)
             try:
@@ -88,7 +90,9 @@ def _run(cfg: Config, now: datetime | None = None) -> dict[str, object]:
             except SessionExpired:
                 db.finish_sync(conn, run_id, ok=False, error=canvas_session.SIGN_IN_LINE)
                 results[connector.name] = "needs sign-in"
-                if canvas_session.mark_expired(conn) and cfg.canvas_notify:
+                first = canvas_session.mark_expired(conn)
+                # With his username and password stored, sign in again quietly; otherwise ask him once.
+                if not canvas_session.reconnect_quietly(conn) and first and cfg.canvas_notify and canvas_session.login() is None:
                     canvas_session.notify_sign_in()
                 continue
             except Exception as e:  # noqa: BLE001

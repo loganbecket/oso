@@ -10,6 +10,14 @@ try:  # the version actually installed, from the package itself, so it can never
 except Exception:  # noqa: BLE001 - running from a source folder that was never installed
     __version__ = "unknown"
 
+
+def version_label(installed: str | None = None) -> str:
+    """"Oso v0.10.3", or "Oso v0.10.3 - 1a2b3c4" when the latest changes were installed from a commit."""
+    label = f"Oso v{__version__}"
+    if installed and not installed.startswith("v"):
+        label += f" - {installed[:7]}"
+    return label
+
 import subprocess as _subprocess
 import sys as _sys
 

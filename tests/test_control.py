@@ -193,3 +193,12 @@ def test_stored_canvas_login_and_quiet_reconnect(env, monkeypatch):
     assert '"p\\"a\\\\ss"' in js and "input[type=password]" in js
     assert "forgot your Canvas sign-in, username, and password" in actions.disconnect_canvas()
     assert canvas_session.login() is None
+
+
+def test_version_label_shows_the_commit_on_the_latest_channel(monkeypatch):
+    import oso
+
+    monkeypatch.setattr(oso, "__version__", "0.10.3")
+    assert oso.version_label("v0.10.3") == "Oso v0.10.3"
+    assert oso.version_label("1a2b3c4d5e6f") == "Oso v0.10.3 - 1a2b3c4"
+    assert oso.version_label(None) == "Oso v0.10.3"

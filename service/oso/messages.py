@@ -102,7 +102,8 @@ def waiting(conn: sqlite3.Connection) -> int:
 
 PROMPT = """You are reading a college student's new messages ({what}) for Oso, his study assistant. Today is {today} ({tz}).
 Pick out only facts that affect his schedule or what he has to do. Most messages don't matter: newsletters,
-chatter, jokes, reactions, ads, and general announcements with nothing he must attend or do.
+chatter, jokes, reactions, ads, and general announcements with nothing he must attend or do. Notes about his classes
+always matter: a class canceled or moved (time or room), something to bring to class, or something to do before it.
 
 For each message that matters, list its facts. Each fact is one of:
 - "deadline": coursework due (an assignment, quiz, exam, reading, form for a class) with a due date
@@ -123,6 +124,10 @@ Rules:
   "Friday", and "next week" from the message's date. If there is no date at all, leave the fact out unless it is an action.
 - "course" is the code of one of his courses, or null. "kind" (deadlines only) is assignment, quiz, exam, reading, or other.
 - "title" is short and plain, as it would appear on a calendar. "summary" is one sentence.
+- A class canceled or moved that is not listed below is an "event" titled with the course and what happened
+  ("PHYS 101 canceled", "PHYS 101 moved to Hall 204"), at the class time, with "change" "new".
+- Something to bring to a class or do before it is an "action" ("Bring a calculator to PHYS 101") due when that
+  class starts, unless it is coursework with a due date, which is a "deadline".
 - "urgent" is true for anything moved or canceled within two days, or due within two days.
 - Never invent a fact that is not in the message. A message that matters has at least one fact.
 

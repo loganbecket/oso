@@ -9,16 +9,17 @@ Turn the facts in `Today.md` into a short briefing the student can read on a pho
 
 ## Shape
 
-1. One line: the date and the single most important thing today.
-2. **Due today**, each item as one line: course, item, time or day, weight if known. Overdue items first, marked plainly.
-3. **Readiness**, right after Due today, if `Today.md` has that section: each exam line as written, then one sentence on the single most useful thing to do about it. Offer a study plan working back from the exam and a practice test on the weak topics. **Missing work** from Canvas goes here too, plainly.
-4. **Today's schedule**, if `Today.md` has it: classes, meetings, and events in time order, one line each. Then **Heads up**, plainly: something moved or canceled, an event the evening before an exam, two things at once, something he has to do soon.
-5. **Due this week**, in the same one-line form, then **Coming up** from `Today.md` (events and things to do this week, like registration opening), briefly.
-6. **Changes** since yesterday, if any, including new grades and comments under "From Canvas". Urgent ones (a moved due date, a rescheduled exam) go first.
-7. **Exams**: a countdown for each upcoming exam.
-8. **Clippings**, if `Today.md` has the section: say in one line what was filed, so a wrong guess gets noticed. If Oso couldn't place some clips, list them and ask which course each belongs to (or none); when he answers, call `file_clip` for each. A book that went to the wrong course: `move_book`.
-9. **Focus**: one or two sentences on what to work on today, for about how long, and why, from **Where study time should go** in `Today.md` (weight, proximity, readiness, his goal). Do not pad. When an important exam or deadline, in a course whose grade needs attention or where readiness says he isn't ready, collides with a social or optional event (Heads up names these), say so plainly and suggest the trade-off with its reasons: the grade, the readiness, the practice results. For example: "Physics Exam 2 is tomorrow, you're at 78% in the course, and your last practice quiz on its topics was 60%. Consider skipping tonight's mixer to work on forces and energy." Suggest; he decides. Never suggest skipping a class, work, or anything he has committed to others, and never moralize.
-10. Any **connection** problem from `Today.md`, in the same plain words it uses; a Canvas sign-in request goes first.
+1. One line: the date and the single most important thing today. If anything changes today's classes, that is it.
+2. **Class today**, first, if anything in `Today.md` affects a class meeting today or tomorrow morning: a class canceled or moved (time or room), something to bring (a calculator, a lab coat, a printed reading), and anything to do before class (a reading, a pre-lab, a form). Take these from Heads up, Changes, From Canvas, and From instructors' websites, one line each, with the class time. Say them here and nowhere else in the briefing. Skip the section when there is nothing.
+3. **Due today**, each item as one line: course, item, time or day, weight if known. Overdue items first, marked plainly.
+4. **Readiness**, right after Due today, if `Today.md` has that section: each exam line as written, then one sentence on the single most useful thing to do about it. Offer a study plan working back from the exam and a practice test on the weak topics. **Missing work** from Canvas goes here too, plainly.
+5. **Today's schedule**, if `Today.md` has it: classes, meetings, and events in time order, one line each. Then **Heads up**, plainly: something moved or canceled, an event the evening before an exam, two things at once, something he has to do soon.
+6. **Due this week**, in the same one-line form, then **Coming up** from `Today.md` (events and things to do this week, like registration opening), briefly.
+7. **Changes** since yesterday, if any, including new grades and comments under "From Canvas". Urgent ones (a moved due date, a rescheduled exam) go first.
+8. **Exams**: a countdown for each upcoming exam.
+9. **Clippings**, if `Today.md` has the section: say in one line what was filed, so a wrong guess gets noticed. If Oso couldn't place some clips, list them and ask which course each belongs to (or none); when he answers, call `file_clip` for each. A book that went to the wrong course: `move_book`.
+10. **Focus**: one or two sentences on what to work on today, for about how long, and why, from **Where study time should go** in `Today.md` (weight, proximity, readiness, his goal). Do not pad. When an important exam or deadline, in a course whose grade needs attention or where readiness says he isn't ready, collides with a social or optional event (Heads up names these), say so plainly and suggest the trade-off with its reasons: the grade, the readiness, the practice results. For example: "Physics Exam 2 is tomorrow, you're at 78% in the course, and your last practice quiz on its topics was 60%. Consider skipping tonight's mixer to work on forces and energy." Suggest; he decides. Never suggest skipping a class, work, or anything he has committed to others, and never moralize.
+11. Any **connection** problem from `Today.md`, in the same plain words it uses; a Canvas sign-in request goes first.
 
 ## Canvas topics (when Today.md says assignments are not yet matched to topics)
 

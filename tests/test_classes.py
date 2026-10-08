@@ -131,7 +131,7 @@ def test_canvas_announcements_are_read_like_email(env, monkeypatch):
 
     sync._store_announcements(conn, Api())
     batches = messages._batches(conn)
-    assert [what for what, _ in batches] == ["Canvas announcements from his instructors"]
+    assert [what for what, _ in batches] == ["Canvas announcements and inbox messages from his instructors"]
     got = {}
 
     def ask(prompt, payload):

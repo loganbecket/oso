@@ -202,7 +202,7 @@ def _batches(conn: sqlite3.Connection) -> list[tuple[str, list[sqlite3.Row]]]:
             out.append((f"the GroupMe group \"{name}\"", msgs[i:i + GROUP_BATCH]))
     canvas = [r for r in rows if r["source"] == "canvas"]
     for i in range(0, len(canvas), EMAIL_BATCH):
-        out.append(("Canvas announcements from his instructors", canvas[i:i + EMAIL_BATCH]))
+        out.append(("Canvas announcements and inbox messages from his instructors", canvas[i:i + EMAIL_BATCH]))
     return out
 
 

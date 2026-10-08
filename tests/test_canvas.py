@@ -370,3 +370,34 @@ def test_long_secret_is_split_to_fit_windows(monkeypatch):
     canvas_session.save(session)
     canvas_session.forget()
     assert store == {}
+
+
+def test_recent_inbox_messages_are_kept_for_reading_without_marking_them_read(env, server, monkeypatch):
+    from datetime import UTC
+
+    cfg, _ = env
+    real = canvas_data
+    fresh = (datetime.now(UTC) - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    old = (datetime.now(UTC) - timedelta(days=20)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    def with_inbox():
+        d = real()
+        d["/api/v1/conversations"] = [{"id": 31, "subject": "Class today", "last_message_at": fresh, "context_code": "course_1"},
+                                      {"id": 32, "subject": "Old", "last_message_at": old, "context_code": "course_1"}]
+        d["/api/v1/conversations/31"] = {"id": 31, "subject": "Class today", "context_code": "course_1",
+                                         "participants": [{"id": 7, "name": "Campbell"}, {"id": 99, "name": "Dr. Lee"}],
+                                         "messages": [{"id": 501, "author_id": 99, "created_at": fresh, "body": "<p>No class at 9:30 today.</p>"},
+                                                      {"id": 502, "author_id": 7, "created_at": fresh, "body": "Thanks!"}]}
+        return d
+
+    monkeypatch.setattr(__import__(__name__), "canvas_data", with_inbox)
+    api = CanvasApi(server, None, cfg, cookies={"canvas_session": "good"})
+    api.fetch()
+    asked = []
+    get = api.s.get
+    monkeypatch.setattr(api.s, "get", lambda url, **kw: asked.append((url, kw.get("params"))) or get(url, **kw))
+    assert api.mirror()["inbox"] == 1
+    [m] = [x for x in api.new_announcements if x["external_id"].startswith("msg:")]
+    assert m["sender"] == "Dr. Lee" and m["channel"] == "PHYS-110" and m["text"].strip() == "No class at 9:30 today."
+    assert any(u.endswith("/conversations/31") and p == {"auto_mark_as_read": "false"} for u, p in asked)
+    assert not any(u.endswith("/conversations/32") for u, _ in asked)

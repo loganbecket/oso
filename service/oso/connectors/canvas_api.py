@@ -130,7 +130,7 @@ class CanvasApi:
         instructors put their files), the Files section, and announcements. Safe to run on every check."""
         counts = {"files": 0, "module_files": 0, "module_pages": 0, "announcements": 0}
         self.new_files: list[tuple[str, str]] = []  # (course code, plain description) for Today.md
-        self.new_announcements: list[dict] = []  # recent ones, for Claude to read for schedule changes (messages.py)
+        self.new_announcements: list[dict] = []  # recent announcements and inbox messages, read by Claude like email (messages.py)
         for course in self.courses or self._courses():
             code = course.get("course_code") or str(course["id"])
             folder = notes.course_dir(self.cfg, code)
@@ -142,7 +142,43 @@ class CanvasApi:
             counts["module_pages"] += m["pages"]
             counts["files"] += self._mirror_files(course["id"], code, folder / "Canvas", seen)
             counts["announcements"] += self._mirror_announcements(course["id"], code, folder / "Announcements")
+        counts["inbox"] = self._inbox()
         return counts
+
+    def _inbox(self) -> int:
+        """Recent messages instructors sent him in the Canvas inbox (Canvas emails only a notice that one arrived).
+        Read without marking them read in Canvas."""
+        recent = datetime.now(self.tz) - ANNOUNCEMENT_NEWS
+        try:
+            me = (self._one("/api/v1/users/self", {}) or [{}])[0].get("id")
+            convs = self._one("/api/v1/conversations", {"scope": "inbox", "per_page": 20})
+        except requests.HTTPError:
+            return 0
+        codes = {f"course_{c['id']}": c.get("course_code") for c in self.courses}
+        n = 0
+        for c in convs:
+            last = _parse_time(c.get("last_message_at"), self.tz)
+            if not last or last < recent:
+                continue
+            try:
+                full = (self._one(f"/api/v1/conversations/{c['id']}", {"auto_mark_as_read": "false"}) or [{}])[0]
+            except requests.HTTPError:
+                continue
+            names = {p.get("id"): p.get("name") for p in full.get("participants", [])}
+            raw = codes.get(full.get("context_code") or c.get("context_code") or "")
+            course = self.cfg.course_for(raw) if raw else None
+            for m in full.get("messages", []):
+                at = _parse_time(m.get("created_at"), self.tz)
+                if not at or at < recent or (me is not None and m.get("author_id") == me):
+                    continue
+                self.new_announcements.append({
+                    "source": "canvas", "external_id": f"msg:{m.get('id')}", "sender": names.get(m.get("author_id")) or "Canvas inbox",
+                    "subject": full.get("subject") or c.get("subject"), "channel": course.code if course else (raw or None),
+                    "sent_at": at.isoformat(timespec="minutes"), "text": _strip_html(m.get("body") or "")[:6000],
+                    "link": f"{self.base}/conversations",
+                })
+                n += 1
+        return n
 
     # ---- modules -------------------------------------------------------------------------------
 
@@ -335,6 +371,15 @@ class CanvasApi:
         return n
 
     # ---- http --------------------------------------------------------------------------------
+
+    def _one(self, path: str, params) -> list[dict]:
+        """One page only (the inbox goes back years)."""
+        r = self.s.get(self.base + path, params=params, timeout=self.timeout, allow_redirects=not self.uses_session)
+        if self.uses_session and _signed_out(r):
+            raise SessionExpired()
+        r.raise_for_status()
+        data = r.json()
+        return [x for x in (data if isinstance(data, list) else [data]) if isinstance(x, dict) and "errors" not in x]
 
     def _pages(self, path: str, params) -> list[dict]:
         url = path if path.startswith(("http://", "https://")) else self.base + path

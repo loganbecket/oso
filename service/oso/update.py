@@ -91,7 +91,9 @@ def status(cfg: Config) -> dict:
 
 def check_daily(conn: sqlite3.Connection, cfg: Config, now: datetime) -> str | None:
     """Ask GitHub at most once a day; return the message to show in Today.md, or None."""
-    conn.executescript(META)
+    from . import schema
+
+    schema.apply(conn)
     row = conn.execute("SELECT value FROM meta WHERE key = 'update_checked_at'").fetchone()
     last = datetime.fromisoformat(row["value"]) if row else None
     if last is not None and now.astimezone(last.tzinfo) - last < timedelta(hours=24):

@@ -65,8 +65,9 @@ class NotConnected(Exception):
 
 
 def ensure(conn: sqlite3.Connection) -> None:
-    conn.executescript(SCHEMA)
-    happenings.ensure(conn)
+    from . import schema
+
+    schema.apply(conn)
 
 
 def meta_get(conn: sqlite3.Connection, key: str) -> str | None:

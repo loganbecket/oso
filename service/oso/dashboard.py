@@ -6,6 +6,7 @@ import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from . import db
 from . import grades
 from .config import Config
 from .db import EFFECTIVE, connector_health
@@ -83,7 +84,7 @@ def render(conn: sqlite3.Connection, cfg: Config, now: datetime) -> str:
         f"""SELECT c.field, c.old_value, c.new_value, c.detected_at, c.urgency, {EFFECTIVE}
             FROM changes c JOIN items i ON i.id = c.item_id
             WHERE c.detected_at >= ? ORDER BY c.detected_at DESC LIMIT 20""",
-        ((now - timedelta(days=7)).isoformat(timespec="seconds"),),
+        (db.since(now, timedelta(days=7)),),
     ).fetchall()
     lines.append("## Changes this week")
     lines.append("")

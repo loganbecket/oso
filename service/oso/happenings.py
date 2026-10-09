@@ -59,9 +59,9 @@ URGENT_WINDOW = timedelta(days=2)  # a change this close is flagged, like a move
 
 
 def ensure(conn: sqlite3.Connection) -> None:
-    conn.executescript(SCHEMA)
-    if "remind" not in {r[1] for r in conn.execute("PRAGMA table_info(happenings)")}:
-        conn.execute("ALTER TABLE happenings ADD COLUMN remind INTEGER NOT NULL DEFAULT 0")  # a pop-up when it starts
+    from . import schema
+
+    schema.apply(conn)
 
 
 def _norm(title: str) -> str:

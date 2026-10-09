@@ -91,7 +91,9 @@ CREATE TABLE IF NOT EXISTS canvas_events (
 
 
 def ensure(conn: sqlite3.Connection) -> None:
-    conn.executescript(SCHEMA)
+    from . import schema
+
+    schema.apply(conn)
 
 
 def _now() -> str:
@@ -210,10 +212,9 @@ def quiz_questions(conn: sqlite3.Connection, aid: int) -> dict | None:
 def record_new_files(conn: sqlite3.Connection, items: list[tuple[str, str]], now: str | None = None) -> None:
     """New course files downloaded from Canvas, as Today.md events (only after the first full download)."""
     ensure(conn)
-    first = conn.execute("SELECT value FROM meta WHERE key = 'canvas_files_seen'").fetchone() if _has_meta(conn) else None
+    first = conn.execute("SELECT value FROM meta WHERE key = 'canvas_files_seen'").fetchone()
     when = now or _now()
     if first is None:
-        conn.executescript("CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);")
         conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('canvas_files_seen', ?)", (when,))
         if items:
             for course in sorted({c for c, _ in items}):

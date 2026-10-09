@@ -58,21 +58,33 @@ END;
 # ---- the embedding model -------------------------------------------------------------------------
 
 _model = None
-_model_failed = False
+_model_failed_at: float | None = None
+RETRY_MODEL_SECONDS = 600  # a load that failed (offline at startup, say) is tried again after this long
 
 
 def _embedder():
-    """The model, loaded once per process; None if it cannot be loaded."""
-    global _model, _model_failed
-    if _model is None and not _model_failed:
+    """The model, loaded once per process; None if it cannot be loaded right now."""
+    import time
+
+    global _model, _model_failed_at
+    if _model is None and (_model_failed_at is None or time.monotonic() - _model_failed_at > RETRY_MODEL_SECONDS):
         try:
             from fastembed import TextEmbedding
 
             _model = TextEmbedding(MODEL, cache_dir=str(cfgmod.data_dir() / "models"))
+            _model_failed_at = None
         except Exception as e:  # noqa: BLE001
             log.warning("search model unavailable, using exact words only: %s", type(e).__name__)
-            _model_failed = True
+            _model_failed_at = time.monotonic()
     return _model
+
+
+def rebuild(path: Path | None = None) -> None:
+    """Throw the index away; the next update rebuilds it from the vault (the index is a copy, never the truth)."""
+    p = path or index_path()
+    for suffix in ("", "-wal", "-shm", "-journal"):
+        Path(str(p) + suffix).unlink(missing_ok=True)
+    log.warning("search index rebuilt from scratch")
 
 
 def embed_passages(texts: list[str]) -> list[bytes] | None:
@@ -102,7 +114,7 @@ def index_path() -> Path:
 
 @contextmanager
 def connect(path: Path | None = None):
-    conn = sqlite3.connect(path or index_path())
+    conn = sqlite3.connect(path or index_path(), timeout=30)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
     try:
@@ -133,7 +145,17 @@ def _course_for(cfg: Config, rel: str, fm: dict) -> str | None:
 
 
 def update(cfg: Config, path: Path | None = None) -> dict[str, int]:
-    """Index new and changed notes, drop deleted ones, and fill in any missing vectors."""
+    """Index new and changed notes, drop deleted ones, and fill in any missing vectors. A damaged index is
+    thrown away and built again."""
+    try:
+        return _update(cfg, path)
+    except sqlite3.DatabaseError as e:
+        log.warning("search index unreadable (%s); rebuilding", type(e).__name__)
+        rebuild(path)
+        return {**_update(cfg, path), "rebuilt": 1}
+
+
+def _update(cfg: Config, path: Path | None = None) -> dict[str, int]:
     counts = {"indexed": 0, "removed": 0, "embedded": 0}
     with connect(path) as conn:
         known = {r["path"]: (r["mtime"], r["size"]) for r in conn.execute("SELECT path, mtime, size FROM files")}
@@ -214,6 +236,15 @@ def query(cfg: Config, q: str, course: str | None = None, limit: int = 8, path: 
     finished (finished courses are searched only when named)."""
     import numpy as np
 
+    try:
+        return _query(cfg, q, course, limit, path, source, np)
+    except sqlite3.DatabaseError as e:
+        log.warning("search index unreadable (%s); it will be rebuilt on the next check", type(e).__name__)
+        rebuild(path)
+        return []
+
+
+def _query(cfg: Config, q: str, course: str | None, limit: int, path: Path | None, source: str | None, np) -> list[dict]:
     codes = scope(cfg, course)
     if codes is None:
         hidden = sorted(cfg.finished_codes())
@@ -239,6 +270,9 @@ def query(cfg: Config, q: str, course: str | None = None, limit: int = 8, path: 
                 ranks[r["id"]] = ranks.get(r["id"], 0) + 1 / (60 + i)
         qv = embed_query(q)
         if qv is not None:
+            bad = conn.execute("UPDATE chunks SET vec = NULL WHERE vec IS NOT NULL AND length(vec) != ?", (DIM * 4,)).rowcount
+            if bad:
+                log.warning("%d search vectors had the wrong shape and will be made again", bad)
             rows = conn.execute(f"SELECT c.id, c.vec FROM chunks c WHERE c.vec IS NOT NULL{where}", params).fetchall()
             if rows:
                 m = np.frombuffer(b"".join(r["vec"] for r in rows), dtype=np.float32).reshape(len(rows), DIM)

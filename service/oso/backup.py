@@ -51,7 +51,9 @@ def check_folder(folder: Path) -> None:
 
 
 def _meta(conn: sqlite3.Connection, key: str) -> str | None:
-    conn.executescript(META)
+    from . import schema
+
+    schema.apply(conn)
     row = conn.execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
     return row["value"] if row else None
 

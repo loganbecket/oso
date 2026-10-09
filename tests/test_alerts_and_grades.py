@@ -80,3 +80,21 @@ def test_grade_summary_and_what_if(tmp_path: Path):
         assert w["needed_average_percent"] == round((90 - 37.5) / 55 * 100, 1)
         assert grades.what_if(conn, "C", 99)["note"].startswith("Not reachable")
         assert grades.what_if(conn, "C", 30)["note"].startswith("Already secured")
+
+
+def test_two_categories_with_the_same_weight_stay_apart(tmp_path: Path):
+    from oso import grades, merge
+    from oso.db import Item
+
+    with db.connect(tmp_path / "g.sqlite") as conn:
+        now = datetime(2026, 10, 5, 8, 0, tzinfo=ZoneInfo("America/New_York"))
+        items = [Item(source="canvas_api", external_id="h1", kind="assignment", title="HW 1", due_at=now, course_code="C", weight=20, category="Homework"),
+                 Item(source="canvas_api", external_id="l1", kind="assignment", title="Lab 1", due_at=now, course_code="C", weight=20, category="Labs"),
+                 Item(source="canvas_api", external_id="e1", kind="exam", title="Exam 1", due_at=now, course_code="C", weight=60, category="Exams")]
+        merge.apply(conn, items, "canvas_api", now)
+        conn.execute("UPDATE items SET grade_points = 9, grade_max = 10 WHERE external_id = 'h1'")
+        conn.execute("UPDATE items SET grade_points = 5, grade_max = 10 WHERE external_id = 'l1'")
+        s = grades.summary(conn, "C")
+        assert s["weights_sum_to"] == 100 and len(s["categories"]) == 3
+        assert {c["kind"]: c["score_percent"] for c in s["categories"]} == {"Homework": 90.0, "Labs": 50.0, "Exams": None}
+        assert s["current_percent"] == 70.0

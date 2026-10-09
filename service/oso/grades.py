@@ -1,7 +1,8 @@
 """Grade standing and the what-if calculation.
 
 Items carry a `weight`: the percentage of the course grade their category is worth (from the Canvas
-assignment group or the syllabus). Items of the same kind with the same weight form one category.
+assignment group or the syllabus), and a `category` (the group's name). Items with the same category form one
+category; items with no category fall back to grouping by kind and weight.
 Within a category, ungraded items are assumed to count the same as the graded ones, by item count.
 """
 
@@ -15,7 +16,7 @@ from .db import EFFECTIVE
 
 def summary(conn: sqlite3.Connection, course: str) -> dict:
     rows = conn.execute(
-        f"""SELECT id, kind, grade_points, grade_max, {EFFECTIVE} FROM items
+        f"""SELECT id, kind, category, grade_points, grade_max, {EFFECTIVE} FROM items
             WHERE deleted_at IS NULL AND merged_into IS NULL AND COALESCE(user_course, course_code) = ?""",
         (course,),
     ).fetchall()
@@ -25,13 +26,13 @@ def summary(conn: sqlite3.Connection, course: str) -> dict:
         if r["weight"] is None:
             unweighted.append(r)
         else:
-            groups[(r["kind"], float(r["weight"]))].append(r)
+            groups[(r["category"] or r["kind"], float(r["weight"]))].append(r)
 
     categories = []
     earned = 0.0
     locked = 0.0
     total_weight = sum(w for _, w in groups)
-    for (kind, weight), items in sorted(groups.items(), key=lambda kv: -kv[0][1]):
+    for (kind, weight), items in sorted(groups.items(), key=lambda kv: (-kv[0][1], kv[0][0])):
         graded = [r for r in items if r["grade_points"] is not None and r["grade_max"]]
         score = (sum(r["grade_points"] for r in graded) / sum(r["grade_max"] for r in graded)) if graded else None
         frac = len(graded) / len(items) if items else 0.0
@@ -60,7 +61,7 @@ def summary(conn: sqlite3.Connection, course: str) -> dict:
             {"title": r["title"], "points": r["grade_points"], "max": r["grade_max"]}
             for r in unweighted if r["grade_points"] is not None
         ],
-        "assumption": "A category is items of one kind sharing a weight. Within it, ungraded items count the same as graded ones, by count.",
+        "assumption": "A category is a Canvas assignment group (or, without one, items of one kind sharing a weight). Within it, ungraded items count the same as graded ones, by count.",
     }
 
 

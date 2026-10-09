@@ -61,7 +61,9 @@ def file_clippings(cfg: Config, conn: sqlite3.Connection | None = None) -> int:
     if not folder.is_dir():
         return 0
     if conn is not None:
-        conn.executescript(SCHEMA)
+        from . import schema
+
+        schema.apply(conn)
     moved = 0
     profiles = None  # each course's material, loaded only if a clip needs matching by content
     for src in sorted(folder.glob("*.md")):
@@ -297,7 +299,9 @@ def unplaced(cfg: Config) -> list[str]:
 
 
 def recently_filed(conn: sqlite3.Connection, since: str) -> list[dict]:
-    conn.executescript(SCHEMA)
+    from . import schema
+
+    schema.apply(conn)
     return [dict(r) for r in conn.execute("SELECT name, dest, course, how, at FROM clip_log WHERE at >= ? ORDER BY at", (since,))]
 
 
@@ -325,7 +329,9 @@ def file_clip(cfg: Config, name: str, course_code: str, conn: sqlite3.Connection
         return f"There is no course {course_code!r}."
     dest = _file(cfg, src, fm, body, course, str(fm.get("book") or "").strip() if src.parent.name == CLIPPINGS else "")
     if conn is not None:
-        conn.executescript(SCHEMA)
+        from . import schema
+
+        schema.apply(conn)
         conn.execute("INSERT INTO clip_log (name, src, dest, course, how, at) VALUES (?, ?, ?, ?, ?, ?)",
                      (src.name, src.relative_to(cfg.vault).as_posix(), dest.relative_to(cfg.vault).as_posix(), course.code, "asked",
                       datetime.now(UTC).isoformat(timespec="seconds")))

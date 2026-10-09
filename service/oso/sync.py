@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+import sqlite3
+from contextlib import contextmanager
 from datetime import datetime
 
 from . import alerts, backup, books, canvas_session, canvas_store, classes, convert, dashboard, db, drive, filing, handwriting, instructions, mastery, merge, reader, rules, search, sites, secrets, skillsync, today, update
@@ -52,15 +54,15 @@ def ingest(cfg: Config, now: datetime | None = None) -> dict[str, object]:
         if not got:
             return {"skipped": "another Oso task was still running"}
         with db.connect() as conn:
-            results["filed"] = _safe(lambda: filing.file_clippings(cfg, conn), 0)
-            results["converted"] = len(_safe(lambda: convert.convert_vault(cfg), []))
-            results["books"] = _safe(lambda: books.process(cfg, conn), {})
-            results["handwriting_queued"] = _safe(lambda: handwriting.queue_new(conn, cfg), 0)
-            results["search"] = _safe(lambda: search.update(cfg), {})
-            results["read_by_claude"] = _safe(lambda: reader.run(cfg, conn, now), {})
-            results["search_after_reading"] = _safe(lambda: search.update(cfg), {})
-            results["profiles"] = len(_safe(lambda: mastery.write_all(conn, cfg, now), []))
-            _safe(lambda: _write_today(conn, cfg, now), None)
+            results["filed"] = _safe(lambda: filing.file_clippings(cfg, conn), 0, conn, "filing clippings")
+            results["converted"] = len(_safe(lambda: convert.convert_vault(cfg), [], conn, "converting files"))
+            results["books"] = _safe(lambda: books.process(cfg, conn), {}, conn, "books")
+            results["handwriting_queued"] = _safe(lambda: handwriting.queue_new(conn, cfg), 0, conn, "handwriting")
+            results["search"] = _safe(lambda: search.update(cfg), {}, conn, "search")
+            results["read_by_claude"] = _safe(lambda: reader.run(cfg, conn, now), {}, conn, "reading pages")
+            results["search_after_reading"] = _safe(lambda: search.update(cfg), {}, conn, "search")
+            results["profiles"] = len(_safe(lambda: mastery.write_all(conn, cfg, now), [], conn, "profiles"))
+            _safe(lambda: _write_today(conn, cfg, now), None, conn, "Today.md")
     return results
 
 
@@ -85,22 +87,23 @@ def _run(cfg: Config, now: datetime | None = None) -> dict[str, object]:
             db.upsert_course(conn, c.code, c.name, c.folder)
 
         if canvas_session.status(conn) == "needs_sign_in":
-            _safe(lambda: canvas_session.reconnect_quietly(conn), False)  # at most hourly, only with a stored login
+            _safe(lambda: canvas_session.reconnect_quietly(conn), False, conn, "canvas sign-in")  # at most hourly, only with a stored login
         for connector in connectors(cfg, conn):
             run_id = db.record_sync(conn, connector.name)
             try:
-                items = connector.fetch()
-                counts = merge.apply(conn, items, connector.name, now, urgent_days=cfg.urgent_days)
-                if isinstance(connector, CanvasApi):
-                    counts["grades"] = _apply_grades(conn, connector)
-                    counts.update(canvas_store.save(conn, connector))
-                    counts.update(connector.mirror())
-                    canvas_store.record_new_files(conn, connector.new_files)
-                    _store_announcements(conn, connector)
-                    if connector.uses_session:
-                        canvas_session.mark_connected(conn)
-                        if connector.cookies() and connector.cookies() != canvas_session.load():
-                            canvas_session.save(connector.cookies())  # Canvas refreshed the session
+                with _step(conn, connector.name):
+                    items = connector.fetch()
+                    counts = merge.apply(conn, items, connector.name, now, urgent_days=cfg.urgent_days, cfg=cfg)
+                    if isinstance(connector, CanvasApi):
+                        counts["grades"] = _apply_grades(conn, connector)
+                        counts.update(canvas_store.save(conn, connector))
+                        counts.update(connector.mirror())
+                        canvas_store.record_new_files(conn, connector.new_files)
+                        _store_announcements(conn, connector)
+                        if connector.uses_session:
+                            canvas_session.mark_connected(conn)
+                            if connector.cookies() and connector.cookies() != canvas_session.load():
+                                canvas_session.save(connector.cookies())  # Canvas refreshed the session
             except SessionExpired:
                 db.finish_sync(conn, run_id, ok=False, error=canvas_session.SIGN_IN_LINE)
                 results[connector.name] = "needs sign-in"
@@ -118,32 +121,32 @@ def _run(cfg: Config, now: datetime | None = None) -> dict[str, object]:
             db.finish_sync(conn, run_id, ok=True, items_seen=len(items))
             results[connector.name] = counts
             log.info("%s: %s", connector.name, counts)
-        conn.commit()  # what the sources said is kept even if a later step fails
+            conn.commit()  # what this source said is kept even if a later step fails
 
         results.update(_read_messages(conn, cfg, now))
-        _safe(lambda: filing.retire_inbox(cfg), 0)
-        results["alerts"] = _safe(lambda: alerts.write_inbox(conn, cfg, now), 0)
-        results["classes"] = _safe(lambda: classes.extend(conn, cfg, now), 0)
-        results["rules"] = _safe(lambda: rules.run(cfg, conn, now), {})
+        _safe(lambda: filing.retire_inbox(cfg), 0, conn, "clippings")
+        results["alerts"] = _safe(lambda: alerts.write_inbox(conn, cfg, now), 0, conn, "alerts")
+        results["classes"] = _safe(lambda: classes.extend(conn, cfg, now), 0, conn, "class times")
+        results["rules"] = _safe(lambda: rules.run(cfg, conn, now), {}, conn, "rules")
         results["calendar"] = _deliver_calendar(conn, cfg, now)
         results["tasks"] = _tasks(conn, cfg, now)
-        results["filed"] = _safe(lambda: filing.file_clippings(cfg, conn), 0)
-        results["drive_mirrored"] = _safe(lambda: drive.mirror(cfg), 0)
-        results["sites"] = _safe(lambda: sites.check(cfg, conn, now), {})
-        results["converted"] = len(_safe(lambda: convert.convert_vault(cfg), []))
-        results["books"] = _safe(lambda: books.process(cfg, conn), {})
-        results["search"] = _safe(lambda: search.update(cfg), {})
-        results["profiles"] = len(_safe(lambda: mastery.write_all(conn, cfg, now), []))
+        results["filed"] = _safe(lambda: filing.file_clippings(cfg, conn), 0, conn, "filing clippings")
+        results["drive_mirrored"] = _safe(lambda: drive.mirror(cfg), 0, conn, "Drive")
+        results["sites"] = _safe(lambda: sites.check(cfg, conn, now), {}, conn, "instructor websites")
+        results["converted"] = len(_safe(lambda: convert.convert_vault(cfg), [], conn, "converting files"))
+        results["books"] = _safe(lambda: books.process(cfg, conn), {}, conn, "books")
+        results["search"] = _safe(lambda: search.update(cfg), {}, conn, "search")
+        results["profiles"] = len(_safe(lambda: mastery.write_all(conn, cfg, now), [], conn, "profiles"))
         results["remarkable"] = _pull_tablet(conn, cfg)
-        results["handwriting_queued"] = _safe(lambda: handwriting.queue_new(conn, cfg), 0)
-        results["read_by_claude"] = _safe(lambda: reader.run(cfg, conn, now), {})
-        results["update"] = _safe(lambda: update.check_daily(conn, cfg, now), None)
-        results["skill_conflicts"] = len(_safe(lambda: skillsync.sync(cfg), []))
-        results["backup"] = _safe(lambda: backup.run(cfg, conn, now), {})
+        results["handwriting_queued"] = _safe(lambda: handwriting.queue_new(conn, cfg), 0, conn, "handwriting")
+        results["read_by_claude"] = _safe(lambda: reader.run(cfg, conn, now), {}, conn, "reading pages")
+        results["update"] = _safe(lambda: update.check_daily(conn, cfg, now), None, conn, "update check")
+        results["skill_conflicts"] = len(_safe(lambda: skillsync.sync(cfg), [], conn, "command updates"))
+        results["backup"] = _safe(lambda: backup.run(cfg, conn, now), {}, conn, "backup")
         conn.commit()
-        _safe(lambda: _write_today(conn, cfg, now), None)
-        _safe(lambda: dashboard.write(conn, cfg, now), None)
-        _safe(lambda: instructions.write(cfg), None)
+        _safe(lambda: _write_today(conn, cfg, now), None, conn, "Today.md")
+        _safe(lambda: dashboard.write(conn, cfg, now), None, conn, "Dashboard.md")
+        _safe(lambda: instructions.write(cfg), None, conn, "vault instructions")
     return results
 
 
@@ -164,7 +167,7 @@ def _tasks(conn, cfg: Config, now: datetime) -> str | dict:
     """Things to do picked out of messages join his tasks, and the list is matched with Google Tasks."""
     from . import tasks
 
-    _safe(lambda: tasks.import_actions(conn, cfg, now), 0)
+    _safe(lambda: tasks.import_actions(conn, cfg, now), 0, conn, "tasks from messages")
     if not tasks.connected():
         return "not connected"
     run_id = db.record_sync(conn, "google_tasks")
@@ -225,9 +228,9 @@ def _read_messages(conn, cfg: Config, now: datetime) -> dict[str, object]:
         db.finish_sync(conn, run_id, ok=True, items_seen=int(counts.get("kept", 0)))
         results[name] = counts
         conn.commit()
-    results["rules_on_messages"] = _safe(lambda: rules.on_messages(cfg, conn, now), 0)  # before reading drops their text
+    results["rules_on_messages"] = _safe(lambda: rules.on_messages(cfg, conn, now), 0, conn, "rules on messages")  # before reading drops their text
     if results or _safe(lambda: messages.waiting(conn), 0):
-        results["messages"] = _safe(lambda: messages.read_new(conn, cfg, now), {})
+        results["messages"] = _safe(lambda: messages.read_new(conn, cfg, now), {}, conn, "reading messages")
     return results
 
 
@@ -258,12 +261,50 @@ def _apply_grades(conn, connector: CanvasApi) -> int:
     return n
 
 
-def _safe(fn, default):
+@contextmanager
+def _step(conn: sqlite3.Connection | None, name: str):
+    """One step's writes stand or fall together: a failure rolls back what the step half-did, and nothing else."""
+    if conn is None:
+        yield
+        return
+    point = "step_" + "".join(ch if ch.isalnum() else "_" for ch in name)
+    conn.execute(f"SAVEPOINT {point}")
     try:
-        return fn()
+        yield
+    except BaseException:
+        try:
+            conn.execute(f"ROLLBACK TO {point}")
+        except sqlite3.OperationalError:
+            pass  # the step committed on its own; nothing left to roll back
+        raise
+    finally:
+        try:
+            conn.execute(f"RELEASE {point}")
+        except sqlite3.OperationalError:
+            pass
+
+
+def _safe(fn, default, conn: sqlite3.Connection | None = None, name: str | None = None):
+    """Run one step of a check. A failure is logged, rolled back, and (with a connection and a name) written down
+    where Today.md and the health check will show it, until the step next succeeds."""
+    try:
+        with _step(conn, name or "step"):
+            result = fn()
     except Exception as e:  # noqa: BLE001
-        log.warning("step failed: %s", plain_error(e))
+        log.warning("%s failed: %s", name or "step", plain_error(e))
+        if conn is not None and name:
+            _record_failure(name)
+            try:
+                db.note_step_failure(conn, name, plain_error(e))
+            except sqlite3.Error:
+                pass
         return default
+    if conn is not None and name:
+        try:
+            db.clear_step_failure(conn, name)
+        except sqlite3.Error:
+            pass
+    return result
 
 
 def plain_error(e: Exception) -> str:

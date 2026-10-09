@@ -122,7 +122,9 @@ def verify(base: str, cookies: dict[str, str], timeout: float = 20.0) -> bool:
 
 
 def ensure(conn: sqlite3.Connection) -> None:
-    conn.executescript(SCHEMA)
+    from . import schema
+
+    schema.apply(conn)
 
 
 def mark_connected(conn: sqlite3.Connection, now: str | None = None) -> None:

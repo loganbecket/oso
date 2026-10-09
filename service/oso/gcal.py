@@ -126,7 +126,9 @@ def ensure_calendar(session, cfg: Config) -> str:
 
 def deliver(conn: sqlite3.Connection, cfg: Config, now: datetime, session=None) -> int:
     """Create a calendar event for every urgent change not yet delivered. Returns how many were created."""
-    conn.executescript(SCHEMA)
+    from . import schema
+
+    schema.apply(conn)
     pend = [a for a in alerts.pending(conn, cfg, now)
             if not (a["deliver_after"] and datetime.fromisoformat(a["deliver_after"]) > now)]  # quiet hours wait
     if not pend:

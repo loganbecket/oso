@@ -137,8 +137,9 @@ class TutorError(ValueError):
 
 
 def ensure(conn: sqlite3.Connection) -> None:
-    profile.ensure(conn)
-    conn.executescript(SCHEMA)
+    from . import schema
+
+    schema.apply(conn)
 
 
 def _now() -> str:

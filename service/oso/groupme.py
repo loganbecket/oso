@@ -72,14 +72,15 @@ def disconnect() -> None:
 
 def groups(conn: sqlite3.Connection) -> list[dict]:
     """The groups Oso has seen, for the settings window and Claude."""
-    conn.executescript(SCHEMA)
+    from . import schema
+
+    schema.apply(conn)
     return [dict(r) for r in conn.execute("SELECT id, name FROM groupme_groups ORDER BY name COLLATE NOCASE")]
 
 
 def fetch(conn: sqlite3.Connection, cfg: Config, now: datetime, api=None) -> dict[str, int]:
     """Store new messages from every group he hasn't muted."""
     messages.ensure(conn)
-    conn.executescript(SCHEMA)
     if api is None:
         token = secrets.get(TOKEN)
         if not token:

@@ -125,12 +125,9 @@ COLUMNS = {
 
 
 def ensure(conn: sqlite3.Connection) -> None:
-    conn.executescript(SCHEMA)
-    for table, cols in COLUMNS.items():
-        have = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
-        for name, decl in cols.items():
-            if name not in have:
-                conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
+    from . import schema
+
+    schema.apply(conn)
 
 
 def _now() -> str:
@@ -225,7 +222,7 @@ def match_topic(conn: sqlite3.Connection, course: str, name: str, now: str | Non
     topic whose words all appear in the other ("kinematics" and "1D kinematics"); otherwise it is added."""
     ensure(conn)
     key = topic_key(name)
-    rows = conn.execute("SELECT name, key FROM course_topics WHERE course = ?", (course,)).fetchall()
+    rows = conn.execute("SELECT name, key FROM course_topics WHERE LOWER(course) = LOWER(?)", (course,)).fetchall()
     for r in rows:
         if r["key"] == key:
             return r["name"]

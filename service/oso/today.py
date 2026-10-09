@@ -9,6 +9,7 @@ import sqlite3
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+from . import db
 from .config import Config
 from .db import EFFECTIVE
 
@@ -261,11 +262,11 @@ def _course_label(r: dict, cfg: Config) -> str:
 
 
 def _changes(conn: sqlite3.Connection, cfg: Config, now: datetime) -> list[str]:
-    since = (now - timedelta(hours=36)).isoformat(timespec="seconds")
+    since = db.since(now, timedelta(hours=36))
     rows = conn.execute(
         f"""SELECT c.field, c.old_value, c.new_value, c.urgency, c.detected_at, i.kind, i.url, i.source, {EFFECTIVE}
             FROM changes c JOIN items i ON i.id = c.item_id
-            WHERE c.detected_at >= ? ORDER BY c.detected_at DESC""",
+            WHERE c.detected_at >= ? ORDER BY c.detected_at DESC""",  # a UTC window (db.since), like detected_at
         (since,),
     ).fetchall()
     lines = ["## Changes since yesterday"]
@@ -424,6 +425,8 @@ def _health(conn: sqlite3.Connection, now: datetime, stale: timedelta = STALE) -
             lines.append(f"- {name} failed on its last try ({r['last_error'] or 'unknown'}) but synced within the last day.")
         else:
             lines.append(f"- {name} is up to date.")
+    for f in db.step_failures(conn):
+        lines.append(f"- The {f['name']} step failed on the last check ({f['error']}); it will be tried again.")
     lines.append("")
     return lines
 

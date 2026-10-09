@@ -120,7 +120,9 @@ def handwriting_waiting(conn: sqlite3.Connection) -> int:
 
 
 def used_today(conn: sqlite3.Connection, now: datetime) -> int:
-    conn.executescript(META)
+    from . import schema
+
+    schema.apply(conn)
     row = conn.execute("SELECT value FROM meta WHERE key = 'auto_read'").fetchone()
     if not row:
         return 0

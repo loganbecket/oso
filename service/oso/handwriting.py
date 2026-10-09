@@ -37,15 +37,10 @@ CREATE TABLE IF NOT EXISTS pages (
 IMAGE_EXT = {".png", ".jpg", ".jpeg"}
 
 
-def _migrate(conn: sqlite3.Connection) -> None:
-    cols = {r[1] for r in conn.execute("PRAGMA table_info(pages)")}
-    if "course" not in cols:
-        conn.execute("ALTER TABLE pages ADD COLUMN course TEXT")
-
-
 def ensure(conn: sqlite3.Connection) -> None:
-    conn.executescript(SCHEMA)
-    _migrate(conn)
+    from . import schema
+
+    schema.apply(conn)
 
 
 def roots(cfg: Config) -> list[tuple[Path, str]]:

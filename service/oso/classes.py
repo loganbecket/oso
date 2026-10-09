@@ -45,8 +45,9 @@ CREATE TABLE IF NOT EXISTS class_occurrences (
 
 
 def ensure(conn: sqlite3.Connection) -> None:
-    conn.executescript(SCHEMA)
-    happenings.ensure(conn)
+    from . import schema
+
+    schema.apply(conn)
 
 
 _DAY_WORDS = [  # longest first, so "THURS" wins over "TH" and "T"

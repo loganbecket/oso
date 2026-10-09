@@ -80,8 +80,9 @@ CREATE TABLE IF NOT EXISTS rule_log (
 
 
 def ensure(conn: sqlite3.Connection) -> None:
-    conn.executescript(SCHEMA)
-    happenings.ensure(conn)
+    from . import schema
+
+    schema.apply(conn)
 
 
 # ---- the notes -----------------------------------------------------------------------------------------------

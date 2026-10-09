@@ -82,6 +82,8 @@ def checks(fix: bool = False) -> list[dict]:
         now = datetime.now().astimezone()
         if not rows:
             out.append(("warn", "No sync has run yet. Run 'oso sync'."), "sync")
+        for f in db.step_failures(conn):
+            out.append(("warn", f"The {f['name']} step failed on the last check: {f['error']}"), "sync")
         for r in rows:
             if not r["last_success"]:
                 out.append(("fail", f"{_name(r['connector'])} has never worked: {r['last_error']}"),

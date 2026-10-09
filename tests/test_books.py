@@ -303,3 +303,21 @@ def test_readings_survive_a_new_timestamp_and_a_rewritten_copy_of_the_book(env):
     make_pdf(pdf, pages[:5], toc=[("1 Motion", 2), ("2 Forces", 4)], labels_from=101)
     books.process(cfg)
     assert "Claude's careful reading" not in (folder / "02 1 Motion.md").read_text(encoding="utf-8")  # a different page count: start over
+
+
+def test_a_book_whose_notes_could_not_be_written_is_tried_again(env, monkeypatch):
+    cfg = env
+    pages = [f"Front page {i}" for i in range(2)] + [f"Chapter text {i}\n{LOREM}" for i in range(4)]
+    make_pdf(books_dir(cfg) / "Physics.pdf", pages, toc=[("1 Motion", 2), ("2 Forces", 4)], labels_from=101)
+    real = books.render
+
+    def broken(*a, **k):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(books, "render", broken)
+    assert books.process(cfg)["finished"] == 0
+    state = books.load_state(books_dir(cfg) / "Physics")
+    assert "error" in state and not (books_dir(cfg) / "Physics" / "Book.md").exists()
+    monkeypatch.setattr(books, "render", real)
+    assert books.process(cfg)["finished"] == 1
+    assert (books_dir(cfg) / "Physics" / "Book.md").exists()

@@ -9,7 +9,7 @@ from __future__ import annotations
 import sqlite3
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Iterator
 
@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS items (
     url           TEXT,
     description   TEXT,
     weight        REAL,
+    category      TEXT,
     status        TEXT NOT NULL DEFAULT 'not_started',
     grade_points  REAL,
     grade_max     REAL,
@@ -71,6 +72,14 @@ CREATE TABLE IF NOT EXISTS changes (
     urgency      TEXT NOT NULL DEFAULT 'routine',
     reported_at  TEXT
 );
+
+-- The last failure of each step of a check (books, search, profiles, ...), cleared when the step next succeeds,
+-- so a silent breakage reaches Today.md and the health check.
+CREATE TABLE IF NOT EXISTS step_failures (
+    name   TEXT PRIMARY KEY,
+    at     TEXT NOT NULL,
+    error  TEXT NOT NULL
+);
 """
 
 
@@ -82,17 +91,41 @@ def now_iso() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
 
 
+def since(now: datetime, delta: timedelta) -> str:
+    """The moment `delta` before `now`, as the UTC text every `*_at` column stores, so a window compares correctly
+    whatever the student's time zone (an ISO string with a local offset does not sort against a UTC one)."""
+    return (now - delta).astimezone(UTC).isoformat(timespec="seconds")
+
+
+BUSY_SECONDS = 30  # a check and a Claude conversation share the database; the second waits instead of failing
+
+
 @contextmanager
 def connect(path: Path | None = None) -> Iterator[sqlite3.Connection]:
-    conn = sqlite3.connect(str(path or db_path()))
+    from . import schema
+
+    conn = sqlite3.connect(str(path or db_path()), timeout=BUSY_SECONDS)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
-    conn.executescript(SCHEMA)
+    conn.execute("PRAGMA journal_mode = WAL")  # readers and one writer at the same time
+    schema.apply(conn)
     try:
         yield conn
         conn.commit()
     finally:
         conn.close()
+
+
+def note_step_failure(conn: sqlite3.Connection, name: str, error: str) -> None:
+    conn.execute("INSERT OR REPLACE INTO step_failures (name, at, error) VALUES (?, ?, ?)", (name, now_iso(), error))
+
+
+def clear_step_failure(conn: sqlite3.Connection, name: str) -> None:
+    conn.execute("DELETE FROM step_failures WHERE name = ?", (name,))
+
+
+def step_failures(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    return conn.execute("SELECT name, at, error FROM step_failures ORDER BY name").fetchall()
 
 
 @dataclass
@@ -109,6 +142,7 @@ class Item:
     url: str | None = None
     description: str | None = None
     weight: float | None = None
+    category: str | None = None  # the grading category (Canvas assignment group) it belongs to
 
 
 # Effective values: the student's edits win over the source's.

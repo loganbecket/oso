@@ -89,12 +89,38 @@ class Config:
                 return c
         return None
 
+    def resolve(self, ref: str | None) -> Course | None:
+        """The course a code, a name, a folder name, or Canvas's own label ("PHYS 110", "PHYS-110-001") refers
+        to, whatever the case, spacing, or punctuation. None when nothing matches."""
+        if not ref:
+            return None
+        key = _course_key(ref)
+        if not key:
+            return None
+        for c in self.courses:
+            if _course_key(c.code) == key:
+                return c
+        for c in self.courses:
+            if key in (_course_key(c.name), _course_key(c.folder_name)):
+                return c
+        for c in self.courses:  # "PHYS-110-001" or "2026FA PHYS 110" names PHYS-110
+            ck = _course_key(c.code)
+            if ck and (key.startswith(ck) or key.endswith(ck)) and len(ck) >= 5:
+                return c
+        return None
+
     def finished_codes(self) -> set[str]:
         return {c.code.lower() for c in self.courses if c.finished}
 
     def is_active(self, code: str | None) -> bool:
         """False only for a course marked finished; items with no or unknown course stay visible."""
         return (code or "").lower() not in self.finished_codes()
+
+
+def _course_key(text: str) -> str:
+    import re
+
+    return re.sub(r"[^a-z0-9]+", "", (text or "").lower())
 
 
 class ConfigError(Exception):

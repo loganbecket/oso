@@ -70,6 +70,9 @@ class CanvasApi:
         for course in self._courses():
             self.courses.append(course)
             code = course.get("course_code") or str(course["id"])
+            known = self.cfg.resolve(code)
+            if known is not None:
+                code = known.code  # Oso's own code for the course, so grades, topics, and notes line up
             self._load_group_weights(course["id"])
             for a in self._pages(f"/api/v1/courses/{course['id']}/assignments", {"include[]": "submission", "per_page": 100}):
                 a["_course_code"] = code
@@ -110,6 +113,7 @@ class CanvasApi:
         if sub.get("score") is not None:
             self.grades[ext] = (float(sub["score"]), float(a.get("points_possible") or 0) or None)
         weight = self.weights.get(str(a.get("assignment_group_id")))
+        category = (self.groups.get(str(a.get("assignment_group_id"))) or {}).get("name")
         return Item(
             source=NAME,
             external_id=ext,
@@ -121,6 +125,7 @@ class CanvasApi:
             url=a.get("html_url"),
             description=_strip_html(a.get("description") or "")[:2000] or None,
             weight=weight,
+            category=category,
         )
 
     # ---- vault mirroring ---------------------------------------------------------------------
@@ -166,7 +171,7 @@ class CanvasApi:
                 continue
             names = {p.get("id"): p.get("name") for p in full.get("participants", [])}
             raw = codes.get(full.get("context_code") or c.get("context_code") or "")
-            course = self.cfg.course_for(raw) if raw else None
+            course = self.cfg.resolve(raw) if raw else None
             for m in full.get("messages", []):
                 at = _parse_time(m.get("created_at"), self.tz)
                 if not at or at < recent or (me is not None and m.get("author_id") == me):
@@ -372,7 +377,7 @@ class CanvasApi:
             target.write_text(notes.with_front_matter(fm, body), encoding="utf-8")
             n += 1
             if posted and posted >= recent:  # older ones are history, not news
-                course = self.cfg.course_for(code)
+                course = self.cfg.resolve(code)
                 self.new_announcements.append({
                     "source": "canvas", "external_id": str(a.get("id") or target.name), "sender": course.name if course else code,
                     "subject": a.get("title"), "channel": course.code if course else code, "sent_at": posted.isoformat(timespec="minutes"),

@@ -60,8 +60,9 @@ def _ts() -> str:
 
 
 def ensure(conn: sqlite3.Connection) -> None:
-    conn.executescript(SCHEMA)
-    happenings.ensure(conn)
+    from . import schema
+
+    schema.apply(conn)
 
 
 # ---- the list ------------------------------------------------------------------------------------------------

@@ -531,8 +531,15 @@ def process(cfg: Config, conn=None, budget: float = BUDGET_SECONDS) -> dict[str,
             save_state(folder, state)
             continue
         state.pop("error", None)
+        try:
+            render(cfg, book, state, conn)
+        except Exception as e:  # noqa: BLE001  the pages are read; the notes get another try next check
+            log.warning("could not write the notes for %s: %s", folder.name, type(e).__name__)
+            state["error"] = f"Could not write this book's notes ({type(e).__name__})."
+            state["done"] = max(0, state["done"] - 1) if state.get("total") and state["done"] >= state["total"] else state["done"]
+            save_state(folder, state)
+            continue
         save_state(folder, state)
-        render(cfg, book, state, conn)
         if state["done"] >= (state["total"] or 0):
             counts["finished"] += 1
     return counts

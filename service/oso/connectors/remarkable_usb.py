@@ -70,7 +70,9 @@ class RemarkableUsb:
 
     def pull(self, conn: sqlite3.Connection) -> int:
         """Download every notebook that changed since the last pull. Returns how many were downloaded."""
-        conn.executescript(SCHEMA)
+        from .. import schema
+
+        schema.apply(conn)
         if not self.connected():
             raise NotConnected()
         folders = {c.folder_name.lower(): c for c in self.cfg.courses if not c.finished}

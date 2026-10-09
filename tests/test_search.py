@@ -103,3 +103,21 @@ def test_scraped_textbook_page_and_bad_note_do_not_stop_indexing(tmp_path: Path,
     assert "Stewart, 42" in titles
     hits = search.query(cfg, "slope", path=tmp_path / "search.sqlite")
     assert any("p. 42" in h["path"] for h in hits)
+
+
+def test_a_damaged_index_is_rebuilt_and_bad_vectors_are_dropped(tmp_path: Path, fake_model):
+    cfg = vault(tmp_path)
+    index = tmp_path / "search.sqlite"
+    index.write_bytes(b"this is not a database at all" * 100)
+    counts = search.update(cfg, path=index)
+    assert counts.get("rebuilt") == 1 and counts["indexed"] >= 2
+    with search.connect(index) as conn:
+        conn.execute("UPDATE chunks SET vec = X'0000' WHERE id = (SELECT MIN(id) FROM chunks)")
+        conn.commit()
+    hits = search.query(cfg, "slope", path=index)
+    assert hits  # the wrong-sized vector did not take search down
+    with search.connect(index) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM chunks WHERE vec IS NOT NULL AND length(vec) != ?", (search.DIM * 4,)).fetchone()[0] == 0
+    index.write_bytes(b"garbage" * 1000)
+    assert search.query(cfg, "slope", path=index) == []  # a sentence-free miss, and the index is gone for the next check
+    assert not index.exists()

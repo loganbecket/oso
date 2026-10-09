@@ -82,7 +82,9 @@ CREATE TABLE IF NOT EXISTS site_roots (
 
 
 def ensure(conn: sqlite3.Connection) -> None:
-    conn.executescript(SCHEMA)
+    from . import schema
+
+    schema.apply(conn)
 
 
 def _now() -> str:

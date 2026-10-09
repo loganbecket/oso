@@ -10,6 +10,7 @@ from __future__ import annotations
 import sqlite3
 from datetime import datetime, time, timedelta
 
+from . import db
 from .config import Config
 from .db import EFFECTIVE, now_iso
 
@@ -70,7 +71,7 @@ def write_inbox(conn: sqlite3.Connection, cfg: Config, now: datetime) -> int:
             FROM changes c JOIN items i ON i.id = c.item_id
             WHERE c.urgency = 'urgent' AND c.detected_at >= ?
             ORDER BY c.detected_at""",
-        ((now - timedelta(hours=2)).isoformat(timespec="seconds"),),
+        (db.since(now, timedelta(hours=2)),),
     ).fetchall()
     if not rows:
         return 0

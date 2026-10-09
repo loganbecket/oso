@@ -247,6 +247,59 @@ def missing_work(conn: sqlite3.Connection, cfg: Config) -> list[dict]:
     return [dict(r) for r in rows if cfg.is_active(r["course"])]
 
 
+LOW_SCORE = 0.70  # a score under this share of the points earns a note on the Grades tab
+
+
+def _in_session(raw: dict, configured: bool, now: datetime) -> bool:
+    """A class running now. Orientation modules and trainings carry no dates; a course with none counts only if it's set up in Oso."""
+    term = raw.get("term") or {}
+    start = raw.get("start_at") or term.get("start_at")
+    end = raw.get("end_at") or term.get("end_at")
+    if not start and not end:
+        return configured
+    when = now.astimezone(UTC).isoformat()
+    return (not start or start <= when) and (not end or end > when)
+
+
+def grade_table(conn: sqlite3.Connection, cfg: Config, now: datetime | None = None) -> list[dict]:
+    """One row per class this semester with graded work, lowest grade first, for the Grades tab.
+
+    The grade is Canvas's own when the instructor shows it; otherwise the share of points earned so far, marked
+    as an estimate. The note names work under 70% and work Canvas marks late or missing, worst first, two at most."""
+    ensure(conn)
+    now = now or datetime.now(UTC)
+    rows = []
+    for crs in conn.execute("SELECT * FROM canvas_courses"):
+        mine = cfg.course_for(crs["code"])
+        if (mine and mine.finished) or not _in_session(json.loads(crs["raw"]), mine is not None, now):
+            continue
+        work = conn.execute(
+            """SELECT a.name, a.points, s.score, s.late, s.missing FROM canvas_assignments a
+               JOIN canvas_submissions s ON s.assignment_id = a.canvas_id
+               WHERE LOWER(a.course) = LOWER(?) AND s.excused = 0""",
+            (crs["code"],),
+        ).fetchall()
+        scored = [w for w in work if w["score"] is not None and w["points"]]
+        percent, estimate = crs["current_score"], False
+        if percent is None and scored:
+            percent, estimate = sum(w["score"] for w in scored) / sum(w["points"] for w in scored) * 100, True
+        if percent is None:
+            continue
+        flagged = []
+        for w in work:
+            share = w["score"] / w["points"] if w["score"] is not None and w["points"] else None
+            if w["missing"] and w["score"] is None:
+                flagged.append((0.0, f"{w['name']} missing"))
+            elif (share is not None and share < LOW_SCORE) or w["late"]:
+                text = f"{w['score']:g}/{w['points']:g} on {w['name']}" if share is not None else w["name"]
+                flagged.append((share if share is not None else 1.0, text + (", late" if w["late"] else "")))
+        name = mine.name if mine else (crs["name"] or crs["code"]).split(" - ", 1)[-1].strip()
+        grade = f"about {percent:.0f}% (estimate)" if estimate else f"{percent:g}%" + (f" ({crs['current_grade']})" if crs["current_grade"] else "")
+        rows.append({"course": name, "percent": percent, "grade": grade,
+                     "note": "; ".join(t for _, t in sorted(flagged, key=lambda f: f[0])[:2]), "read_at": crs["read_at"]})
+    return sorted(rows, key=lambda r: r["percent"])
+
+
 def info(conn: sqlite3.Connection, cfg: Config, course: str, what: str = "summary") -> dict:
     """What Claude asks for: summary (grade, recent scores, missing and late work), assignments (every
     assignment with its score), comments (instructor feedback), or untagged (graded work awaiting topics)."""

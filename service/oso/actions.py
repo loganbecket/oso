@@ -175,6 +175,14 @@ def quizzes(limit: int = 200) -> list[dict]:
         return profile.recent_quizzes(conn, limit=limit)
 
 
+def grades() -> list[dict]:
+    """Each class's grade from Canvas, lowest first, for the Grades tab."""
+    from . import canvas_store
+
+    with db.connect() as conn:
+        return canvas_store.grade_table(conn, cfgmod.load())
+
+
 def open_quiz(quiz_id: int) -> str:
     """Open a quiz in the quiz window: to take it if he hasn't, or read-only with the answers if he has."""
     from . import profile, quizwin

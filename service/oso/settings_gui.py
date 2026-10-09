@@ -43,6 +43,8 @@ def open_settings(cfg: cfgmod.Config) -> None:
     status_tab = ttk.Frame(notebook, padding=12)
     settings_outer = ttk.Frame(notebook)
     notebook.add(status_tab, text="Status")
+    grades_tab = ttk.Frame(notebook, padding=12)
+    notebook.add(grades_tab, text="Grades")
     quizzes_tab = ttk.Frame(notebook, padding=12)
     notebook.add(quizzes_tab, text="Quizzes")
     notebook.add(settings_outer, text="Settings")
@@ -206,6 +208,50 @@ def open_settings(cfg: cfgmod.Config) -> None:
         for text, cmd in items:
             ttk.Button(group, text=text, command=cmd).pack(fill="x", pady=3)
     refresh()
+
+    # ---- Grades: each class's grade from Canvas, lowest first, with the work pulling it down ------------
+    gtop = ttk.Frame(grades_tab)
+    gtop.pack(fill="x")
+    ttk.Label(gtop, text="Your grades", font=("TkDefaultFont", 12, "bold")).pack(side="left")
+    grades_asof = ttk.Label(grades_tab, foreground="#666")
+    grades_asof.pack(side="bottom", anchor="w", pady=(6, 0))
+    grade_rows = _scrolling(grades_tab, padding=(0, 8, 0, 0))
+    grade_rows.columnconfigure(0, weight=1)
+
+    def list_grades() -> None:
+        from datetime import datetime as _dt
+
+        for w in grade_rows.winfo_children():
+            w.destroy()
+        grades_asof.configure(text="")
+        try:
+            rows = actions.grades()
+        except Exception as e:  # noqa: BLE001
+            ttk.Label(grade_rows, text=f"Oso couldn't list your grades ({e}).").grid(row=0, column=0, sticky="w")
+            return
+        if not rows:
+            ttk.Label(grade_rows, text="No grades yet. They appear here once Oso is signed in to Canvas and an instructor posts one.",
+                      foreground="#666").grid(row=0, column=0, columnspan=3, sticky="w")
+            return
+        # Grid lines: the cells sit 1px apart on a gray frame, so the gray shows through as the lines.
+        table = tk.Frame(grade_rows, bg="#b0b0b0")
+        table.grid(row=0, column=0, columnspan=3, sticky="ew", padx=(0, 16))
+        table.columnconfigure(2, weight=1)
+        cell_bg = ttk.Style().lookup("TFrame", "background") or "#f0f0f0"
+        cells = [(("Course", "Grade", "Note"), bold)] + [((r["course"], r["grade"], r["note"]), None) for r in rows]
+        for i, (texts, font) in enumerate(cells):
+            for col, (text, wrap) in enumerate(zip(texts, (260, 0, 440))):
+                tk.Label(table, text=text, font=font or "TkDefaultFont", bg=cell_bg, wraplength=wrap, justify="left",
+                         anchor="nw", padx=8, pady=4).grid(row=i, column=col, sticky="nsew",
+                                                           padx=(1, 1 if col == 2 else 0), pady=(1, 1 if i == len(cells) - 1 else 0))
+        read = max(r["read_at"] for r in rows)
+        grades_asof.configure(text=f"From Canvas as of {_dt.fromisoformat(read).astimezone(cfg.tz).strftime('%a %b %d, %I:%M %p').replace(' 0', ' ')}. "
+                                   "An estimate is the share of points earned so far, for classes where the instructor hides the grade.")
+
+    grades_refresh = ttk.Button(gtop, text="Refresh", command=list_grades)
+    grades_refresh.pack(side="right", padx=(0, 16))
+    _line_up(grades_refresh, grade_rows)
+    list_grades()
 
     # ---- Quizzes: every quiz, opened in the quiz window (read-only once taken) ------------------------
     qtop = ttk.Frame(quizzes_tab)

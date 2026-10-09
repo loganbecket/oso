@@ -15,7 +15,7 @@ Open it any of these ways:
 - Open **Oso** from your Start menu (Applications on a Mac).
 - Run `oso settings` in your command window.
 
-It opens on a **status panel** that says what's fine and what needs attention. Anything that needs doing has a button beside it: Update Oso, Sign in to Canvas, Sync now, Connect Google Calendar, Connect email, Connect Google Tasks, Back up now. The **Actions** tab has every action in one place, and the **Settings** tab holds your settings.
+It opens on a **status panel** that says what's fine and what needs attention. Anything that needs doing has a button beside it: Update Oso, Sign in to Canvas, Sync now, Connect Google Calendar, Connect email, Connect Google Tasks, Back up now. The **[Grades](grades.md)** tab lists your grade in each class, the **Actions** tab has every action in one place, and the **Settings** tab holds your settings.
 
 The window only opens on your laptop. On your phone, ask Claude instead.
 

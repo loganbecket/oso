@@ -401,3 +401,33 @@ def test_recent_inbox_messages_are_kept_for_reading_without_marking_them_read(en
     assert m["sender"] == "Dr. Lee" and m["channel"] == "PHYS-110" and m["text"].strip() == "No class at 9:30 today."
     assert any(u.endswith("/conversations/31") and p == {"auto_mark_as_read": "false"} for u, p in asked)
     assert not any(u.endswith("/conversations/32") for u, _ in asked)
+
+
+def test_grade_table(env):
+    cfg, _ = env
+    fall = {"start_at": "2026-08-17T00:00:00Z", "end_at": "2026-12-20T00:00:00Z"}
+    courses = [
+        (1, "PHYS-110", "PHYS-110 - Physics", 72.0, "C-", {}),  # undated, but set up in Oso
+        (2, "HIST-1", "HIST-1 - World History", None, None, fall),  # instructor hides the grade
+        (3, "Title IX", "Title IX", 100.0, None, {}),  # a training, not a class
+        (4, "OLD-9", "OLD-9 - Last Spring", 90.0, "A-", {"end_at": "2026-05-10T00:00:00Z"}),
+    ]
+    work = [  # (id, course, name, points, score, late, missing)
+        (11, "PHYS-110", "HW 1", 10, 9, 0, 0), (12, "PHYS-110", "Quiz 1", 25, 6, 0, 0), (13, "PHYS-110", "Exam 1", 100, 67, 0, 0),
+        (14, "PHYS-110", "Lab 1", 10, None, 0, 1), (15, "PHYS-110", "HW 2", 10, 10, 1, 0),
+        (21, "HIST-1", "Essay 1", 100, 46, 1, 0), (22, "HIST-1", "Essay 2", 100, 100, 0, 0), (23, "HIST-1", "Reading", 10, None, 0, 0),
+        (31, "Title IX", "Assessment", 100, 100, 0, 0),
+    ]
+    with db.connect() as conn:
+        canvas_store.ensure(conn)
+        for cid, code, name, score, grade, raw in courses:
+            conn.execute("INSERT INTO canvas_courses VALUES (?, ?, ?, ?, ?, ?, ?)", (cid, code, name, score, grade, json.dumps(raw), "2026-11-01T12:00:00+00:00"))
+        for aid, course, name, points, score, late, missing in work:
+            conn.execute("INSERT INTO canvas_assignments (canvas_id, course, name, points, raw, read_at) VALUES (?, ?, ?, ?, '{}', '')", (aid, course, name, points))
+            conn.execute("INSERT INTO canvas_submissions (assignment_id, course, score, late, missing, raw, read_at) VALUES (?, ?, ?, ?, ?, '{}', '')",
+                         (aid, course, score, late, missing))
+        rows = canvas_store.grade_table(conn, cfg, now=NOW)
+    assert [(r["course"], r["grade"], r["note"]) for r in rows] == [
+        ("Physics", "72% (C-)", "Lab 1 missing; 6/25 on Quiz 1"),
+        ("World History", "about 73% (estimate)", "46/100 on Essay 1, late"),
+    ]

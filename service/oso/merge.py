@@ -44,7 +44,7 @@ def apply(conn: sqlite3.Connection, items: list[Item], source: str, now: datetim
                  it.description, it.weight, it.category, ts, ts),
             )
             counts["new"] += 1
-            _link_duplicate(conn, int(cur.lastrowid), it, due, course)
+            link_duplicate(conn, int(cur.lastrowid), it, due, course)
             continue
 
         changed = False
@@ -53,7 +53,7 @@ def apply(conn: sqlite3.Connection, items: list[Item], source: str, now: datetim
             if old != new:
                 conn.execute(
                     "INSERT INTO changes (item_id, field, old_value, new_value, detected_at, urgency) VALUES (?, ?, ?, ?, ?, ?)",
-                    (row["id"], field, old, new, ts, _urgency(field, row["kind"], it.due_at, now, timedelta(days=urgent_days))),
+                    (row["id"], field, old, new, ts, urgency(field, row["kind"], it.due_at, now, timedelta(days=urgent_days))),
                 )
                 changed = True
         conn.execute(
@@ -87,7 +87,7 @@ def apply(conn: sqlite3.Connection, items: list[Item], source: str, now: datetim
     return counts
 
 
-def _urgency(field: str, kind: str, due_at: datetime | None, now: datetime, window: timedelta = URGENT_WINDOW) -> str:
+def urgency(field: str, kind: str, due_at: datetime | None, now: datetime, window: timedelta = URGENT_WINDOW) -> str:
     if field == "due_at" and kind == "exam":
         return "urgent"
     if field == "due_at" and due_at is not None and due_at - now <= window:
@@ -102,7 +102,7 @@ def normalize_title(title: str) -> str:
     return re.sub(r"\s+", " ", t).strip()
 
 
-def _link_duplicate(conn: sqlite3.Connection, new_id: int, it: Item, due: str | None, course: str | None = None) -> None:
+def link_duplicate(conn: sqlite3.Connection, new_id: int, it: Item, due: str | None, course: str | None = None) -> None:
     """If another source already has this item, point the new row at it."""
     course = course or it.course_code
     if not course or not due:

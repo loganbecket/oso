@@ -22,6 +22,7 @@ import sqlite3
 from datetime import datetime
 
 from . import mastery, profile
+from . import db
 from .config import Config
 
 SLIP_POINTS = 10
@@ -101,11 +102,10 @@ def _names(topics: list[str]) -> str:
 
 
 def flags(conn: sqlite3.Connection, cfg: Config, now: datetime) -> list[dict]:
-    from .today import _open_items  # the same open items Today.md lists
 
     profile.ensure(conn)
     out = []
-    for item in _open_items(conn):
+    for item in db.open_items(conn):  # the same open items Today.md lists
         if item["kind"] != "exam" or not item["due"] or not cfg.is_active(item["course_code"]):
             continue
         days = (item["due"].date() - now.date()).days

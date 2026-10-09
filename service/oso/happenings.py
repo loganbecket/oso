@@ -64,7 +64,7 @@ def ensure(conn: sqlite3.Connection) -> None:
     schema.apply(conn)
 
 
-def _norm(title: str) -> str:
+def norm(title: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9 ]+", " ", title.lower())).strip()
 
 
@@ -77,7 +77,7 @@ def add(conn: sqlite3.Connection, kind: str, title: str, starts_at: str | None, 
     ensure(conn)
     day = (starts_at or "")[:10]
     for r in conn.execute("SELECT id, title FROM happenings WHERE status = 'active' AND kind = ? AND substr(COALESCE(starts_at, ''), 1, 10) = ?", (kind, day)):
-        if _norm(r["title"]) == _norm(title):
+        if norm(r["title"]) == norm(title):
             return None
     ts = now_iso()
     cur = conn.execute(
@@ -272,7 +272,7 @@ def schedule(conn: sqlite3.Connection, cfg: Config, now: datetime, days: int = 7
     for h in upcoming(conn, cfg, now, days):
         if h["kind"] == "event" and h["starts_at"] and h["id"] not in on_calendar and not (h["event_id"] and _calendar_read(conn)):
             out.append({"title": h["title"], "starts_at": h["starts_at"], "ends_at": h["ends_at"], "all_day": bool(h["all_day"]) or len(h["starts_at"]) <= 10,
-                        "location": h["location"], "from": _from(h), "happening": h["id"], "event_id": h["event_id"]})
+                        "location": h["location"], "from": came_from(h), "happening": h["id"], "event_id": h["event_id"]})
     out.sort(key=lambda e: (e["starts_at"][:10], 0 if e["all_day"] else 1, e["starts_at"]))
     return out
 
@@ -290,10 +290,10 @@ def _from_tag(conn: sqlite3.Connection, tag: str) -> str:
     if hid is None:
         return "your calendar"
     row = conn.execute("SELECT * FROM happenings WHERE id = ?", (hid,)).fetchone()
-    return _from(dict(row)) if row else "Oso"
+    return came_from(dict(row)) if row else "Oso"
 
 
-def _from(h: dict) -> str:
+def came_from(h: dict) -> str:
     if h["source"] == "groupme":
         return f"GroupMe, {h.get('channel') or 'a group'}"
     if h["source"] == "email":
@@ -355,7 +355,7 @@ def conflicts(conn: sqlite3.Connection, cfg: Config, now: datetime, days: int = 
         h = dict(r)
         what = "Canceled" if h["status"] == "canceled" else "Changed"
         lines.append(f"{what}: {h['title']}{', now ' + _when(h['starts_at'], h['ends_at'], bool(h['all_day'])) if h['status'] != 'canceled' and h['starts_at'] else ''}"
-                     f"{' at ' + h['location'] if h['status'] != 'canceled' and h['location'] else ''}. {h['change_note'] or ''} ({_from(h)})".rstrip())
+                     f"{' at ' + h['location'] if h['status'] != 'canceled' and h['location'] else ''}. {h['change_note'] or ''} ({came_from(h)})".rstrip())
     return lines
 
 

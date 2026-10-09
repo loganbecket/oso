@@ -80,7 +80,7 @@ def add(conn: sqlite3.Connection, title: str, due: str | None = None, notes: str
     if not title:
         raise ValueError("A task needs a name.")
     for r in conn.execute("SELECT id, title FROM tasks WHERE status = 'open'"):
-        if happenings._norm(r["title"]) == happenings._norm(title):
+        if happenings.norm(r["title"]) == happenings.norm(title):
             return None
     ts = _ts()
     cur = conn.execute(
@@ -94,9 +94,9 @@ def find(conn: sqlite3.Connection, task: int | str) -> sqlite3.Row | None:
     ensure(conn)
     if isinstance(task, int) or str(task).isdigit():
         return conn.execute("SELECT * FROM tasks WHERE id = ? AND status != 'deleted'", (int(task),)).fetchone()
-    key = happenings._norm(str(task))
+    key = happenings.norm(str(task))
     rows = [r for r in conn.execute("SELECT * FROM tasks WHERE status != 'deleted' ORDER BY status = 'open' DESC, id DESC")
-            if key and key in happenings._norm(r["title"])]
+            if key and key in happenings.norm(r["title"])]
     return rows[0] if rows else None
 
 
@@ -142,12 +142,12 @@ def import_actions(conn: sqlite3.Connection, cfg: Config, now: datetime) -> int:
     ).fetchall():
         if not cfg.is_active(h["course_code"]):
             continue
-        note = " ".join(x for x in (h["note"], f"From {happenings._from(dict(h))}.", h["link"]) if x)
+        note = " ".join(x for x in (h["note"], f"From {happenings.came_from(dict(h))}.", h["link"]) if x)
         if add(conn, h["title"], h["starts_at"], note, source=h["source"], happening=h["id"]) is not None:
             n += 1
             continue
         for t in conn.execute("SELECT id, title FROM tasks WHERE status = 'open' AND happening IS NULL").fetchall():
-            if happenings._norm(t["title"]) == happenings._norm(h["title"]):  # he added it himself: remember where it came from
+            if happenings.norm(t["title"]) == happenings.norm(h["title"]):  # he added it himself: remember where it came from
                 conn.execute("UPDATE tasks SET happening = ? WHERE id = ?", (h["id"], t["id"]))
                 break
     for t in conn.execute(
@@ -319,11 +319,11 @@ def free_today(conn: sqlite3.Connection, cfg: Config, now: datetime) -> list[tup
     """His free stretches for the rest of today, an hour or longer, inside waking hours."""
     from . import rules
 
-    first, last = rules._day_window(cfg)
-    start = max(datetime.combine(now.date(), first), rules._quarter(rules._naive(now, cfg)))
+    first, last = rules.day_window(cfg)
+    start = max(datetime.combine(now.date(), first), rules.quarter(rules.naive(now, cfg)))
     end = datetime.combine(now.date(), last)
     out = []
-    for s, e in sorted(rules._busy(conn, cfg, now, now.date())):
+    for s, e in sorted(rules.busy_times(conn, cfg, now, now.date())):
         if s > start and s - start >= timedelta(hours=1):
             out.append((start, min(s, end)))
         start = max(start, e)

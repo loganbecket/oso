@@ -267,7 +267,7 @@ def tablet_notebooks(cfg: Config) -> list[dict]:
     tab = RemarkableUsb(cfg)
     if not tab.connected():
         return []
-    docs = [d for d in tab._walk() if d.get("Type") == "DocumentType" and d.get("fileType") in (None, "", "notebook")]
+    docs = [d for d in tab.walk() if d.get("Type") == "DocumentType" and d.get("fileType") in (None, "", "notebook")]
     return sorted(docs, key=lambda d: d.get("ModifiedClient") or "", reverse=True)
 
 
@@ -277,7 +277,7 @@ def pull_from_tablet(conn, cfg: Config, quiz: dict, doc: dict) -> int:
     folder = work_folder(cfg, quiz)
     folder.mkdir(parents=True, exist_ok=True)
     target = folder / f"{notes.safe_name(doc.get('VissibleName') or doc['ID'])}.pdf"
-    RemarkableUsb(cfg)._download(doc["ID"], target)
+    RemarkableUsb(cfg).download(doc["ID"], target)
     return import_work(conn, cfg, quiz, [target], "tablet")
 
 

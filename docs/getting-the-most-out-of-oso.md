@@ -38,10 +38,12 @@ Type `/` in the message box to see every Oso command, or just ask in plain Engli
 | `/oso-grades` | You want to know where you stand, or what you need on the final |
 | `/oso-profile` | You want to know what you're strong and weak at in a course |
 | `/create-course` | You're adding a new class (have the syllabus handy) |
+| `/oso-courses` | A semester ended, a course builds on an earlier one, or an instructor posts materials on a website |
 | `/oso-rules` | You want Oso to do something a certain way from now on |
 | `/oso-tasks` | You want to add, see, or check off things to get done, or be reminded of something after class |
 | `/oso-feedback` | Something in Oso is broken, confusing, or you have an idea |
 | `/oso-doctor` | Something seems off: the briefing is missing, deadlines look stale, or you want Oso's settings |
+| `/oso-skill-updates` | Oso has a new version of a command you edited and wants to know which to keep |
 
 Oso tutors; it won't write answers for you to hand in. If a class's AI policy forbids what you asked, it will tell you.
 

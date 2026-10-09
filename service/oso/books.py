@@ -320,11 +320,7 @@ def _tag(xml: str, name: str) -> str | None:
 
 
 def _strip(fragment: str, keep_lines: bool = False) -> str:
-    text = re.sub(r"(?i)<br\s*/?>|</p>|</li>|</div>|</tr>", "\n", fragment) if keep_lines else fragment
-    text = html.unescape(re.sub(r"<[^>]+>", "" if keep_lines else " ", text))
-    if keep_lines:
-        return re.sub(r"\n{3,}", "\n\n", "\n".join(ln.strip() for ln in text.splitlines())).strip()
-    return re.sub(r"\s+", " ", text).strip()
+    return notes.strip_html(fragment, keep_lines=keep_lines)
 
 
 # ---- chapters ------------------------------------------------------------------------------------------

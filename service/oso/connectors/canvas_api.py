@@ -459,8 +459,4 @@ def _parse_time(value: str | None, tz: ZoneInfo) -> datetime | None:
 
 
 def _strip_html(html: str) -> str:
-    text = re.sub(r"<br\s*/?>|</p>|</li>|</div>", "\n", html, flags=re.IGNORECASE)
-    text = re.sub(r"<li[^>]*>", "- ", text, flags=re.IGNORECASE)
-    text = re.sub(r"<[^>]+>", "", text)
-    text = text.replace("&nbsp;", " ").replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", '"')
-    return re.sub(r"\n{3,}", "\n\n", text).strip()
+    return notes.strip_html(html, keep_lines=True, bullets=True)

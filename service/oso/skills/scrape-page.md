@@ -17,6 +17,7 @@ The student has a page of an online textbook open in Chrome and wants it saved a
    - Where something can't be read, write `[?]`. Never fill a gap with a guess.
 6. **Save.** Call `save_book_page` with the course, the book title, the page, the full transcription as `text`, and the page's address as `url`. Saving the same page again replaces the earlier copy.
 7. **Report** in one sentence: which book and page was saved to which course, and how many figures were described. Name anything that couldn't be read.
+8. **If the page cannot be copied in full** (you decline to reproduce it, or it is too long to finish), do not leave a half-saved page: save a thorough summary instead, with every heading, every equation, every table's values, every figure described as above, and the worked examples' methods, under a first line that says `*A detailed summary; the page could not be saved word for word.*` Tell him in one line that it is a summary and why.
 
 ## Rules
 

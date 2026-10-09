@@ -85,7 +85,7 @@ def _codes(cfg: Config, refs: list[str], own: str) -> list[str]:
     """Course codes for references given as codes or names; unknown ones are an error."""
     out = []
     for ref in refs:
-        c = cfg.course_for(ref) or next((x for x in cfg.courses if ref.lower() in (x.name.lower(), x.folder_name.lower())), None)
+        c = cfg.resolve(ref)
         if c is None:
             raise ValueError(f"no course {ref!r} to relate to")
         if c.code.lower() != own.lower() and c.code not in out:

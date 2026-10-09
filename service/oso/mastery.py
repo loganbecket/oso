@@ -27,7 +27,7 @@ from pathlib import Path
 from . import profile, vault
 from .config import Config
 
-CREDIT = {"right": 1.0, "partly_right": 0.5, "wrong": 0.0, "skipped": 0.0}
+from .profile import CREDIT  # noqa: E402  one table of what each result is worth
 RECENT_DAYS = 60
 TREND_WINDOW = 5
 TREND_POINTS = 15

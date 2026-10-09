@@ -26,6 +26,7 @@ What you get:
 - Use the same book for the whole course: once one page is saved, later pages join the same book automatically.
 - Running it again on the same page replaces the earlier copy, so redo a page if something came out wrong.
 - One page at a time. For a whole chapter, run it on each page.
+- If a page can't be copied word for word, Claude saves a detailed summary instead (every heading, equation, table, and figure) and says so, rather than leaving a half-saved page.
 
 ## Good to know
 

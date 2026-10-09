@@ -386,7 +386,4 @@ def _match(cfg: Config, value) -> Course | None:
     if not value or not isinstance(value, str):
         return None
     v = value.strip().lower()
-    for c in cfg.courses:
-        if v in (c.code.lower(), c.name.lower(), c.folder.lower(), c.folder_name.lower()):
-            return c
-    return None
+    return next((c for c in cfg.courses if v == c.folder.lower()), None) or cfg.resolve(value)

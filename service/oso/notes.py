@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import re
 from datetime import datetime
 from pathlib import Path
@@ -28,6 +29,22 @@ def read_front_matter(text: str) -> tuple[dict, str]:
 def with_front_matter(data: dict, body: str) -> str:
     fm = yaml.safe_dump({k: v for k, v in data.items() if v is not None}, sort_keys=False, allow_unicode=True).strip()
     return f"---\n{fm}\n---\n\n{body.lstrip()}"
+
+
+def strip_html(fragment: str, keep_lines: bool = True, bullets: bool = False) -> str:
+    """Plain text from HTML: scripts and styles dropped, block ends kept as line breaks (or everything on one line
+    with keep_lines off), list items as "- " with bullets on, and entities decoded once, after the tags are gone, so
+    an escaped tag in the source never becomes a tag in the note."""
+    text = re.sub(r"(?is)<(script|style).*?</\1>", " ", fragment or "")
+    if keep_lines:
+        text = re.sub(r"(?i)<br\s*/?>|</p>|</li>|</div>|</tr>", "\n", text)
+        if bullets:
+            text = re.sub(r"(?i)<li[^>]*>", "- ", text)
+        text = html.unescape(re.sub(r"<[^>]+>", "", text))
+        text = text.replace("\xa0", " ")
+        return re.sub(r"\n{3,}", "\n\n", "\n".join(ln.strip() for ln in text.splitlines())).strip()
+    text = html.unescape(re.sub(r"<[^>]+>", " ", text)).replace("\xa0", " ")
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def safe_name(name: str, limit: int = 80) -> str:

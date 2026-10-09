@@ -48,13 +48,13 @@ def pending(conn: sqlite3.Connection, cfg: Config, now: datetime) -> list[dict]:
 
 def describe(r) -> str:
     if r["field"] == "due_at":
-        return f"{r['title']} moved from {_fmt(r['old_value'])} to {_fmt(r['new_value'])}"
+        return f"{r['title']} moved from {db.fmt_day(r['old_value'])} to {db.fmt_day(r['new_value'])}"
     if r["field"] == "title":
         return f"'{r['old_value']}' was renamed to '{r['new_value']}'"
     if r["field"] == "deleted":
         return f"{r['title']} was removed from its source"
     if r["field"] == "new":
-        return f"New: {r['title']}, due {_fmt(r['new_value'])}"
+        return f"New: {r['title']}, due {db.fmt_day(r['new_value'])}"
     if r["field"] == "canceled":
         return f"{r['title']} was canceled: {r['new_value']}"
     return f"{r['title']}: {r['field']} changed"
@@ -133,11 +133,3 @@ def quiet_until(cfg: Config, now: datetime) -> datetime | None:
         return None
     return datetime.combine(end_day, end, tzinfo=now.tzinfo)
 
-
-def _fmt(iso: str | None) -> str:
-    if not iso:
-        return "no date"
-    try:
-        return datetime.fromisoformat(iso).strftime("%a %b %d")
-    except ValueError:
-        return iso

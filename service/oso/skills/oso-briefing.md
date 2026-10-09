@@ -26,6 +26,8 @@ Turn the facts in `Today.md` into a short briefing the student can read on a pho
 
 ## Canvas topics (when Today.md says assignments are not yet matched to topics)
 
+Skip this part, and the practice-habits part below, when the Oso tools are unavailable (the cloud briefing reads `Today.md` only).
+
 Before writing the briefing, for each course with unmatched assignments: call `canvas_info` with `untagged`, decide which of the course's topics each assignment covers from its name and group (a homework titled "HW 4: Newton's laws" covers "Newton's Laws"; an assignment that covers no listed topic, like a syllabus quiz, gets none), and save with `tag_assignments`. Leave an assignment out if you can't tell; it will come up again. Don't mention this in the briefing.
 
 ## Rules

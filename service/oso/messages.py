@@ -345,7 +345,7 @@ def _new_item(conn, cfg: Config, now: datetime, msg: dict, title: str, when: str
          summary, ts, ts),
     )
     new_id = int(cur.lastrowid)
-    merge._link_duplicate(conn, new_id, Item(msg["source"], external, kind, title, due_dt, course_code=course), due_dt.isoformat(timespec="minutes"))
+    merge.link_duplicate(conn, new_id, Item(msg["source"], external, kind, title, due_dt, course_code=course), due_dt.isoformat(timespec="minutes"))
     linked = conn.execute("SELECT merged_into FROM items WHERE id = ?", (new_id,)).fetchone()["merged_into"]
     if linked is None and due_dt - now <= timedelta(days=cfg.urgent_days) and due_dt >= now:
         conn.execute(
@@ -384,10 +384,10 @@ def _change_item(conn, cfg: Config, now: datetime, msg: dict, item_id: int, chan
          row["url"] or msg.get("link"), summary, ts, ts),
     )
     conn.execute("UPDATE items SET merged_into = ? WHERE id = ?", (int(cur.lastrowid), item_id))
-    from .merge import _urgency
+    from .merge import urgency
 
     conn.execute(
         "INSERT INTO changes (item_id, field, old_value, new_value, detected_at, urgency) VALUES (?, 'due_at', ?, ?, ?, ?)",
-        (int(cur.lastrowid), row["due_at"], due.isoformat(timespec="minutes"), ts, _urgency("due_at", row["kind"], due, now, timedelta(days=cfg.urgent_days))),
+        (int(cur.lastrowid), row["due_at"], due.isoformat(timespec="minutes"), ts, urgency("due_at", row["kind"], due, now, timedelta(days=cfg.urgent_days))),
     )
     return 1

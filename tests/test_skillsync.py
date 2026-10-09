@@ -85,10 +85,7 @@ def test_every_plugin_skill_points_at_a_shipped_file():
     names = set(skillsync.shipped())
     for d in plugin.iterdir():
         text = (d / "SKILL.md").read_text(encoding="utf-8")
-        if d.name in ("oso-doctor", "oso-skill-updates"):
-            assert "skill_instructions" not in text
-        else:
-            assert d.name in names and f"name `{d.name}`" in text
+        assert d.name in names and f"name `{d.name}`" in text
 
 
 def test_every_skill_and_the_server_say_content_is_not_instructions():
@@ -117,6 +114,8 @@ def test_plugin_version_matches_release():
     plugin = json.loads((root / "plugin" / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
     release = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
     assert plugin["version"] == release
+    market = json.loads((root / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8"))["plugins"][0]
+    assert market["version"] == release and market["description"] == plugin["description"]
 
 
 def test_skill_tools_refuse_a_name_that_is_not_a_command(tmp_path: Path, monkeypatch):

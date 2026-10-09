@@ -393,7 +393,7 @@ def _after_since(rule: Rule, at: str | None, cfg: Config) -> bool:
 DAY = (time(8), time(22))  # when there are no quiet hours: blocks go between 8 in the morning and 10 at night
 
 
-def _day_window(cfg: Config) -> tuple[time, time]:
+def day_window(cfg: Config) -> tuple[time, time]:
     if not cfg.quiet_hours or "-" not in cfg.quiet_hours:
         return DAY
     try:
@@ -403,7 +403,7 @@ def _day_window(cfg: Config) -> tuple[time, time]:
     return (end, start) if end < start else (end, time(23, 59))
 
 
-def _busy(conn: sqlite3.Connection, cfg: Config, now: datetime, d: date, ignore: int | None = None) -> list[tuple[datetime, datetime]]:
+def busy_times(conn: sqlite3.Connection, cfg: Config, now: datetime, d: date, ignore: int | None = None) -> list[tuple[datetime, datetime]]:
     """Classes and everything else on the Oso calendar that day, and events Oso knows of that aren't on it yet."""
     out = []
     for e in happenings.schedule(conn, cfg, now, (d - now.date()).days):
@@ -415,11 +415,11 @@ def _busy(conn: sqlite3.Connection, cfg: Config, now: datetime, d: date, ignore:
     return out
 
 
-def _naive(dt: datetime, cfg: Config) -> datetime:
+def naive(dt: datetime, cfg: Config) -> datetime:
     return dt.astimezone(cfg.tz).replace(tzinfo=None) if dt.tzinfo else dt
 
 
-def _quarter(t: datetime) -> datetime:
+def quarter(t: datetime) -> datetime:
     """The next quarter hour at or after t."""
     up = t.replace(second=0, microsecond=0) + (timedelta(minutes=1) if (t.second or t.microsecond) else timedelta())
     return up + timedelta(minutes=(-up.minute) % 15)
@@ -431,19 +431,19 @@ def open_slot(conn: sqlite3.Connection, cfg: Config, now: datetime, d: date, min
     `ignore`: a happening that is being moved, so it doesn't stand in its own way."""
     if d < now.date():
         return None
-    first, last = _day_window(cfg)
-    start = max(datetime.combine(d, first), _naive(not_before or now, cfg))
-    start = _quarter(start)
+    first, last = day_window(cfg)
+    start = max(datetime.combine(d, first), naive(not_before or now, cfg))
+    start = quarter(start)
     end_of_day = datetime.combine(d, last)
     if not_after is not None:
-        end_of_day = min(end_of_day, _naive(not_after, cfg))
-    busy = _busy(conn, cfg, now, d, ignore)
+        end_of_day = min(end_of_day, naive(not_after, cfg))
+    busy = busy_times(conn, cfg, now, d, ignore)
     length = timedelta(minutes=minutes)
     while start + length <= end_of_day:
         clash = [en for s, en in busy if s < start + length and start < en]
         if not clash:
             return start
-        start = _quarter(max(clash))
+        start = quarter(max(clash))
     return None
 
 

@@ -165,7 +165,7 @@ def test_read_and_store(env, server):
         assert s["current_score"] == 81.5 and s["current_grade"] == "B-" and s["missing"] == ["HW 5: Forces"]
         assert s["recent_scores"][0] == {"name": "HW 4: Kinematics", "score": 6.0, "points": 10.0, "graded_at": "2026-10-30T12:00:06Z"}
         # nothing new on a second read
-        assert canvas_store.save(conn, api.__class__(server, None, cfg, cookies={"canvas_session": "good"}) if False else api, now="2026-11-01T12:15:00+00:00")["new_grades"] == 0
+        assert canvas_store.save(conn, api, now="2026-11-01T12:15:00+00:00")["new_grades"] == 0
         # a regrade and a comment show up as events
         STATE.update(hw4_score=8.0, comments=[{"id": 900, "author_name": "Dr. Lee", "comment": "Watch the sign on g.", "created_at": "2026-11-01T13:00:00Z"}])
         api.fetch()

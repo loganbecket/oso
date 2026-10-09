@@ -385,7 +385,7 @@ def untagged_count(conn: sqlite3.Connection, cfg: Config) -> int:
     return sum(1 for r in rows if cfg.course_for(r["course"]) is not None and cfg.is_active(r["course"]))
 
 
-CREDIT = {"right": 1.0, "partly_right": 0.5, "wrong": 0.0}
+CREDIT = profile.CREDIT  # one table of what each result is worth
 
 
 def evidence(conn: sqlite3.Connection, course: str) -> list[dict]:

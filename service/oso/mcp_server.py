@@ -290,8 +290,7 @@ def backup_now() -> str:
 
 @mcp.tool()
 def schedule(days: int = 7) -> dict:
-    """His schedule for the coming days (the Oso calendar, plus events from school email and GroupMe), the actions he
-    needs to take, and conflicts worth raising. Each event has `happening` (Oso's id) and/or `event_id` (the calendar's)."""
+    """His schedule for the coming days."""
     from . import happenings
 
     cfg = _cfg()
@@ -307,9 +306,7 @@ def schedule(days: int = 7) -> dict:
 @mcp.tool()
 def add_to_calendar(title: str, start: str, end: str | None = None, location: str | None = None, notes: str | None = None,
                     kind: str = "event", remind: bool = False) -> dict:
-    """Add an event to his schedule and the Oso calendar, when he asks ("add Saturday's tailgate, noon at the stadium").
-    start/end: local YYYY-MM-DDTHH:MM, or YYYY-MM-DD for all day. remind: a pop-up on his phone at the start, for a
-    reminder at a moment ("remind me to swing by the mail room after class"). Things to do by a day are tasks: add_task."""
+    """Add an event to his calendar."""
     from . import happenings
 
     import os
@@ -398,7 +395,7 @@ def mute(group: str | None = None, sender: str | None = None, unmute: bool = Fal
 @mcp.tool()
 def start_quiz(course: str, questions: list[dict], requested: str | None = None, sources: list[str] | None = None,
                retake_of: int | None = None, window: bool = True) -> dict:
-    """Record a quiz and open it in the quiz window on the student's computer. questions: [{number, topic, theme, type: multiple_choice|short_answer|worked_problem|conceptual, difficulty: easy|medium|hard, question, source, choices (multiple choice: a list of the answer texts, without letters), answer (the correct choice's letter)}]. Returns quiz_id."""
+    """Record a quiz and open the quiz window."""
     from . import profile, quizwin
 
     with db.connect() as conn:
@@ -441,8 +438,7 @@ def finish_quiz(quiz_id: int) -> dict:
 
 @mcp.tool()
 def save_feedback(words: str, kind: str, summary: str, doing: str | None = None, confirmed: bool = False) -> str:
-    """Pass on feedback about Oso itself (confirmed=true only after he asked or agreed in this chat): his words exactly, kind "bug" or "idea", a
-    one-line summary, and what he was doing (e.g. "quiz 12, Physics, question 3"). It is emailed to whoever builds Oso."""
+    """Email feedback about Oso (after his yes)."""
     from . import feedback
 
     if not confirmed:
@@ -504,9 +500,7 @@ def show_quiz(quiz_id: int) -> str:
 
 @mcp.tool()
 def get_profile(course: str) -> dict:
-    """Where he stands in a course, computed by Oso from evidence: each topic's stage, next step, status line, open
-    misconceptions, and trail; his grade and goal; honesty flags; how he learns. Report the status lines as they are,
-    never upgraded. Be a direct, honest tutor: name the evidence for anything positive, lead with gaps, no unearned praise."""
+    """Where he stands in a course."""
     from . import tutor
 
     with db.connect() as conn:
@@ -516,10 +510,7 @@ def get_profile(course: str) -> dict:
 @mcp.tool()
 def note_signal(kind: str, course: str | None = None, topic: str | None = None, words: str | None = None,
                 belief: str | None = None, misconception: int | None = None, target_percent: float | None = None) -> dict:
-    """Quietly note what he shows in a study conversation, as it happens, never announced. kind: confused, misconception
-    (belief = the wrong idea itself), basic_question, explained_well (explained it correctly in his own words; pass
-    misconception to close one), solved / needed_help (worked a problem in chat), explained (you explained it; words =
-    how), preference (how he learns), goal (words as he said it, target_percent if a grade). words: his words where they show it."""
+    """Quietly note what he shows (never announced)."""
     from . import tutor
 
     with db.connect() as conn:
@@ -575,9 +566,7 @@ def tag_assignments(tags: list[dict]) -> dict:
 @mcp.tool()
 def correct_result(quiz_id: int | None = None, number: int | None = None, check_id: int | None = None,
                    result: str | None = None, mistake: str | None = None, remove: bool = False, reason: str | None = None) -> str:
-    """Fix a recorded result: a quiz question (quiz_id + number) or a check (check_id); new result and mistake kind, or
-    remove. Changing a grade needs `reason`: the stored criterion that supports it, or what was recorded wrong. Arguing
-    alone ("I meant that") is not a reason."""
+    """Fix a recorded quiz or check result."""
     from . import profile
 
     with db.connect() as conn:
@@ -816,8 +805,7 @@ def _push_tasks(conn, cfg) -> str | None:
 @mcp.tool()
 def class_times(course: str, meetings: list[dict] | None = None, first_day: str | None = None, last_day: str | None = None,
                 no_class: list[str] | None = None) -> dict | str:
-    """When a course meets. Without meetings: what's saved. With them (each {kind, days like "MWF" or "TR", starts, ends,
-    location}), first_day, last_day, and no_class dates: save, replacing the old times, and update the Oso calendar."""
+    """When a course meets; read or set."""
     from . import classes, happenings
 
     cfg = _cfg()
@@ -901,7 +889,7 @@ def open_time(minutes: int, day: str, not_before: str | None = None, not_after: 
 
 @mcp.tool()
 def resolve_skill(name: str | None = None, choice: str | None = None, text: str | None = None) -> list[dict] | str:
-    """No arguments: list commands whose new Oso version clashes with the student's edits. With name and choice (mine, oso, combined + text): settle one. Choice default (name optional): restore Oso's version."""
+    """Settle an Oso command update."""
     from . import skillsync
 
     cfg = _cfg()

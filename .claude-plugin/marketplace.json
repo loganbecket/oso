@@ -10,7 +10,8 @@
     {
       "name": "oso",
       "source": "./plugin",
-      "description": "Study assistant: semester setup, deadlines, the morning briefing, and tutoring from your own vault."
+      "description": "Study assistant: semester setup, deadlines, and the morning briefing from your own vault.",
+      "version": "0.18.5"
     }
   ]
 }

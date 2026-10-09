@@ -91,6 +91,16 @@ def now_iso() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
 
 
+def fmt_day(iso: str | None) -> str:
+    """An ISO moment as 'Mon Oct 05', or 'no date'."""
+    if not iso:
+        return "no date"
+    try:
+        return datetime.fromisoformat(iso).strftime("%a %b %d")
+    except ValueError:
+        return iso
+
+
 def since(now: datetime, delta: timedelta) -> str:
     """The moment `delta` before `now`, as the UTC text every `*_at` column stores, so a window compares correctly
     whatever the student's time zone (an ISO string with a local offset does not sort against a UTC one)."""
@@ -114,6 +124,25 @@ def connect(path: Path | None = None) -> Iterator[sqlite3.Connection]:
         conn.commit()
     finally:
         conn.close()
+
+
+def open_items(conn: sqlite3.Connection) -> list[dict]:
+    """Every item not done, with the student's edits applied, soonest first: what Today.md and readiness list."""
+    rows = conn.execute(
+        f"""SELECT id, kind, url, {EFFECTIVE} FROM items
+            WHERE deleted_at IS NULL AND merged_into IS NULL
+            ORDER BY due_at"""
+    ).fetchall()
+    out = []
+    for r in rows:
+        if r["status"] == "done":
+            continue
+        due = datetime.fromisoformat(r["due_at"]) if r["due_at"] else None
+        out.append({"id": r["id"], "kind": r["kind"], "title": r["title"], "due": due, "status": r["status"],
+                    "weight": r["weight"], "course_code": r["course_code"], "url": r["url"]})
+    return out
+
+
 
 
 def prune(conn: sqlite3.Connection, now: datetime, keep_days: int = 180) -> int:

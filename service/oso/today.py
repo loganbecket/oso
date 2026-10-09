@@ -31,7 +31,7 @@ def render(conn: sqlite3.Connection, cfg: Config, now: datetime) -> str:
         "",
     ]
 
-    open_items = [r for r in _open_items(conn) if cfg.is_active(r["course_code"])]
+    open_items = [r for r in db.open_items(conn) if cfg.is_active(r["course_code"])]
     overdue = [r for r in open_items if r["due"] and r["due"].date() < today]
     due_today = [r for r in open_items if r["due"] and r["due"].date() == today]
     this_week = [r for r in open_items if r["due"] and today < r["due"].date() <= week_end]
@@ -84,22 +84,6 @@ def write(conn: sqlite3.Connection, cfg: Config, now: datetime) -> Path:
     from . import vault
 
     return vault.write_file(cfg.vault / "Today.md", render(conn, cfg, now))
-
-
-def _open_items(conn: sqlite3.Connection) -> list[dict]:
-    rows = conn.execute(
-        f"""SELECT id, kind, url, {EFFECTIVE} FROM items
-            WHERE deleted_at IS NULL AND merged_into IS NULL
-            ORDER BY due_at"""
-    ).fetchall()
-    out = []
-    for r in rows:
-        if r["status"] == "done":
-            continue
-        due = datetime.fromisoformat(r["due_at"]) if r["due_at"] else None
-        out.append({"id": r["id"], "kind": r["kind"], "title": r["title"], "due": due, "status": r["status"],
-                    "weight": r["weight"], "course_code": r["course_code"], "url": r["url"]})
-    return out
 
 
 def _section(heading: str, rows: list[dict], cfg: Config, now: datetime) -> list[str]:
@@ -272,35 +256,15 @@ def _changes(conn: sqlite3.Connection, cfg: Config, now: datetime) -> list[str]:
     if not rows:
         lines.append("- Nothing changed.")
     for r in rows:
-        label = _course_label(r, cfg)
-        if r["field"] == "due_at":
-            old = _fmt(r["old_value"])
-            new = _fmt(r["new_value"])
-            text = f"{label}{r['title']} moved from {old} to {new}"
-        elif r["field"] == "title":
-            text = f"{label}'{r['old_value']}' was renamed to '{r['new_value']}'"
-        elif r["field"] == "deleted":
-            text = f"{label}{r['title']} was removed from its source"
-        elif r["field"] == "new":
-            text = f"{label}New: {r['title']}, due {_fmt(r['new_value'])}"
-        elif r["field"] == "canceled":
-            text = f"{label}{r['title']} was canceled: {r['new_value']}"
-        else:
-            text = f"{label}{r['title']}: {r['field']} changed"
+        from .alerts import describe
+
+        text = _course_label(r, cfg) + describe(r)
         flag = " **(urgent)**" if r["urgency"] == "urgent" else ""
         heard = {"email": " (from school email)", "groupme": " (from GroupMe)"}.get(r["source"], "")
         lines.append(f"- {text}{heard}{flag}")
     lines.append("")
     return lines
 
-
-def _fmt(iso: str | None) -> str:
-    if not iso:
-        return "no date"
-    try:
-        return datetime.fromisoformat(iso).strftime("%a %b %d")
-    except ValueError:
-        return iso
 
 
 def _update_note(conn: sqlite3.Connection) -> list[str]:

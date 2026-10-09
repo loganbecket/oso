@@ -293,7 +293,7 @@ def scope(cfg: Config, course: str | None) -> set[str] | None:
     """Lowercased course codes a search covers, or None for "every active course"."""
     if not course:
         return None
-    c = cfg.course_for(course) or next((x for x in cfg.courses if course.lower() in (x.name.lower(), x.folder_name.lower())), None)
+    c = cfg.resolve(course)
     if c is None:
         return {course.lower()}
     return {c.code.lower(), *(r.lower() for r in c.related)}

@@ -77,7 +77,7 @@ class RemarkableUsb:
             raise NotConnected()
         folders = {c.folder_name.lower(): c for c in self.cfg.courses if not c.finished}
         pulled = 0
-        for doc in self._walk():
+        for doc in self.walk():
             if doc.get("Type") != "DocumentType":
                 continue
             if doc.get("fileType") not in (None, "", "notebook"):
@@ -103,7 +103,7 @@ class RemarkableUsb:
             name = notes.safe_name(doc.get("VissibleName") or doc_id)
             target = dest / f"{name}.pdf"
             try:
-                self._download(doc_id, target)
+                self.download(doc_id, target)
             except requests.RequestException as e:
                 log.warning("could not download %s: %s", name, type(e).__name__)
                 continue
@@ -116,19 +116,19 @@ class RemarkableUsb:
             pulled += 1
         return pulled
 
-    def _walk(self, folder_id: str = "", path: str = "") -> list[dict]:
+    def walk(self, folder_id: str = "", path: str = "") -> list[dict]:
         r = self.s.get(f"{self.base}/documents/{folder_id}", timeout=self.timeout)
         r.raise_for_status()
         out: list[dict] = []
         for item in r.json():
             item["_path"] = f"{path}{item.get('VissibleName', '')}"
             if item.get("Type") == "CollectionType":
-                out.extend(self._walk(item["ID"], item["_path"] + "/"))
+                out.extend(self.walk(item["ID"], item["_path"] + "/"))
             else:
                 out.append(item)
         return out
 
-    def _download(self, doc_id: str, target: Path) -> None:
+    def download(self, doc_id: str, target: Path) -> None:
         last: Exception | None = None
         for suffix in ("pdf", "placeholder"):
             try:

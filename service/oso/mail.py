@@ -21,7 +21,7 @@ from datetime import datetime, timedelta
 from email.utils import parseaddr, parsedate_to_datetime
 from urllib.parse import quote
 
-from . import messages, secrets
+from . import messages, notes, secrets
 from .config import Config
 
 log = logging.getLogger("oso.mail")
@@ -208,9 +208,7 @@ def _decode(data: str) -> str:
 
 
 def _strip_html(text: str) -> str:
-    text = re.sub(r"(?is)<(script|style).*?</\1>", " ", text)
-    text = re.sub(r"(?i)<br\s*/?>|</p>|</div>|</li>|</tr>", "\n", text)
-    return html.unescape(re.sub(r"<[^>]+>", " ", text))
+    return notes.strip_html(text, keep_lines=True)
 
 
 FORWARD_HEADER = re.compile(

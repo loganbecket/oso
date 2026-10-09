@@ -208,10 +208,9 @@ def _dispatch(args: argparse.Namespace) -> int:
                 return 2
         print(f"Transcribed {counts['pages']} page(s) into {counts['notes']} note(s); {counts['low_confidence']} low confidence, {counts['failed']} failed.")
         if counts["pages"]:
-            from . import today as todaymod
 
             with db.connect() as conn:
-                todaymod.write(conn, cfg, datetime.now(cfg.tz))
+                today.write(conn, cfg, datetime.now(cfg.tz))
         return 0
 
     if args.cmd == "connect-calendar":
@@ -392,7 +391,6 @@ def _dispatch(args: argparse.Namespace) -> int:
         if not cfg.backup_folder:
             print("No backup folder is set. Run 'oso backup --set-folder <folder>' or set one in 'oso settings'.")
             return 1
-        from datetime import datetime as _dt
 
         from . import lock
 
@@ -400,7 +398,7 @@ def _dispatch(args: argparse.Namespace) -> int:
             if not got:
                 print("Another Oso task is running; try again in a few minutes.")
                 return 1
-            r = backup.run(cfg, conn, _dt.now(cfg.tz), force=True, budget=10**6)
+            r = backup.run(cfg, conn, datetime.now(cfg.tz), force=True, budget=10**6)
         if "skipped" in r:
             print(r["skipped"])
             return 1
@@ -495,7 +493,6 @@ def _dispatch(args: argparse.Namespace) -> int:
             print(install_timer(every_minutes=args.every))
         return 0
 
-    return 1
 
 
 if __name__ == "__main__":

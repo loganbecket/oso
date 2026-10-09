@@ -51,7 +51,7 @@ def read_images(paths: list[Path]) -> list[str]:
         import json
 
         r = subprocess.run([sys.executable, "-m", "oso.ocr", *map(str, paths)], capture_output=True, text=True, encoding="utf-8",
-                           timeout=60 + 30 * len(paths), creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+                           timeout=min(60 + 30 * len(paths), 600), creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
         if r.returncode != 0:
             why = (r.stderr or "").strip().splitlines()[-1:] or ["unknown reason"]
             raise OcrUnavailable(f"Windows text recognition is not available ({why[0][:160]}).")

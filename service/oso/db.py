@@ -116,6 +116,17 @@ def connect(path: Path | None = None) -> Iterator[sqlite3.Connection]:
         conn.close()
 
 
+def prune(conn: sqlite3.Connection, now: datetime, keep_days: int = 180) -> int:
+    """Forget change records and Canvas events older than a term, so the tables stop growing forever."""
+    cutoff = since(now, timedelta(days=keep_days))
+    n = conn.execute("DELETE FROM changes WHERE detected_at < ?", (cutoff,)).rowcount
+    try:
+        n += conn.execute("DELETE FROM canvas_events WHERE at < ?", (cutoff,)).rowcount
+    except sqlite3.OperationalError:
+        pass
+    return n
+
+
 def note_step_failure(conn: sqlite3.Connection, name: str, error: str) -> None:
     conn.execute("INSERT OR REPLACE INTO step_failures (name, at, error) VALUES (?, ?, ?)", (name, now_iso(), error))
 

@@ -30,7 +30,7 @@ import sqlite3
 import subprocess
 import sys
 from dataclasses import dataclass
-from datetime import date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
 
 from . import config as cfgmod
@@ -49,6 +49,8 @@ SHOWN_FOR = timedelta(hours=36)  # long enough to reach the next morning briefin
 CLAUDE_PER_CHECK = 5  # background Claude runs per check, so one busy morning can't hold the check up
 MAX_ATTEMPTS = 3
 # Oso tools a rule running in the background never needs: they restart, reconfigure, or delete.
+FOLLOW_DAYS = 120  # blocks older than a term no longer follow their item around
+
 OFF_LIMITS = ("sync_now", "update_oso", "backup_now", "open_settings", "run_health_check", "save_rule", "change_rule",
               "resolve_skill", "delete_quiz", "update_course", "add_course", "mute")
 FIRE_ENV = "OSO_RULE_FIRE"  # set for the background Claude, so what it adds to the calendar is tied to the rule
@@ -564,7 +566,8 @@ def _act_now(conn, cfg: Config, rule: Rule, target: str, thing: str, title: str,
 
 def _follow(conn, cfg: Config, rules: dict[str, Rule], now: datetime) -> None:
     """Blocks follow the item they were for: moved with it, removed when it's canceled."""
-    for f in conn.execute("SELECT * FROM rule_fires WHERE status = 'done' AND target LIKE 'item:%'").fetchall():
+    recent = (now - timedelta(days=FOLLOW_DAYS)).astimezone(UTC).isoformat(timespec="seconds") if now.tzinfo else (now - timedelta(days=FOLLOW_DAYS)).isoformat(timespec="seconds")
+    for f in conn.execute("SELECT * FROM rule_fires WHERE status = 'done' AND target LIKE 'item:%' AND fired_at >= ?", (recent,)).fetchall():
         item_id = int(f["target"].split(":")[1])
         seen = set()
         row = conn.execute(f"SELECT id, merged_into, deleted_at, {EFFECTIVE} FROM items WHERE id = ?", (item_id,)).fetchone()
@@ -743,10 +746,10 @@ def _background_claude(cfg: Config):
         if not exe:
             raise NoClaude("Claude Code isn't installed on this computer")
         result = subprocess.run(
-            [exe, "-p", prompt, "--model", cfg.transcribe_model, "--output-format", "text", "--tools", "",
+            [exe, "-p", "--model", cfg.background_model, "--output-format", "text", "--tools", "",
              "--strict-mcp-config", "--mcp-config", str(_mcp_config()), "--allowedTools", "mcp__oso",
              "--disallowedTools", *[f"mcp__oso__{t}" for t in OFF_LIMITS], "--max-turns", "15"],
-            cwd=str(cfg.vault), stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8", timeout=600, check=False,
+            cwd=str(cfg.vault), input=prompt, capture_output=True, text=True, encoding="utf-8", timeout=600, check=False,
             env={**os.environ, FIRE_ENV: str(fire)},
         )
         if result.returncode != 0 or not result.stdout.strip():
@@ -763,7 +766,8 @@ def _claude_fire(conn, cfg: Config, rule: Rule, fire: int, thing: str, now: date
     try:
         said = ask_claude(prompt, fire)
     except (NoClaude, subprocess.SubprocessError, OSError) as e:
-        n = conn.execute("UPDATE rule_fires SET attempts = attempts + 1 WHERE id = ? RETURNING attempts", (fire,)).fetchone()[0]
+        conn.execute("UPDATE rule_fires SET attempts = attempts + 1 WHERE id = ?", (fire,))
+        n = conn.execute("SELECT attempts FROM rule_fires WHERE id = ?", (fire,)).fetchone()[0]
         reason = str(e) if isinstance(e, NoClaude) else "Claude didn't finish"
         if n == 1 and reason != "waiting for the next check":
             _say(conn, rule, f"Your rule \"{rule.name}\" couldn't run yet: {reason}. Oso tries again on the next check.", now)
@@ -789,9 +793,9 @@ def _ask_form(cfg: Config):
         exe = shutil.which("claude")
         if not exe:
             raise NoClaude("Claude Code isn't installed on this computer")
-        result = subprocess.run([exe, "-p", prompt, "--model", cfg.transcribe_model, "--output-format", "text", "--tools", "",
+        result = subprocess.run([exe, "-p", "--model", cfg.background_model, "--output-format", "text", "--tools", "",
                                  "--strict-mcp-config", "--max-turns", "1"],
-                                cwd=str(cfg.vault), stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8", timeout=300, check=False)
+                                cwd=str(cfg.vault), input=prompt, capture_output=True, text=True, encoding="utf-8", timeout=300, check=False)
         if result.returncode != 0 or not result.stdout.strip():
             raise NoClaude("Claude didn't answer on this computer (it may need signing in)")
         return result.stdout

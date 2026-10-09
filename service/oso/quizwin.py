@@ -242,13 +242,16 @@ def import_work(conn, cfg: Config, quiz: dict, sources: list[Path], origin: str)
             import pypdfium2 as pdfium
 
             doc = pdfium.PdfDocument(str(dest))
-            for i in range(len(doc)):
-                existing += 1
-                out = pages_dir / f"page {existing:02d}.png"
-                page = doc[i]
-                scale = max(0.5, min(4.0, cfg.render_height_px / (page.get_height() or 1)))
-                page.render(scale=scale).to_pil().save(out)
-                added.append(out.relative_to(cfg.vault).as_posix())
+            try:
+                for i in range(len(doc)):
+                    existing += 1
+                    out = pages_dir / f"page {existing:02d}.png"
+                    page = doc[i]
+                    scale = max(0.5, min(4.0, cfg.render_height_px / (page.get_height() or 1)))
+                    page.render(scale=scale).to_pil().save(out)
+                    added.append(out.relative_to(cfg.vault).as_posix())
+            finally:
+                doc.close()
         elif dest.suffix.lower() in IMAGE_EXT:
             existing += 1
             out = pages_dir / f"page {existing:02d}{dest.suffix.lower()}"
@@ -414,7 +417,9 @@ def run(quiz_id: int) -> None:
             try:
                 docs = tablet_notebooks(cfg)
             except Exception:  # noqa: BLE001
-                docs = []
+                messagebox.showinfo("Oso", "The tablet answered, but Oso couldn't read its list of notebooks. Unplug it, "
+                                           "plug it back in, and try again.", parent=root)
+                return
             if not docs:
                 messagebox.showinfo("Oso", "The reMarkable is not connected. Plug it in with the cable, make sure "
                                            "USB web interface is on in its storage settings, and try again.", parent=root)
@@ -537,9 +542,9 @@ def write_new_version(conn, cfg: Config, quiz_id: int, ask=None) -> int:
                                        "Ask Claude in Cowork for a new quiz on the same topics instead.")
 
         def ask(p: str) -> str:
-            r = subprocess.run([exe, "-p", p, "--model", cfg.exam_model, "--output-format", "text", "--allowedTools", "Read",
-                                "--max-turns", "10"], cwd=str(cfg.vault), capture_output=True, text=True, encoding="utf-8",
-                               timeout=900, check=False)
+            r = subprocess.run([exe, "-p", "--model", cfg.exam_model, "--output-format", "text", "--allowedTools", "Read",
+                                "--strict-mcp-config", "--max-turns", "10"], input=p, cwd=str(cfg.vault), capture_output=True,
+                               text=True, encoding="utf-8", timeout=900, check=False)
             if r.returncode != 0 or not r.stdout.strip():
                 raise profile.ProfileError("Claude couldn't write the new version just now. Try again in a few minutes.")
             return r.stdout

@@ -100,7 +100,7 @@ def set_canvas_login(username: str, password: str) -> str:
     if not username.strip() or not password:
         return "Nothing changed: both the username and the password are needed."
     canvas_session.set_login(username, password)
-    return ("Saved in Windows' credential store. The Canvas sign-in window fills them in from now on, and when Canvas "
+    return ("Saved in your computer's credential store. The Canvas sign-in window fills them in from now on, and when Canvas "
             "logs you out Oso signs in again on its own; you'll only need to approve Duo on your phone.")
 
 

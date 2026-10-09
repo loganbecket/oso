@@ -143,6 +143,7 @@ def _run(cfg: Config, now: datetime | None = None) -> dict[str, object]:
         results["update"] = _safe(lambda: update.check_daily(conn, cfg, now), None, conn, "update check")
         results["skill_conflicts"] = len(_safe(lambda: skillsync.sync(cfg), [], conn, "command updates"))
         results["backup"] = _safe(lambda: backup.run(cfg, conn, now), {}, conn, "backup")
+        _safe(lambda: db.prune(conn, now), 0, conn, "tidying old records")
         conn.commit()
         _safe(lambda: _write_today(conn, cfg, now), None, conn, "Today.md")
         _safe(lambda: dashboard.write(conn, cfg, now), None, conn, "Dashboard.md")

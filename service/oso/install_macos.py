@@ -63,8 +63,44 @@ def install_agent(every_minutes: int = 60) -> str:
     subprocess.run(["launchctl", "load", str(watch)], capture_output=True)
     from . import shortcut
 
+    link_mcp()
     return (f"Installed the {LABEL} agent: runs every {every_minutes} minutes and on login. Missed runs are made up when the Mac wakes. "
             f"New files in your course folders are taken in as soon as they arrive. {shortcut.create() or 'Oso is in your Applications folder.'}")
+
+
+LINK_DIRS = (Path("/usr/local/bin"), Path("/opt/homebrew/bin"))
+
+
+def link_mcp() -> str:
+    """Put `oso-mcp` where apps opened from the Dock can see it. Apps do not get the shell's PATH, so the Claude app
+    cannot start Oso's tools from ~/.local/bin on its own."""
+    target = shutil.which("oso-mcp") or str(Path.home() / ".local" / "bin" / "oso-mcp")
+    if not Path(target).exists():
+        return "The oso-mcp command is not installed; run the Oso installer again."
+    for d in LINK_DIRS:
+        link = d / "oso-mcp"
+        try:
+            if link.is_symlink() or link.exists():
+                if link.resolve() == Path(target).resolve():
+                    return f"The Claude app can find Oso through {link}."
+                link.unlink()
+            link.symlink_to(target)
+            return f"Linked {link} so the Claude app can find Oso."
+        except OSError:
+            continue
+    return ("Oso could not make a link in /usr/local/bin. In Terminal, run: sudo ln -sf "
+            f"\"{target}\" /usr/local/bin/oso-mcp")
+
+
+def mcp_reachable() -> bool:
+    """Whether an app opened from the Dock would find oso-mcp."""
+    gui_path = ""
+    try:
+        gui_path = subprocess.run(["launchctl", "getenv", "PATH"], capture_output=True, text=True, timeout=5).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        pass
+    dirs = [Path(p) for p in gui_path.split(":") if p] or ["/usr/bin", "/bin", "/usr/sbin", "/sbin"]
+    return any((Path(d) / "oso-mcp").exists() for d in [*dirs, *LINK_DIRS])
 
 
 def installed() -> bool:

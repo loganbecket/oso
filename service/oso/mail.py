@@ -99,7 +99,7 @@ def _session():
     if not creds.valid:
         creds.refresh(Request())
         secrets.set(TOKEN, creds.to_json())
-    return AuthorizedSession(creds)
+    return gcal.timed(AuthorizedSession(creds))
 
 
 def fetch(conn: sqlite3.Connection, cfg: Config, now: datetime, session=None) -> dict[str, int]:

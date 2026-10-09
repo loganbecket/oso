@@ -131,6 +131,13 @@ def _queue_pdf(conn: sqlite3.Connection, cfg: Config, src: Path, pages_dir: Path
         return 0
     out_dir = pages_dir / notebook
     out_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        return _queue_pdf_pages(conn, cfg, src, doc, out_dir, notebook, scale, course, known)
+    finally:
+        doc.close()  # Windows keeps an open file locked
+
+
+def _queue_pdf_pages(conn, cfg: Config, src: Path, doc, out_dir: Path, notebook: str, scale, course, known) -> int:
     factor = _render_scale(doc, cfg, scale)
     count = 0
     for i in range(len(doc)):

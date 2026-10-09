@@ -245,6 +245,14 @@ def checks(fix: bool = False) -> list[dict]:
 
     if not shutil.which("oso-mcp"):
         out.append(("warn", "The 'oso-mcp' command is not on PATH, so Cowork and Claude Code cannot reach Oso's tools. Run the installer again."))
+    elif sys.platform == "darwin":
+        from . import install_macos
+
+        if not install_macos.mcp_reachable():
+            if fix:
+                out.append(("ok", install_macos.link_mcp()))
+            else:
+                out.append(("warn", "The Claude app cannot find the 'oso-mcp' command (apps opened from the Dock do not see ~/.local/bin). Fix links it into /usr/local/bin."), "fix")
     return out
 
 

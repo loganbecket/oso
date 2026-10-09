@@ -18,6 +18,6 @@ Everything here works from Cowork through the Oso tools. Answer in plain sentenc
 
 **"Update Oso":** call `update_oso` with `confirmed` true (he asked in this chat). On Windows a window opens and installs the update, and this chat's connection to Oso restarts; tell him to restart the Claude app when the window closes.
 
-**If the Oso tools are not available at all**, Oso itself is not running in the Claude app. In Claude Code on the laptop, run `oso doctor --fix` in the terminal and follow it; otherwise tell him to run that in PowerShell.
+**If the Oso tools are not available at all**, Oso itself is not running in the Claude app. In Claude Code on the laptop, run `oso doctor --fix` in the terminal and follow it; otherwise tell him to run that in a command window (PowerShell on Windows, Terminal on a Mac).
 
-Starting over (fresh start) is never done from chat. If he asks, tell him it is the PowerShell command `oso fresh-start`, which asks him to confirm.
+Starting over (fresh start) is never done from chat. If he asks, tell him it is the command `oso fresh-start`, typed in a command window (PowerShell on Windows, Terminal on a Mac), which asks him to confirm.

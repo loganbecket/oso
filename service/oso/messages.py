@@ -150,7 +150,7 @@ def ask_claude(exe: str, cfg: Config, prompt: str, payload: str) -> str:
     """One batch through Claude Code, with the messages on standard input. Raises subprocess.SubprocessError."""
     result = subprocess.run(
         # Messages are written by strangers, so this Claude gets no tools at all: text in, text out.
-        [exe, "-p", prompt, "--model", cfg.transcribe_model, "--output-format", "text", "--tools", "", "--strict-mcp-config",
+        [exe, "-p", prompt, "--model", cfg.background_model, "--output-format", "text", "--tools", "", "--strict-mcp-config",
          "--max-turns", "1"],
         input=payload, cwd=str(cfg.vault), capture_output=True, text=True, encoding="utf-8", timeout=300, check=False,
     )
@@ -239,7 +239,7 @@ def read_new(conn: sqlite3.Connection, cfg: Config, now: datetime, ask=None) -> 
             for i, r in enumerate(batch)
         ], ensure_ascii=False)
         try:
-            answers = {int(a.get("n", 0)): a for a in parse_answer(ask(prompt, payload))}
+            answers = {int(a.get("n", 0)): a for a in parse_answer(ask(prompt, payload)) if isinstance(a, dict) and str(a.get("n", "")).isdigit()}
         except (subprocess.SubprocessError, OSError, ValueError) as e:
             log.warning("could not read messages: %s", type(e).__name__)
             for r in batch:
@@ -252,9 +252,13 @@ def read_new(conn: sqlite3.Connection, cfg: Config, now: datetime, ask=None) -> 
             continue
         for i, r in enumerate(batch):
             a = answers.get(i + 1, {})
+            if not isinstance(a, dict):
+                a = {}
             n = 0
             if a.get("matters"):
                 for fact in a.get("facts") or []:
+                    if not isinstance(fact, dict):
+                        continue
                     try:
                         n += apply_fact(conn, cfg, now, dict(r), fact)
                     except (ValueError, TypeError, KeyError) as e:

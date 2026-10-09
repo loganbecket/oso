@@ -87,8 +87,10 @@ def _transcribe_page(exe: str, cfg: Config, model: str, p: dict, course: str | N
     c = cfg.course_for(course)
     prompt = PROMPT.format(image=image, page=p["page"], notebook=p["notebook"], course=c.name if c else (course or "an unknown course"))
     result = subprocess.run(
-        [exe, "-p", prompt, "--model", model, "--output-format", "text", "--allowedTools", "Read", "--max-turns", "4"],
+        [exe, "-p", "--model", model, "--output-format", "text", "--allowedTools", "Read", "--strict-mcp-config", "--max-turns", "4"],
+        input=prompt,
         cwd=str(cfg.vault),
+        encoding="utf-8",
         capture_output=True,
         text=True,
         timeout=300,

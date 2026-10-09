@@ -97,6 +97,21 @@ def disconnect() -> None:
     secrets.delete("google_calendar_id")
 
 
+GOOGLE_TIMEOUT = 30  # seconds; a stalled connection must not hold up a whole check
+
+
+def timed(session):
+    """The session with a timeout on every request unless the caller sets one."""
+    original = session.request
+
+    def request(method, url, *args, **kwargs):
+        kwargs.setdefault("timeout", GOOGLE_TIMEOUT)
+        return original(method, url, *args, **kwargs)
+
+    session.request = request
+    return session
+
+
 def _session():
     from google.auth.transport.requests import AuthorizedSession, Request
     from google.oauth2.credentials import Credentials
@@ -108,7 +123,7 @@ def _session():
     if not creds.valid:
         creds.refresh(Request())
         secrets.set(TOKEN, creds.to_json())
-    return AuthorizedSession(creds)
+    return timed(AuthorizedSession(creds))
 
 
 def ensure_calendar(session, cfg: Config) -> str:

@@ -397,7 +397,9 @@ def push(conn: sqlite3.Connection, cfg: Config, now: datetime) -> str | None:
         session = gcal._session()
         sync_calendar(conn, cfg, now, session, gcal.ensure_calendar(session, cfg))
     except Exception as e:  # noqa: BLE001
-        return f"Saved, but the Oso calendar couldn't be updated just now ({type(e).__name__}); the next check tries again."
+        from .sync import plain_error
+
+        return f"Saved, but the Oso calendar couldn't be updated just now ({plain_error(e)}); the next check tries again."
     return None
 
 

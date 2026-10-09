@@ -158,7 +158,7 @@ def test_rule_needing_judgment_runs_claude_with_only_osos_tools(env, monkeypatch
     seen = {}
 
     def run(argv, **kw):
-        seen["argv"], seen["env"] = argv, kw["env"]
+        seen["argv"], seen["env"], seen["input"] = argv, kw["env"], kw.get("input")
         class R:
             returncode, stdout, stderr = 0, "Blocked 2 hours on Saturday to draft the 4-year plan.", ""
         return R()
@@ -172,7 +172,7 @@ def test_rule_needing_judgment_runs_claude_with_only_osos_tools(env, monkeypatch
     assert "mcp__oso__update_oso" in argv[argv.index("--disallowedTools"):]
     mcp = json.loads(Path(argv[argv.index("--mcp-config") + 1]).read_text())
     assert list(mcp["mcpServers"]) == ["oso"]
-    assert "Draft your 4-year plan" in argv[argv.index("-p") + 1]
+    assert "Draft your 4-year plan" in seen["input"]  # the prompt travels on standard input, not the command line
     fire = conn.execute("SELECT * FROM rule_fires").fetchone()
     assert seen["env"][rules.FIRE_ENV] == str(fire["id"]) and fire["status"] == "done"
     assert 'Your rule "Advisor asks": Blocked 2 hours on Saturday' in today.render(conn, cfg, NOW)

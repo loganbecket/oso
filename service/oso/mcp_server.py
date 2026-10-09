@@ -108,9 +108,12 @@ def get_item(item_id: int) -> dict:
 def add_item(course: str, title: str, kind: str, due_at: str | None = None, weight: float | None = None, description: str | None = None) -> dict:
     """Add a confirmed syllabus item. kind: assignment|quiz|exam|reading|event; due_at ISO."""
     if kind not in KINDS:
-        raise ValueError(f"kind must be one of {KINDS}")
+        return {"ok": False, "note": f"The kind must be one of: {', '.join(KINDS)}."}
     cfg = _cfg()
-    due = _parse_due(due_at, cfg) if due_at else None
+    try:
+        due = _parse_due(due_at, cfg) if due_at else None
+    except ValueError:
+        return {"ok": False, "note": BAD_DATE}
     ts = db.now_iso()
     ext = f"{course}:{kind}:{title}:{due[:10] if due else ''}"
     with db.connect() as conn:
@@ -121,7 +124,7 @@ def add_item(course: str, title: str, kind: str, due_at: str | None = None, weig
                  description = excluded.description, last_seen = excluded.last_seen, deleted_at = NULL""",
             (ext, course, kind, title, due, int(bool(due) and len(due_at or "") <= 10), description, weight, ts, ts),
         )
-        item_id = cur.lastrowid
+        item_id = conn.execute("SELECT id FROM items WHERE source = 'syllabus' AND external_id = ?", (ext,)).fetchone()[0]
     return {"id": item_id, "course": course, "title": title, "kind": kind, "due_at": due, "weight": weight}
 
 
@@ -129,9 +132,10 @@ def add_item(course: str, title: str, kind: str, due_at: str | None = None, weig
 def update_status(item_id: int, status: str) -> dict:
     """Set an item to not_started, started, or done."""
     if status not in STATUSES:
-        raise ValueError(f"status must be one of {STATUSES}")
+        return {"ok": False, "note": f"The status must be one of: {', '.join(STATUSES)}."}
     with db.connect() as conn:
-        conn.execute("UPDATE items SET user_status = ? WHERE id = ?", (status, item_id))
+        if not conn.execute("UPDATE items SET user_status = ? WHERE id = ?", (status, item_id)).rowcount:
+            return {"ok": False, "note": f"No item {item_id}."}
     return {"id": item_id, "status": status}
 
 
@@ -139,9 +143,13 @@ def update_status(item_id: int, status: str) -> dict:
 def set_due_date(item_id: int, due_at: str | None) -> dict:
     """Override an item's due date (ISO), or null to use the source's."""
     cfg = _cfg()
-    due = _parse_due(due_at, cfg) if due_at else None
+    try:
+        due = _parse_due(due_at, cfg) if due_at else None
+    except ValueError:
+        return {"ok": False, "note": BAD_DATE}
     with db.connect() as conn:
-        conn.execute("UPDATE items SET user_due_at = ? WHERE id = ?", (due, item_id))
+        if not conn.execute("UPDATE items SET user_due_at = ? WHERE id = ?", (due, item_id)).rowcount:
+            return {"ok": False, "note": f"No item {item_id}."}
     return {"id": item_id, "due_at": due}
 
 
@@ -149,7 +157,8 @@ def set_due_date(item_id: int, due_at: str | None) -> dict:
 def set_weight(item_id: int, weight: float | None) -> dict:
     """Set the percent of the course grade an item's category is worth."""
     with db.connect() as conn:
-        conn.execute("UPDATE items SET user_weight = ? WHERE id = ?", (weight, item_id))
+        if not conn.execute("UPDATE items SET user_weight = ? WHERE id = ?", (weight, item_id)).rowcount:
+            return {"ok": False, "note": f"No item {item_id}."}
     return {"id": item_id, "weight": weight}
 
 
@@ -157,7 +166,9 @@ def set_weight(item_id: int, weight: float | None) -> dict:
 def record_grade(item_id: int, points: float, max_points: float) -> dict:
     """Record a received grade."""
     with db.connect() as conn:
-        conn.execute("UPDATE items SET grade_points = ?, grade_max = ?, user_status = 'done' WHERE id = ?", (points, max_points, item_id))
+        if not conn.execute("UPDATE items SET grade_points = ?, grade_max = ?, user_status = 'done' WHERE id = ?",
+                            (points, max_points, item_id)).rowcount:
+            return {"ok": False, "note": f"No item {item_id}."}
     return {"id": item_id, "points": points, "max_points": max_points}
 
 
@@ -208,6 +219,8 @@ def mark_alert_reported(alert_id: int) -> dict:
     from . import alerts
 
     with db.connect() as conn:
+        if conn.execute("SELECT 1 FROM changes WHERE id = ?", (alert_id,)).fetchone() is None:
+            return {"ok": False, "note": f"No alert {alert_id}."}
         alerts.mark_reported(conn, alert_id)
     return {"alert_id": alert_id, "reported": True}
 
@@ -305,6 +318,8 @@ def add_to_calendar(title: str, start: str, end: str | None = None, location: st
 
     cfg = _cfg()
     now = datetime.now(cfg.tz)
+    if not _moment(start) or (end and not _moment(end)):
+        return {"added": False, "note": BAD_DATE}
     fire = os.environ.get(rules.FIRE_ENV)  # Claude carrying out one of his rules in the background
     with db.connect() as conn:
         hid = happenings.add(conn, "action" if kind == "action" else "event", title, start[:16], ends_at=end[:16] if end else None,
@@ -329,6 +344,8 @@ def change_calendar(happening: int | None = None, event_id: str | None = None, c
 
     cfg = _cfg()
     now = datetime.now(cfg.tz)
+    if (start and not _moment(start)) or (end and not _moment(end)):
+        return {"changed": False, "note": BAD_DATE}
     with db.connect() as conn:
         if happening is not None:
             if not happenings.change(conn, happening, now, canceled=cancel, starts_at=start[:16] if start else None,
@@ -790,7 +807,9 @@ def _push_tasks(conn, cfg) -> str | None:
     try:
         tasks.sync(conn, cfg, datetime.now(cfg.tz))
     except Exception as e:  # noqa: BLE001
-        return f"Saved, but Google Tasks couldn't be updated just now ({type(e).__name__}); the next check tries again."
+        from .sync import plain_error
+
+        return f"Saved, but Google Tasks couldn't be updated just now ({plain_error(e)}); the next check tries again."
     return None
 
 
@@ -868,8 +887,13 @@ def open_time(minutes: int, day: str, not_before: str | None = None, not_after: 
     cfg = _cfg()
     now = datetime.now(cfg.tz)
     parse = lambda v: datetime.fromisoformat(v[:16]) if v else None  # noqa: E731
+    try:
+        when = date.fromisoformat(day[:10])
+        before, after = parse(not_before), parse(not_after)
+    except (ValueError, TypeError):
+        return {"free": False, "note": BAD_DATE}
     with db.connect() as conn:
-        s = rules.open_slot(conn, cfg, now, date.fromisoformat(day[:10]), minutes, parse(not_before), parse(not_after))
+        s = rules.open_slot(conn, cfg, now, when, minutes, before, after)
     if s is None:
         return {"free": False, "note": "No free time that day."}
     return {"free": True, "start": s.isoformat(timespec="minutes"), "end": (s + timedelta(minutes=minutes)).isoformat(timespec="minutes")}
@@ -916,6 +940,18 @@ def mark_transcribed(page_path: str, note_path: str, confidence: float) -> dict:
     with db.connect() as conn:
         handwriting.mark(conn, page_path, note_path, confidence)
     return {"page": page_path, "note": note_path, "confidence": confidence}
+
+
+BAD_DATE = "The date must look like 2026-10-09T14:00, or 2026-10-09 for a whole day."
+
+
+def _moment(value: str | None) -> bool:
+    """True for a date or date-and-time Claude passed in the shape the calendar tools take."""
+    try:
+        datetime.fromisoformat(value[:16] if value and len(value) > 10 else value)
+        return bool(value)
+    except (ValueError, TypeError):
+        return False
 
 
 def _parse_due(value: str, cfg: cfgmod.Config) -> str:

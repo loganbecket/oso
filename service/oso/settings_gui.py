@@ -109,6 +109,15 @@ def open_settings(cfg: cfgmod.Config) -> None:
 
         root.after(300, wait)
 
+    def connect_calendar() -> None:
+        from pathlib import Path
+
+        path = filedialog.askopenfilename(title="Choose the OAuth client file from Google Cloud", filetypes=[("JSON", "*.json"), ("All files", "*")])
+        if not path:
+            show("No file chosen.")
+            return
+        run("Connecting Google Calendar (sign in in your browser)", lambda: _connect_calendar(cfg, Path(path)))
+
     fixes = {
         "update": ("Updating Oso", actions.update_oso),
         "fix": ("Fixing", lambda: actions.health_check(fix=True)),
@@ -142,12 +151,33 @@ def open_settings(cfg: cfgmod.Config) -> None:
     lines_frame.columnconfigure(1, weight=1)
 
     def refresh() -> None:
+        """Gather the status off the window's thread (it asks GitHub and the credential store), then draw it."""
         for w in lines_frame.winfo_children():
             w.destroy()
-        try:
-            checks = actions.status()
-        except Exception as e:  # noqa: BLE001
-            checks = [{"status": "fail", "text": f"Oso couldn't check itself: {e}", "action": None}]
+        ttk.Label(lines_frame, text="Checking…", foreground="#666").grid(row=0, column=0, sticky="w", padx=16, pady=3)
+        box: dict = {}
+
+        def gather() -> None:
+            try:
+                box["checks"] = actions.status()
+            except Exception as e:  # noqa: BLE001
+                from .sync import plain_error
+
+                box["checks"] = [{"status": "fail", "text": f"Oso couldn't check itself: {plain_error(e)}", "action": None}]
+
+        threading.Thread(target=gather, daemon=True).start()
+
+        def wait() -> None:
+            if "checks" in box:
+                draw(box["checks"])
+            else:
+                root.after(200, wait)
+
+        root.after(200, wait)
+
+    def draw(checks: list[dict]) -> None:
+        for w in lines_frame.winfo_children():
+            w.destroy()
         order = {"fail": 0, "warn": 1, "ok": 2}
         for i, c in enumerate(sorted(checks, key=lambda c: order.get(c["status"], 3))):
             # The light and the text share a frame, so the light sits on the text's first line even when a button
@@ -162,7 +192,7 @@ def open_settings(cfg: cfgmod.Config) -> None:
             elif action == "connect_tasks":
                 ttk.Button(lines_frame, text=ACTIONS[action], command=connect_tasks).grid(row=i, column=2, sticky="ew", padx=(16, 16), pady=3)
             elif action == "connect_calendar":
-                ttk.Button(lines_frame, text=ACTIONS[action], command=lambda: show(_connect_calendar(cfg))).grid(row=i, column=2, sticky="ew", padx=(16, 16), pady=3)
+                ttk.Button(lines_frame, text=ACTIONS[action], command=connect_calendar).grid(row=i, column=2, sticky="ew", padx=(16, 16), pady=3)
             elif action in fixes:
                 label, fn = fixes[action]
                 ttk.Button(lines_frame, text=ACTIONS[action], command=lambda label=label, fn=fn: run(label, fn)).grid(
@@ -180,7 +210,7 @@ def open_settings(cfg: cfgmod.Config) -> None:
             ("Sign in to Canvas", lambda: run("Opening the Canvas sign-in", actions.connect_canvas)),
             ("Canvas username and password…", lambda: show(_canvas_login(root))),
             ("Disconnect Canvas", lambda: run("Disconnecting Canvas", actions.disconnect_canvas)),
-            ("Connect Google Calendar…", lambda: show(_connect_calendar(cfg))),
+            ("Connect Google Calendar…", connect_calendar),
             ("Connect email…", connect_email),
             ("Disconnect email", lambda: run("Disconnecting email", actions.disconnect_email)),
             ("Connect Google Tasks…", connect_tasks),
@@ -196,7 +226,7 @@ def open_settings(cfg: cfgmod.Config) -> None:
             ("Add a website…", lambda: show(_add_website(root, cfg))),
         ]),
     ]
-    ttk.Label(actions_tab, text="Starting over (fresh start) is only in PowerShell, on purpose: run 'oso fresh-start'.",
+    ttk.Label(actions_tab, text="Starting over (fresh start) is only in a command window, on purpose: run 'oso fresh-start' (PowerShell on Windows, Terminal on a Mac).",
               foreground="#666").pack(side="bottom", anchor="w", pady=(6, 0))
     acts = ttk.Frame(actions_tab)
     acts.pack(anchor="nw", fill="x")
@@ -227,7 +257,9 @@ def open_settings(cfg: cfgmod.Config) -> None:
         try:
             rows = actions.grades()
         except Exception as e:  # noqa: BLE001
-            ttk.Label(grade_rows, text=f"Oso couldn't list your grades ({e}).").grid(row=0, column=0, sticky="w")
+            from .sync import plain_error
+
+            ttk.Label(grade_rows, text=f"Oso couldn't list your grades ({plain_error(e)}).").grid(row=0, column=0, sticky="w")
             return
         if not rows:
             ttk.Label(grade_rows, text="No grades yet. They appear here once Oso is signed in to Canvas and an instructor posts one.",
@@ -272,7 +304,9 @@ def open_settings(cfg: cfgmod.Config) -> None:
         try:
             rows = [q for q in actions.quizzes() if want is None or q["course"].lower() == want.lower()]
         except Exception as e:  # noqa: BLE001
-            ttk.Label(quiz_rows, text=f"Oso couldn't list the quizzes ({e}).").grid(row=0, column=0, sticky="w")
+            from .sync import plain_error
+
+            ttk.Label(quiz_rows, text=f"Oso couldn't list the quizzes ({plain_error(e)}).").grid(row=0, column=0, sticky="w")
             return
         retakes = {q["retake_of"]: q for q in rows if q.get("kind") == "retake"}
         rows = [q for q in rows if q.get("kind") != "retake"]  # a retake shows on its quiz's row
@@ -389,6 +423,10 @@ def open_settings(cfg: cfgmod.Config) -> None:
     label("Model for study guides and practice tests", "opus by default; type another name your plan offers")
     emodel_var = tk.StringVar(value=cfg.exam_model)
     ttk.Combobox(frm, textvariable=emodel_var, values=["opus", "sonnet"], width=12).grid(row=row, column=1, sticky="w", **pad)
+    row += 1
+    label("Model for rules and reading messages", "acts on your rules and reads school email and GroupMe in the background; sonnet by default")
+    bmodel_var = tk.StringVar(value=cfg.background_model)
+    ttk.Combobox(frm, textvariable=bmodel_var, values=["sonnet", "opus", "haiku"], width=12).grid(row=row, column=1, sticky="w", **pad)
     row += 1
 
     label("Cap on how much of a note is read per call", "characters; 0 turns the cap off")
@@ -535,6 +573,7 @@ def open_settings(cfg: cfgmod.Config) -> None:
             cfg.render_height_px = max(600, int(height_var.get()))
             cfg.transcribe_model = tmodel_var.get().strip() or "sonnet"
             cfg.exam_model = emodel_var.get().strip() or "opus"
+            cfg.background_model = bmodel_var.get().strip() or "sonnet"
             cfg.read_cap_chars = max(0, int(cap_var.get()))
             cfg.write_vault_instructions = bool(instr_var.get())
             cfg.channel = channel_var.get() or "stable"
@@ -567,17 +606,27 @@ def open_settings(cfg: cfgmod.Config) -> None:
             if tok_var.get().strip():
                 secrets.set(secrets.CANVAS_TOKEN, tok_var.get().strip())
                 tok_var.set("")
+        except (ValueError, tk.TclError):
+            messagebox.showerror("Oso", "One of the number fields is blank or not a number. Fix it and save again.")
+            return
         except Exception as e:  # noqa: BLE001
-            messagebox.showerror("Oso", f"Could not save: {e}")
+            from .sync import plain_error
+
+            messagebox.showerror("Oso", f"Could not save: {plain_error(e)}")
             return
         lines = ["Saved."]
         if and_apply:
-            if cfg.sync_interval_minutes != old_interval:
-                lines.append(_reschedule(cfg.sync_interval_minutes))
-            from . import doctor
+            def apply_and_check() -> str:
+                from . import doctor
 
-            lines.append("")
-            lines.append(doctor.format_report(doctor.run(fix=True)))
+                out = list(lines)
+                if cfg.sync_interval_minutes != old_interval:
+                    out.append(_reschedule(cfg.sync_interval_minutes))
+                out += ["", doctor.format_report(doctor.run(fix=True))]
+                return "\n".join(out)
+
+            run("Saving and checking", apply_and_check)
+            return
         show_saved("\n".join(lines))
 
     btns = ttk.Frame(frm)
@@ -639,7 +688,9 @@ def _safe(fn) -> str:
     try:
         return fn()
     except Exception as e:  # noqa: BLE001
-        return f"That didn't work: {e}"
+        from .sync import plain_error
+
+        return f"That didn't work: {plain_error(e)}"
 
 
 def _reread_book(root) -> str:
@@ -691,7 +742,7 @@ def _canvas_login(root) -> str:
     user = simpledialog.askstring("Canvas sign-in", "Your school username (the one you sign in to Canvas with):", parent=root)
     if not user:
         return "Nothing changed."
-    password = simpledialog.askstring("Canvas sign-in", "Your school password (paste it once; it's kept in Windows' credential store):",
+    password = simpledialog.askstring("Canvas sign-in", "Your school password (paste it once; it's kept in your computer's credential store):",
                                       parent=root, show="•")
     return actions.set_canvas_login(user, password or "")
 
@@ -721,20 +772,13 @@ def _reschedule(minutes: int) -> str:
     return install_timer(every_minutes=minutes)
 
 
-
-
-
-
-def _connect_calendar(cfg) -> str:
-    from pathlib import Path
-
+def _connect_calendar(cfg, path) -> str:
     from . import gcal
 
-    path = filedialog.askopenfilename(title="Choose the OAuth client file from Google Cloud", filetypes=[("JSON", "*.json"), ("All files", "*")])
-    if not path:
-        return "No file chosen."
     try:
-        gcal.connect(Path(path), cfg)
+        gcal.connect(path, cfg)
     except Exception as e:  # noqa: BLE001
-        return f"Could not connect Google Calendar: {e}"
+        from .sync import plain_error
+
+        return f"Could not connect Google Calendar: {plain_error(e)}"
     return "Connected. Oso created a calendar named 'Oso' and will put urgent changes on it."

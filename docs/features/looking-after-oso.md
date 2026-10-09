@@ -58,4 +58,5 @@ Quit the Claude app and run `oso fresh-start` in your command window; it asks yo
 ## Good to know
 
 - Your passwords and sign-ins live in your computer's credential store, never in a file.
+- Three settings pick which Claude model does background work: one for reading handwriting, one for study guides and practice tests, and one for acting on your rules and reading school email and GroupMe. Lowering one never changes the others.
 - Problems Oso can't fix itself are covered in [Troubleshooting](../troubleshooting.md). Every command is in the [command reference](../commands.md).

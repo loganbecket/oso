@@ -54,9 +54,10 @@ def _claude() -> str | None:
 def read_page(exe: str, cfg: Config, image: Path, page: str, what: str, course: str) -> str:
     """One page through Claude Code. Raises subprocess.SubprocessError on failure."""
     result = subprocess.run(
-        [exe, "-p", PROMPT.format(image=image, page=page, what=what, course=course), "--model", cfg.transcribe_model,
-         "--output-format", "text", "--allowedTools", "Read", "--max-turns", "4"],
-        cwd=str(cfg.vault), capture_output=True, text=True, timeout=300, check=False,
+        [exe, "-p", "--model", cfg.transcribe_model, "--output-format", "text", "--allowedTools", "Read", "--strict-mcp-config",
+         "--max-turns", "4"],
+        input=PROMPT.format(image=image, page=page, what=what, course=course),
+        cwd=str(cfg.vault), capture_output=True, text=True, encoding="utf-8", timeout=300, check=False,
     )
     if result.returncode != 0 or not result.stdout.strip():
         raise subprocess.SubprocessError((result.stderr or result.stdout or "no output").strip()[:200])

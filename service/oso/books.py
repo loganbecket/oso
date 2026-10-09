@@ -143,25 +143,27 @@ def _pdf_pages(path: Path, start: int, deadline: float) -> tuple[list[dict], int
     import pypdfium2 as pdfium
 
     doc = pdfium.PdfDocument(str(path))
-    total = len(doc)
-    meta = {}
     try:
-        m = doc.get_metadata_dict()
-        meta = {"title": (m.get("Title") or "").strip(), "author": (m.get("Author") or "").strip()}
-    except Exception:  # noqa: BLE001
-        pass
-    pages = []
-    for i in range(start, total):
-        if time.monotonic() > deadline:
-            break
-        tp = doc[i].get_textpage()
-        text = tp.get_text_range() or ""
+        total = len(doc)
+        meta = {}
         try:
-            label = doc.get_page_label(i) or str(i + 1)
+            m = doc.get_metadata_dict()
+            meta = {"title": (m.get("Title") or "").strip(), "author": (m.get("Author") or "").strip()}
         except Exception:  # noqa: BLE001
-            label = str(i + 1)
-        pages.append({"index": i, "label": label, "text": _clean(text), "file": path.name})
-    doc.close()  # Windows keeps an open file locked
+            pass
+        pages = []
+        for i in range(start, total):
+            if time.monotonic() > deadline:
+                break
+            tp = doc[i].get_textpage()
+            text = tp.get_text_range() or ""
+            try:
+                label = doc.get_page_label(i) or str(i + 1)
+            except Exception:  # noqa: BLE001
+                label = str(i + 1)
+            pages.append({"index": i, "label": label, "text": _clean(text), "file": path.name})
+    finally:
+        doc.close()  # Windows keeps an open file locked
     return pages, total, meta
 
 
@@ -251,7 +253,11 @@ def _clean(text: str) -> str:
 
 def _epub(path: Path) -> dict:
     """Chapters of an EPUB, in reading order, with printed page numbers where the book marks them."""
-    z = zipfile.ZipFile(path)
+    with zipfile.ZipFile(path) as z:
+        return _epub_from(z, path)
+
+
+def _epub_from(z: zipfile.ZipFile, path: Path) -> dict:
     container = z.read("META-INF/container.xml").decode("utf-8", "replace")
     opf_path = re.search(r'full-path="([^"]+)"', container).group(1)
     opf = z.read(opf_path).decode("utf-8", "replace")

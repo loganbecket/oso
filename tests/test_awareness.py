@@ -372,3 +372,11 @@ def test_claude_reads_messages_with_no_tools(env, monkeypatch):
     argv = seen["argv"]
     assert argv[argv.index("--tools") + 1] == "" and "--strict-mcp-config" in argv and "--mcp-config" not in argv
     assert seen["kw"]["input"] == "[]"
+
+
+def test_an_odd_answer_from_claude_does_not_stop_the_reading(env):
+    cfg, conn = env
+    _msg(conn, "p", "Exam 2 moved")
+    ask = lambda prompt, payload: '{"messages": ["junk", {"n": 1, "matters": true, "facts": ["also junk", 7]}]}'  # noqa: E731
+    counts = messages.read_new(conn, cfg, NOW, ask=ask)
+    assert counts.get("failed", 0) == 0

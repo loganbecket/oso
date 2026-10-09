@@ -69,7 +69,7 @@ If you find yourself repeating the same request, turn it into a rule so you neve
 - **Say "from now on..."** and Oso saves it as a rule that every future chat follows. Examples: "From now on, keep the briefing to five lines." "Every time a new exam shows up, put study blocks on my calendar." "Always quiz me with problems, not definitions."
 - **Rules are Oso's long-term memory.** A chat forgets everything when it ends; a rule doesn't. Ask "what rules do I have?" to see them, or say "stop doing that" to change or delete one.
 - **Correct it when it's wrong.** If a quiz grade or a weak-topic rating got recorded wrong, say so and it will fix it. Your profile only helps if it's accurate.
-- **Use `/oso-feedback` for anything about Oso itself.** Bugs, confusing behavior, and ideas go straight to whoever builds Oso, and the briefing tells you when your fix or idea has shipped.
+- **Use `/oso-feedback` for anything about Oso itself.** Bugs, confusing behavior, and ideas go straight to whoever builds Oso by email.
 
 ## Using AI wisely
 

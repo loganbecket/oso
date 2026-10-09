@@ -261,14 +261,12 @@ def test_conflicting_rule_is_narrowed_and_an_edit_that_conflicts_is_paused(env):
     assert "is paused: Oso never writes to your professor" in today.render(conn, cfg, NOW)
 
 
-def test_fresh_start_erases_rules_and_keeps_feedback(env):
+def test_fresh_start_erases_rules(env):
     cfg, conn = env
-    from oso import feedback
 
     rules.save(cfg, conn, "Short answers", "Keep answers short.", "how", NOW)
-    feedback.save(cfg, "make it faster", "idea", "Faster sync", now=NOW)
     paths = {p.relative_to(cfg.vault).as_posix() for p in fresh.plan(cfg)}
-    assert "Oso/Rules" in paths and not any(p.startswith("Oso/Feedback") for p in paths)
+    assert "Oso" in paths  # the whole Oso folder, rules and all
 
 
 def test_open_time_tool_and_rule_tools(env, monkeypatch):

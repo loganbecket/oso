@@ -69,7 +69,6 @@ def render(conn: sqlite3.Connection, cfg: Config, now: datetime) -> str:
     lines += _clip_lines(conn, cfg, now)
     lines += _handwriting(conn)
     lines += _update_note(conn)
-    lines += _feedback_note(conn, now)
     lines += _rules_note(conn, now)
     lines += _class_times_note(conn, cfg)
     lines += _skill_note()
@@ -314,14 +313,6 @@ def _update_note(conn: sqlite3.Connection) -> list[str]:
     return ["## Oso", f"- {row['value']}", ""]
 
 
-def _feedback_note(conn: sqlite3.Connection, now: datetime) -> list[str]:
-    from . import feedback
-
-    try:
-        done = feedback.recent_lines(conn, now)
-    except sqlite3.Error:
-        return []
-    return ["## Your feedback", *[f"- {x}" for x in done], ""] if done else []
 
 
 def _tasks(conn: sqlite3.Connection, cfg: Config, now: datetime) -> list[str]:

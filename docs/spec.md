@@ -22,7 +22,7 @@ At the start of each semester, feed Oso the syllabus and course materials for ev
 2. Markdown for knowledge, SQLite for facts. The model never has to remember either.
 3. One front door (Cowork), one notebook (Obsidian). A third app is a design failure.
 4. Skills and MCP servers are built once and work from both Cowork and Claude Code.
-5. Read-only toward the school. The only outside writes are the student's own Oso calendar and Oso task list in Google.
+5. Read-only toward the school.
 6. Cite or decline. When the notes hold nothing relevant, say so.
 7. Zero-friction capture. Scanned pages, clipped pages, and course files flow in on their own.
 8. Low noise. Only urgent changes interrupt; the rest waits for the morning briefing.
@@ -71,7 +71,7 @@ The student shapes Oso by saying what they want from now on, in any conversation
 - **How Oso responds** ("give me the briefing as bullet highlights"): handed to the command it's about with that command's instructions, or, for everything, to every command and the vault's Claude instructions.
 - **When something happens** ("when a new test date shows up, block three hours to study three days before"): saved with a short form the sync follows: what to watch (new deadlines and exams, grades, Canvas changes, school email and GroupMe), when to act, and what to do. On every check the sync compares what's new against each form; a calendar block it places itself in the earliest free time that avoids classes, the Oso calendar, and quiet hours (the nearest earlier day when the day is full), and anything needing judgment starts Claude in the background with only Oso's tools. Each rule acts once per thing; its block moves with the exam and is removed if the exam is canceled. The briefing says in a line what a rule did or why it couldn't. A note edited by hand is reread by Claude before the rule runs again.
 
-There is no list of allowed rules: Claude turns down what Oso can't do, and Oso's own rules win (read-only toward school, only the Oso calendar written, honest reporting, the student's notes never edited); a rule that conflicts is turned down or narrowed, with the reason.
+There is no list of allowed rules: Claude turns down what Oso can't do, and Oso's own rules win (read-only toward school, honest reporting, the student's notes never edited); a rule that conflicts is turned down or narrowed, with the reason.
 
 ### Where the student uses it
 

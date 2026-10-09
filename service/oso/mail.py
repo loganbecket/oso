@@ -1,6 +1,7 @@
 """School email: on every check, read what arrived in the Gmail account his school email is forwarded to.
 
-Read-only (the `gmail.readonly` permission), on the one account he connects with `oso connect-email`. School
+Reading uses the `gmail.readonly` permission, on the one account he connects with `oso connect-email`; the
+`gmail.send` permission is only for sending his feedback about Oso (`feedback.py`). School
 email reaches it through a forwarding rule in the school account; a message forwarded with the original sender
 inside it ("From: ... Subject: ...") is unwrapped, so the sender, subject, and text are the original's. Obvious noise is set aside here, with no Claude involved: Gmail's
 Promotions and Social tabs, Canvas's own notification emails (Oso reads Canvas directly), and senders or
@@ -25,7 +26,8 @@ from .config import Config
 
 log = logging.getLogger("oso.mail")
 
-SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
+SEND = "https://www.googleapis.com/auth/gmail.send"
+SCOPES = ["https://www.googleapis.com/auth/gmail.readonly", SEND]
 API = "https://gmail.googleapis.com/gmail/v1/users/me"
 TOKEN = "google_mail_token"
 ADDRESS = "google_mail_address"
@@ -41,6 +43,29 @@ def connected() -> bool:
 
 def address() -> str | None:
     return secrets.get(ADDRESS)
+
+
+def can_send() -> bool:
+    """False for an account connected before Oso asked for permission to send; signing in again fixes it."""
+    import json
+
+    raw = secrets.get(TOKEN)
+    return bool(raw) and SEND in (json.loads(raw).get("scopes") or [])
+
+
+def send(to: str, subject: str, body: str, session=None) -> None:
+    """Send a plain-text email from the connected account."""
+    from email.message import EmailMessage
+
+    msg = EmailMessage()
+    msg["To"] = to
+    if address():
+        msg["From"] = address()
+    msg["Subject"] = subject
+    msg.set_content(body)
+    raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
+    r = (session or _session()).post(f"{API}/messages/send", json={"raw": raw})
+    r.raise_for_status()
 
 
 def connect(client_file=None) -> str:
@@ -70,7 +95,7 @@ def _session():
     raw = secrets.get(TOKEN)
     if not raw:
         raise messages.NotConnected("school email is not connected")
-    creds = Credentials.from_authorized_user_info(json.loads(raw), SCOPES)
+    creds = Credentials.from_authorized_user_info(json.loads(raw))  # the permissions it was granted, which may be read-only
     if not creds.valid:
         creds.refresh(Request())
         secrets.set(TOKEN, creds.to_json())

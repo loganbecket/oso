@@ -1,6 +1,6 @@
 # Feedback about Oso
 
-When something about Oso is broken, confusing, or missing, tell Claude. Your feedback is saved and passed on to whoever builds Oso.
+When something about Oso is broken, confusing, or missing, tell Claude. Your feedback is emailed to whoever builds Oso.
 
 ## What it's for
 
@@ -15,14 +15,6 @@ If you complain about Oso without meaning to send feedback, Claude asks first: "
 
 Claude works out whether it's a bug or an idea, writes a one-line summary, and notes what you were doing (for example "quiz 12, Physics, question 3"). It keeps your exact words. Then it tells you in one line that it's been passed on.
 
-## When your feedback ships
-
-When an Oso update takes care of something you sent, Oso notices after you update. Your next briefing tells you once, for example:
-
-> Your idea "Briefings lead with class changes" is in Oso 0.12.0.
-
-The feedback note is then removed from your vault, since it's done.
-
 ## Getting the most out of it
 
 - **Say what you expected and what happened.** "I asked for a quiz on chapter 4 and got chapter 3" is easy to fix. "Quizzes are weird" isn't.
@@ -33,6 +25,6 @@ The feedback note is then removed from your vault, since it's done.
 ## Good to know
 
 - Feedback is about Oso itself, not your courses, instructors, or grades.
-- Each piece is a note in your vault's `Oso/Feedback` folder and travels with your nightly backup to whoever builds Oso.
+- Each piece goes out as an email from the Gmail account you connected for [school messages](school-messages.md), so email needs to be connected. Nothing is kept on your computer.
+- If you connected email before Oso could send, the Oso window asks you to click **Connect email** and sign in once more.
 - Claude never promises a fix or a date.
-- Fresh start keeps your feedback.

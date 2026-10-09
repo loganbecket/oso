@@ -419,12 +419,14 @@ def finish_quiz(quiz_id: int) -> dict:
 @mcp.tool()
 def save_feedback(words: str, kind: str, summary: str, doing: str | None = None) -> str:
     """Pass on feedback about Oso itself (only after he asks or agrees): his words exactly, kind "bug" or "idea", a
-    one-line summary, and what he was doing (e.g. "quiz 12, Physics, question 3")."""
+    one-line summary, and what he was doing (e.g. "quiz 12, Physics, question 3"). It is emailed to whoever builds Oso."""
     from . import feedback
 
-    cfg = _cfg()
-    path = feedback.save(cfg, words, kind, summary, doing)
-    return f"Saved as {path.relative_to(cfg.vault).as_posix()}."
+    try:
+        feedback.send(_cfg(), words, kind, summary, doing)
+    except feedback.NotSent as e:
+        return f"Not sent. Tell him: {e}"
+    return "Sent."
 
 
 @mcp.tool()

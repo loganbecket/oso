@@ -204,27 +204,49 @@ def test_version_label_shows_the_commit_on_the_latest_channel(monkeypatch):
     assert oso.version_label(None) == "Oso v0.10.3"
 
 
-def test_feedback_is_saved_as_a_note_for_whoever_builds_oso(env, monkeypatch):
+def test_feedback_is_emailed_to_whoever_builds_oso(env, monkeypatch):
+    import base64
     from datetime import datetime
+    from email import message_from_bytes
     from zoneinfo import ZoneInfo
 
     import oso
-    from oso import feedback, notes
+    from oso import feedback, mail
 
     cfg, _ = env
     cfg.installed_version = "1a2b3c4d5e6f"
     monkeypatch.setattr(oso, "__version__", "0.10.4")
-    path = feedback.save(cfg, "your quizzes aren't formatting equations correctly\nso I can't decipher them", "bug",
-                         "Equations in quiz questions show as raw code", "quiz 12, Physics, question 3",
-                         now=datetime(2026, 10, 8, 21, 5, tzinfo=ZoneInfo("America/New_York")))
-    assert path.parent == cfg.vault / "Oso" / "Feedback"
-    assert path.name == "2026-10-08 2105 bug - Equations in quiz questions show as raw code.md"
-    fm, body = notes.read_front_matter(path.read_text())
-    assert fm["kind"] == "bug" and fm["status"] == "new" and fm["oso"] == "Oso v0.10.4 - 1a2b3c4"
+    monkeypatch.setattr(mail, "address", lambda: "student@gmail.com")
+    sent = []
+
+    class Session:
+        def post(self, url, json):
+            sent.append((url, message_from_bytes(base64.urlsafe_b64decode(json["raw"]))))
+            return type("R", (), {"raise_for_status": lambda self: None})()
+
+    to = feedback.send(cfg, "your quizzes aren't formatting equations correctly\nso I can't decipher them", "bug",
+                       "Equations in quiz questions show as raw code", "quiz 12, Physics, question 3",
+                       now=datetime(2026, 10, 8, 21, 5, tzinfo=ZoneInfo("America/New_York")), session=Session())
+    url, msg = sent[0]
+    assert to == "logan@loganbecket.com" and url.endswith("/messages/send")
+    assert msg["To"] == "logan@loganbecket.com" and msg["From"] == "student@gmail.com"
+    assert msg["Subject"] == "Oso bug: Equations in quiz questions show as raw code"
+    body = msg.get_payload(decode=True).decode()
+    assert "Oso v0.10.4 - 1a2b3c4" in body and "quiz 12, Physics, question 3" in body
     assert "> your quizzes aren't formatting equations correctly\n> so I can't decipher them" in body
-    assert "quiz 12, Physics, question 3" in body
+    assert not (cfg.vault / "Oso" / "Feedback").exists()
     with pytest.raises(ValueError, match="bug or idea"):
-        feedback.save(cfg, "x", "rant", "y")
+        feedback.send(cfg, "x", "rant", "y", session=Session())
+
+
+def test_feedback_without_permission_to_send_says_so(env, monkeypatch):
+    from oso import feedback, mail
+
+    cfg, _ = env
+    monkeypatch.setattr(mail, "connected", lambda: True)
+    monkeypatch.setattr(mail, "can_send", lambda: False)
+    with pytest.raises(feedback.NotSent, match="sign in to Gmail once more"):
+        feedback.send(cfg, "x", "bug", "y")
 
 
 def test_unprompted_complaints_are_asked_about_first():
@@ -233,47 +255,3 @@ def test_unprompted_complaints_are_asked_about_first():
     assert "Want me to pass that on as feedback?" in SERVER_INSTRUCTIONS
     skill = (Path(__file__).parent.parent / "service" / "oso" / "skills" / "oso-feedback.md").read_text()
     assert "Save it only if he says yes" in skill
-
-
-def test_fresh_start_keeps_feedback(tmp_path):
-    from oso import fresh
-    from oso.config import Config
-
-    cfg = Config(vault=tmp_path / "vault")
-    (cfg.vault / "Oso" / "Feedback").mkdir(parents=True)
-    (cfg.vault / "Oso" / "Feedback" / "note.md").write_text("x")
-    (cfg.vault / "Oso" / "Profile").mkdir()
-    (cfg.vault / "Today.md").write_text("x")
-    gone = {p.relative_to(cfg.vault).as_posix() for p in fresh.plan(cfg)}
-    assert "Oso/Profile" in gone and "Today.md" in gone and not any(g.startswith("Oso/Feedback") for g in gone) and "Oso" not in gone
-
-
-def test_shipped_feedback_is_deleted_and_told_once(env, monkeypatch, tmp_path):
-    from datetime import datetime, timedelta
-    from zoneinfo import ZoneInfo
-
-    from oso import db, feedback, notes, today
-
-    cfg, _ = env
-    now = datetime(2026, 10, 9, 7, 0, tzinfo=ZoneInfo("America/Chicago"))
-    idea = feedback.save(cfg, "lead with class stuff", "idea", "Briefings lead with class changes", now=now - timedelta(days=1))
-    bug = feedback.save(cfg, "quiz is broken", "bug", "Quiz window freezes", now=now - timedelta(days=1))
-    fm, _ = notes.read_front_matter(idea.read_text())
-    shipped = tmp_path / "shipped.txt"
-    shipped.write_text(f"# comment\n{feedback.code(fm)} 0.12.0\n")
-    monkeypatch.setattr(feedback, "SHIPPED", shipped)
-    with db.connect(tmp_path / "oso.db") as conn:
-        assert feedback.close_shipped(cfg, conn, now) == 1
-        assert not idea.exists() and bug.exists()
-        text = today.render(conn, cfg, now)
-        assert '## Your feedback\n- Your idea "Briefings lead with class changes" is in Oso 0.12.0.' in text
-        assert feedback.close_shipped(cfg, conn, now) == 0
-        assert "## Your feedback" not in today.render(conn, cfg, now + timedelta(days=2))
-
-
-def test_shipped_feedback_codes_are_well_formed():
-    from oso import feedback
-
-    for c, version in feedback.shipped().items():
-        assert len(c) == 12 and all(ch in "0123456789abcdef" for ch in c), c
-        assert version.count(".") == 2, version

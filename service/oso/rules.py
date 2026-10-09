@@ -708,7 +708,7 @@ Answer in exactly this shape:
 {help}
 
 If Oso can't do it with what it sees and its tools, or it conflicts with Oso's own rules (read-only toward school
-systems, only the Oso calendar is written, honest reporting of where he stands, his notes never edited), set "form"
+systems, honest reporting of where he stands, his notes never edited), set "form"
 to null and "cannot" to one plain sentence saying why."""
 
 

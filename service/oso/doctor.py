@@ -156,7 +156,10 @@ def checks(fix: bool = False) -> list[dict]:
 
     from . import groupme, mail, messages
 
-    if mail.connected():
+    if mail.connected() and not mail.can_send():
+        out.append(("warn", f"Reading email at {mail.address() or 'the connected account'}, but feedback about Oso can't be sent "
+                            "until you sign in to Gmail again."), "connect_email")
+    elif mail.connected():
         out.append(("ok", f"Reading email at {mail.address() or 'the connected account'}"))
     else:
         out.append(("warn", "Email isn't connected, so Oso can't see moved deadlines or events announced by email. Run 'oso connect-email'."), "connect_email")

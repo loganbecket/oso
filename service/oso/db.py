@@ -16,12 +16,6 @@ from typing import Iterator
 from .config import data_dir
 
 SCHEMA = """
-CREATE TABLE IF NOT EXISTS feedback_shipped (
-    id          INTEGER PRIMARY KEY,
-    line        TEXT NOT NULL,              -- told to him in the briefing: his note and the version that took care of it
-    shipped_at  TEXT NOT NULL
-);
-
 CREATE TABLE IF NOT EXISTS courses (
     code        TEXT PRIMARY KEY,
     name        TEXT NOT NULL,

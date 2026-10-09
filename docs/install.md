@@ -161,7 +161,7 @@ Oso reads one Gmail account: the one your school email is forwarded to. If your 
 
 1. In the Google Cloud project from [the Oso calendar](#the-oso-calendar), search for **Gmail API**, open it, and click **Enable**.
 2. In the Oso window, click **Connect email**. Or run `oso connect-email`.
-3. A browser window opens. Sign in with the Gmail account your school email is forwarded to. If Google says the app is not verified, click **Advanced**, then **Go to Oso**, and allow Oso to read your email.
+3. A browser window opens. Sign in with the Gmail account your school email is forwarded to. If Google says the app is not verified, click **Advanced**, then **Go to Oso**, and allow Oso to read your email and send email. It sends only your feedback about Oso, to the person who builds it.
 
 ### GroupMe
 

@@ -23,7 +23,7 @@ oso connect-canvas        sign in to Canvas so Oso can read grades and coursewor
 oso disconnect-canvas     forget the Canvas sign-in
 oso connect-calendar      let Oso keep its own Google calendar (--client-file FILE the first time)
 oso disconnect-calendar   stop that and forget the access
-oso connect-email         let Oso read the Gmail your school email is forwarded to (read-only)
+oso connect-email         let Oso read the Gmail your school email is forwarded to, and send your feedback
 oso disconnect-email      stop reading email and forget its access
 oso connect-groupme       let Oso read your GroupMe groups
 oso disconnect-groupme    stop reading GroupMe and forget the token

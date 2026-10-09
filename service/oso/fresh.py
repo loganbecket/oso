@@ -3,7 +3,7 @@
 Kept: the settings (vault location, time zone, check schedule, urgency and quiet hours, models, update
 channel, backup folder; the backup itself is outside the vault and is not touched), the Canvas feed and token and the Google Calendar, school email, and GroupMe connections in the credential store, the
 scheduled check, the Canvas sign-in, Obsidian's own settings and plugins (`.obsidian`), the courses' textbooks
-(each course's `Books` folder, with what Oso has read of them), his feedback about Oso (`Oso/Feedback`), and the downloaded
+(each course's `Books` folder, with what Oso has read of them), and the downloaded
 search model. Everything read from Canvas is cleared and read again on the next check.
 
 Deleted, with no backup: everything else in the vault (his rules in `Oso/Rules` among it), the courses and anything tied to them (muted
@@ -43,12 +43,9 @@ def check_vault(vault: Path) -> None:
 
 
 def plan(cfg: Config) -> list[Path]:
-    """What would be deleted from the vault: everything except Obsidian's settings, the courses' Books folders,
-    and his feedback about Oso in Oso/Feedback, which is meant for whoever builds Oso (the folders around a kept
-    folder are kept only as far as needed to hold it)."""
+    """What would be deleted from the vault: everything except Obsidian's settings and the courses' Books folders
+    (the folders around a kept folder are kept only as far as needed to hold it)."""
     keep = {p.resolve() for p in (cfg.vault / "Courses").rglob(BOOKS) if p.is_dir()} if (cfg.vault / "Courses").is_dir() else set()
-    if (cfg.vault / "Oso" / "Feedback").is_dir():
-        keep.add((cfg.vault / "Oso" / "Feedback").resolve())
     out: list[Path] = []
 
     def walk(folder: Path) -> None:

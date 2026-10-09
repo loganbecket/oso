@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from . import alerts, backup, books, canvas_session, canvas_store, classes, convert, dashboard, db, drive, feedback, filing, handwriting, instructions, mastery, merge, reader, rules, search, sites, secrets, skillsync, today, update
+from . import alerts, backup, books, canvas_session, canvas_store, classes, convert, dashboard, db, drive, filing, handwriting, instructions, mastery, merge, reader, rules, search, sites, secrets, skillsync, today, update
 from .config import Config
 from .connectors import Connector
 from .connectors.canvas_api import CanvasApi, SessionExpired
@@ -125,7 +125,6 @@ def _run(cfg: Config, now: datetime | None = None) -> dict[str, object]:
         results["read_by_claude"] = _safe(lambda: reader.run(cfg, conn, now), {})
         results["update"] = _safe(lambda: update.check_daily(conn, cfg, now), None)
         results["skill_conflicts"] = len(_safe(lambda: skillsync.sync(cfg), []))
-        results["feedback_shipped"] = _safe(lambda: feedback.close_shipped(cfg, conn, now), 0)
         results["backup"] = _safe(lambda: backup.run(cfg, conn, now), {})
         today.write(conn, cfg, now)
         _safe(lambda: dashboard.write(conn, cfg, now), None)

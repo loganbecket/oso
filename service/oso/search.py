@@ -115,9 +115,9 @@ def index_path() -> Path:
 @contextmanager
 def connect(path: Path | None = None):
     conn = sqlite3.connect(path or index_path(), timeout=30)
-    conn.row_factory = sqlite3.Row
-    conn.executescript(SCHEMA)
     try:
+        conn.row_factory = sqlite3.Row
+        conn.executescript(SCHEMA)  # a damaged file fails here; the handle must still be closed (Windows will not delete an open file)
         yield conn
         conn.commit()
     finally:

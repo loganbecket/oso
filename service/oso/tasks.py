@@ -54,9 +54,18 @@ class NotConnected(Exception):
     pass
 
 
+_last_ts = ""
+
+
 def _ts() -> str:
-    """Now, to the microsecond: a change made in the same second as the last push must still count as newer."""
-    return datetime.now(UTC).isoformat(timespec="microseconds")
+    """Now, to the microsecond, and never the same value twice in this process: Windows's clock moves in steps of
+    about 15 ms, so a change made right after a push would otherwise carry the push's own timestamp and never go out."""
+    global _last_ts
+    t = datetime.now(UTC).isoformat(timespec="microseconds")
+    if t <= _last_ts:
+        t = (datetime.fromisoformat(_last_ts) + timedelta(microseconds=1)).isoformat(timespec="microseconds")
+    _last_ts = t
+    return t
 
 
 def ensure(conn: sqlite3.Connection) -> None:
@@ -255,7 +264,7 @@ def sync(conn: sqlite3.Connection, cfg: Config, now: datetime, session=None) -> 
             break
         params["pageToken"] = data["nextPageToken"]
     conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('tasks_pulled', ?)", (pulled_at,))
-    for t in conn.execute("SELECT * FROM tasks WHERE pushed_at IS NULL OR updated_at > pushed_at").fetchall():
+    for t in conn.execute("SELECT * FROM tasks WHERE pushed_at IS NULL OR updated_at >= pushed_at").fetchall():  # equal: changed in the same clock tick as the push
         if t["status"] == "deleted":
             if t["google_id"]:
                 d = session.delete(f"{API}/lists/{lid}/tasks/{t['google_id']}")

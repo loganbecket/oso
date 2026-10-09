@@ -115,11 +115,11 @@ def connect(path: Path | None = None) -> Iterator[sqlite3.Connection]:
     from . import schema
 
     conn = sqlite3.connect(str(path or db_path()), timeout=BUSY_SECONDS)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    conn.execute("PRAGMA journal_mode = WAL")  # readers and one writer at the same time
-    schema.apply(conn)
     try:
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON")
+        conn.execute("PRAGMA journal_mode = WAL")  # readers and one writer at the same time
+        schema.apply(conn)
         yield conn
         conn.commit()
     finally:

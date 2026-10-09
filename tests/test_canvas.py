@@ -121,6 +121,9 @@ def server():
 
 @pytest.fixture
 def env(tmp_path: Path, monkeypatch):
+    from oso import sites
+
+    monkeypatch.setattr(sites, "ALLOW_LOCAL", True)
     STATE.update(cookie="good", hw4_score=6.0, comments=[], rotate=False, external=None)
     store = {}
     monkeypatch.setattr(secrets, "get", lambda name: store.get(name))
@@ -486,3 +489,12 @@ def test_sync_keeps_what_canvas_said_even_when_the_today_page_fails(env, server,
     with db.connect() as conn:
         assert conn.execute("SELECT COUNT(*) FROM items WHERE source = 'canvas_api'").fetchone()[0] > 0
     assert "couldn't build today's page" in (cfg.vault / "Today.md").read_text(encoding="utf-8")
+
+
+def test_the_stored_password_is_only_typed_where_it_belongs():
+    canvas = "school.instructure.com"
+    assert not canvas_session.may_fill("http://login.school.edu/", canvas, quiet=False, known_host=None)  # never over plain http
+    assert canvas_session.may_fill("https://anything.example/login", canvas, quiet=False, known_host=None)  # he is watching
+    assert canvas_session.may_fill("https://login.school.edu/", canvas, quiet=True, known_host="login.school.edu")
+    assert not canvas_session.may_fill("https://lookalike.example/", canvas, quiet=True, known_host="login.school.edu")
+    assert canvas_session.may_fill(f"https://{canvas}/login", canvas, quiet=True, known_host="login.school.edu")

@@ -97,7 +97,7 @@ def test_windows_install_says_so_and_skips_reschedule(monkeypatch):
 def test_windows_script_quotes_paths():
     text = update._WIN_SCRIPT.format(log="C:\\Users\\O''Neil\\update.log", pid=42, uv="uv.exe", url="https://x/y.zip", oso="oso.exe")
     assert "Wait-Process -Id 42" in text and "'C:\\Users\\O''Neil\\update.log'" in text
-    assert r"-match '\\tools\\oso\\'" in text
+    assert "uv tool dir" in text and '-like "*$toolDir*"' in text and "cmd /c" not in text
 
 
 def test_record_does_not_reinstall(monkeypatch):

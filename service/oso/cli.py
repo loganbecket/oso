@@ -21,7 +21,7 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--timezone", default="America/New_York")
     s.add_argument("--canvas-feed-url", help="the Calendar Feed URL from Canvas (asked for if omitted)")
     s.add_argument("--canvas-url", help="your school's Canvas address, e.g. https://school.instructure.com (only with a token)")
-    s.add_argument("--canvas-token", help="a Canvas access token, if your school allows students to create one")
+    s.add_argument("--canvas-token", action="store_true", help="ask for a Canvas access token, if your school allows students to create one (typed, never shown)")
 
     s = sub.add_parser("add-course", help="register a course")
     s.add_argument("code", help="code as Canvas shows it, e.g. MATH-101-001")
@@ -120,8 +120,14 @@ def _dispatch(args: argparse.Namespace) -> int:
         if url:
             secrets.set(secrets.CANVAS_FEED_URL, url)
         if args.canvas_url and args.canvas_token:
+            import getpass
+
+            token = getpass.getpass("Paste the Canvas access token (it won't show): ").strip()
+            if not token:
+                print("No token entered; Canvas was not connected.", file=sys.stderr)
+                return 2
             secrets.set(secrets.CANVAS_BASE_URL, args.canvas_url)
-            secrets.set(secrets.CANVAS_TOKEN, args.canvas_token)
+            secrets.set(secrets.CANVAS_TOKEN, token)
         for sub in ("Clippings", "Courses", "Oso"):
             (vault / sub).mkdir(parents=True, exist_ok=True)
         print(f"Saved settings to {path}. Feed URL stored in the credential manager." if url else f"Saved settings to {path}.")

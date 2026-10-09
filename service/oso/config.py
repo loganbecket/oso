@@ -58,7 +58,6 @@ class Config:
     exam_model: str = "opus"  # Claude model for study guides and practice tests
     read_cap_chars: int = 12000  # read_note returns at most this many characters per call; 0 = no cap
     write_vault_instructions: bool = True  # keep a CLAUDE.md at the vault root for Claude Code sessions
-    repo: str = "loganbecket/oso"  # GitHub repository Oso installs and updates from
     channel: str = "stable"  # stable (newest tagged version) or latest (master)
     installed_version: str | None = None  # tag or short commit of the installed service
     strong_percent: int = 95  # a topic is strong at this weighted accuracy or better...
@@ -143,7 +142,6 @@ def load(path: Path | None = None) -> Config:
         exam_model=str(raw.get("exam_model", "opus")),
         read_cap_chars=int(raw.get("read_cap_chars", 12000)),
         write_vault_instructions=bool(raw.get("write_vault_instructions", True)),
-        repo=str(raw.get("repo", "loganbecket/oso")),
         channel=str(raw.get("channel", "stable")),
         installed_version=raw.get("installed_version") or None,
         strong_percent=_strong_percent(raw),
@@ -194,7 +192,6 @@ def save(cfg: Config, path: Path | None = None) -> Path:
         f'exam_model = "{_toml_str(cfg.exam_model)}"',
         f"read_cap_chars = {cfg.read_cap_chars}",
         f"write_vault_instructions = {'true' if cfg.write_vault_instructions else 'false'}",
-        f'repo = "{_toml_str(cfg.repo)}"',
         f'channel = "{_toml_str(cfg.channel)}"',
         *([f'installed_version = "{_toml_str(cfg.installed_version)}"'] if cfg.installed_version else []),
         f"strong_percent = {cfg.strong_percent}",

@@ -309,7 +309,14 @@ class CanvasApi:
         tmp = target.with_name(target.name + ".part")
         # The student's sign-in (token or cookies) goes only to Canvas itself. A document an instructor linked on
         # another site is fetched with a bare request, so that site never sees his Canvas credentials.
-        client = self.s if urlparse(url).hostname == urlparse(self.base).hostname else requests
+        own = urlparse(url).hostname == urlparse(self.base).hostname
+        if not own:
+            from ..sites import public_url
+
+            if not public_url(url):
+                log.warning("not downloading %s: not a public address", target.name)
+                return False
+        client = self.s if own else requests
         try:
             with client.get(url, stream=True, timeout=self.timeout) as r:
                 r.raise_for_status()

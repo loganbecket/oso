@@ -15,8 +15,15 @@ if ! command -v uv >/dev/null 2>&1; then
 fi
 export PATH="$HOME/.local/bin:$PATH"
 
-echo "Installing the Oso service (this takes a minute or two)..."
-uv tool install --force --python 3.12 "https://github.com/$REPO/archive/refs/heads/master.zip"
+# The newest version tag (stable), or master when there is none.
+TARGET="https://github.com/$REPO/archive/refs/heads/master.zip"
+TAG=$(curl -fsSL "https://api.github.com/repos/$REPO/tags?per_page=100" 2>/dev/null | grep -o '"name": *"v[0-9]*\.[0-9]*\.[0-9]*"' | sed 's/.*"v\([^"]*\)"/\1/' | sort -t. -k1,1n -k2,2n -k3,3n | tail -1 | sed 's/^/v/' || true)
+if [ -n "${TAG:-}" ]; then
+  TARGET="https://github.com/$REPO/archive/refs/tags/$TAG.zip"
+fi
+
+echo "Installing the Oso service${TAG:+ $TAG} (this takes a minute or two)..."
+uv tool install --force --python 3.12 "$TARGET"
 uv tool update-shell >/dev/null 2>&1 || true
 
 echo
@@ -34,7 +41,7 @@ echo "In Canvas, open Calendar, click 'Calendar Feed', and copy the address."
 read -r -p "Paste the Canvas Calendar Feed URL (or press Enter to skip): " FEED
 
 oso init --vault "$VAULT" --timezone "$TZ_NAME" --canvas-feed-url "${FEED:-}"
-oso update
+if [ -n "${TAG:-}" ]; then oso update --installed "$TAG"; else oso update; fi
 
 if [ "$(uname -s)" = "Linux" ] && command -v rclone >/dev/null 2>&1; then
   read -r -p "Keep the vault in sync with Google Drive through rclone (remote 'gdrive', folder 'Vault')? [y/N] " RC

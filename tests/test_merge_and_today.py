@@ -94,3 +94,15 @@ def test_a_broken_today_page_is_replaced_by_a_sentence_and_nothing_else_is_lost(
     assert text.startswith("# Today") and "couldn't build today's page" in text and "Traceback" not in text
     with db.connect() as conn:
         assert conn.execute("SELECT COUNT(*) FROM items").fetchone()[0] == 1
+
+
+def test_error_sentences_carry_no_address_and_no_false_login_alarm():
+    import requests
+
+    e = requests.exceptions.SSLError("HTTPSConnectionPool(host='x.instructure.com', port=443): Max retries exceeded with url: /feeds/calendars/user_SECRET.ics (Caused by SSLError)")
+    assert sync.plain_error(e) == "could not reach the source; check the internet connection"
+    text = sync.plain_error(requests.HTTPError("500 Server Error: Internal for url: https://x.instructure.com/feeds/calendars/user_SECRET.ics"))
+    assert "SECRET" not in text and "user_" not in text and "(address)" in text
+    assert sync.plain_error(RuntimeError("could not open 4015.pdf")) == "could not open 4015.pdf"
+    assert sync.plain_error(RuntimeError("401 Client Error: Unauthorized for url: https://x/feed?token=SECRET")) == "the source rejected the login; it may need to be set up again"
+    assert "check the internet" in sync.plain_error(requests.ConnectionError("https://x/feeds/SECRET.ics"))

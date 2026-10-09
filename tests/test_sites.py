@@ -51,6 +51,11 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
 
+@pytest.fixture(autouse=True)
+def local_sites(monkeypatch):
+    monkeypatch.setattr(sites, "ALLOW_LOCAL", True)
+
+
 @pytest.fixture(scope="module")
 def server():
     srv = HTTPServer(("127.0.0.1", 0), Handler)
@@ -120,3 +125,35 @@ def test_adding_and_removing(env):
     assert cfg.courses[0].sites == []
     with pytest.raises(ValueError):
         courses.update(cfg, "PHYS-110", add_site="not a site")
+
+
+def test_private_and_local_addresses_are_refused(monkeypatch):
+    monkeypatch.setattr(sites, "ALLOW_LOCAL", False)
+    for bad in ("http://169.254.169.254/latest/meta-data/", "http://10.0.0.5/x.pdf", "http://localhost:8080/", "https://127.0.0.1/",
+                "http://192.168.1.1/admin", "https://nas.local/share", "http://[::1]/", "ftp://1.2.3.4/x"):
+        assert not sites.public_url(bad), bad
+    with pytest.raises(ValueError):
+        sites.normalize("http://10.0.0.5/syllabus")
+    assert sites.public_url("https://8.8.8.8/x") and sites.public_url("https://1.1.1.1/x.pdf")
+
+
+def test_a_redirect_into_the_network_is_dropped(env):
+    cfg, conn = env
+    f = sites._Fetcher()
+    monkeypatch_target = {"url": "http://10.0.0.5/secret"}
+
+    class R:
+        url = monkeypatch_target["url"]
+        closed = False
+
+        def close(self):
+            R.closed = True
+
+    f.s = type("S", (), {"get": staticmethod(lambda *a, **k: R())})()
+    sites.ALLOW_LOCAL = False
+    try:
+        with pytest.raises(sites.requests.ConnectionError):
+            f.get("https://8.8.8.8/page")
+        assert R.closed
+    finally:
+        sites.ALLOW_LOCAL = True

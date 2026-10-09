@@ -141,6 +141,16 @@ def _date_of(p: Path) -> date | None:
         return None
 
 
+def _private(folder: Path) -> None:
+    """Only this user can open the backup (where the file system has such a thing; a NAS share decides for itself)."""
+    try:
+        folder.mkdir(parents=True, exist_ok=True)
+        if os.name != "nt":
+            os.chmod(folder, 0o700)
+    except OSError:
+        pass
+
+
 def _database(dest_dir: Path, today: date) -> None:
     """A consistent copy of the live database, using SQLite's own backup, plus a dated copy."""
     dest_dir.mkdir(parents=True, exist_ok=True)
@@ -175,6 +185,7 @@ def run(cfg: Config, conn: sqlite3.Connection, now: datetime, force: bool = Fals
         return {"skipped": str(e)}
     today = now.date()
     deadline = time.monotonic() + budget
+    _private(folder)
     counts = _mirror(cfg.vault, folder / "Vault", folder / "Removed", today, deadline)
     _prune(folder / "Removed", today, lambda p: _date_of(p))
     if not counts["finished"]:

@@ -268,12 +268,19 @@ def _safe(fn, default):
 
 def plain_error(e: Exception) -> str:
     """An error message a student can act on. No stack traces, no secrets."""
+    import re
+
+    import requests
+
     name = type(e).__name__
     text = str(e)
-    if "401" in text or "403" in text:
+    if re.search(r"\b40[13]\b", text):
         return "the source rejected the login; it may need to be set up again"
-    if "404" in text:
+    if re.search(r"\b404\b", text):
         return "the address no longer works; copy a fresh one from Canvas"
-    if "ConnectionError" in name or "Timeout" in name or "timed out" in text:
+    if isinstance(e, (requests.ConnectionError, requests.Timeout)) or "ConnectionError" in name or "Timeout" in name or "timed out" in text:
         return "could not reach the source; check the internet connection"
+    # Never an address: a feed URL is a secret, and these sentences end up in Today.md.
+    text = re.sub(r"https?://\S+", "(address)", text)
+    text = re.sub(r"(?i)\burl: ?\S+", "url: (address)", text)
     return text.split("\n")[0][:160] or name

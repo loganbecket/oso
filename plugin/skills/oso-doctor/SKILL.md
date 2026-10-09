@@ -13,10 +13,10 @@ Everything here works from Cowork through the Oso tools. Answer in plain sentenc
 
 **Something looks broken** (briefing missing, deadlines stale, a source failing):
 1. Call `run_health_check` with `fix` true and read every line.
-2. For what is still wrong: no recent check, call `sync_now`; a newer version is out, offer `update_oso`; the Canvas sign-in lapsed, call `open_settings` and tell him to press Sign in to Canvas; the calendar feed is rejected, he needs to copy a fresh Calendar Feed address from Canvas (Calendar, then Calendar Feed) into the Settings tab. Do not guess at addresses or tokens.
+2. For what is still wrong: no recent check, call `sync_now`; a newer version is out, offer to update and, when he says yes, call `update_oso` with `confirmed` true; the Canvas sign-in lapsed, call `open_settings` and tell him to press Sign in to Canvas; the calendar feed is rejected, he needs to copy a fresh Calendar Feed address from Canvas (Calendar, then Calendar Feed) into the Settings tab. Do not guess at addresses or tokens.
 3. Explain anything still wrong in one or two plain sentences.
 
-**"Update Oso":** call `update_oso`. On Windows a window opens and installs the update, and this chat's connection to Oso restarts; tell him to restart the Claude app when the window closes.
+**"Update Oso":** call `update_oso` with `confirmed` true (he asked in this chat). On Windows a window opens and installs the update, and this chat's connection to Oso restarts; tell him to restart the Claude app when the window closes.
 
 **If the Oso tools are not available at all**, Oso itself is not running in the Claude app. In Claude Code on the laptop, run `oso doctor --fix` in the terminal and follow it; otherwise tell him to run that in PowerShell.
 

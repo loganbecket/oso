@@ -274,9 +274,10 @@ def test_open_time_tool_and_rule_tools(env, monkeypatch):
     from oso import mcp_server
 
     monkeypatch.setattr(mcp_server, "_cfg", lambda: cfg)
-    saved = mcp_server.save_rule("Dean emails", "x", "when", form={"watch": "message", "sender": "dean", "do": "block", "minutes": 60})
+    assert mcp_server.save_rule("Dean emails", "x", "when", form={"watch": "message"}).startswith("Not done.")  # no yes yet
+    saved = mcp_server.save_rule("Dean emails", "x", "when", form={"watch": "message", "sender": "dean", "do": "block", "minutes": 60}, confirmed=True)
     assert saved["saved"] == "Dean emails"
-    assert mcp_server.save_rule("Bad", "x", "when", form={"watch": "item", "do": "block", "minutes": 5}).startswith("Not saved:")
+    assert mcp_server.save_rule("Bad", "x", "when", form={"watch": "item", "do": "block", "minutes": 5}, confirmed=True).startswith("Not saved:")
     assert [r["name"] for r in mcp_server.list_rules()] == ["Dean emails"]
     assert "Paused" in mcp_server.change_rule("Dean emails", paused=True)
     assert "Deleted" in mcp_server.change_rule("dean emails", delete=True)

@@ -32,8 +32,10 @@ try {
 
 # Windows cannot replace files a running program holds, so stop any Oso already running
 # (including the one the Claude app keeps open) before reinstalling.
+$ToolDir = $null
+try { $ToolDir = Join-Path (uv tool dir) 'oso' } catch { }
 Get-CimInstance Win32_Process | Where-Object {
-    $_.Name -in @('oso.exe', 'oso-mcp.exe') -or $_.CommandLine -match '\\tools\\oso\\'
+    $_.Name -in @('oso.exe', 'oso-mcp.exe') -or ($ToolDir -and $_.CommandLine -like "*$ToolDir*")
 } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 
 Write-Host "Installing the Oso service (this takes a minute or two)..."

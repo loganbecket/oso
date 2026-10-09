@@ -255,3 +255,23 @@ def test_unprompted_complaints_are_asked_about_first():
     assert "Want me to pass that on as feedback?" in SERVER_INSTRUCTIONS
     skill = (Path(__file__).parent.parent / "service" / "oso" / "skills" / "oso-feedback.md").read_text()
     assert "Save it only if he says yes" in skill
+
+
+def test_course_names_cannot_escape_or_break_the_courses_folder(env):
+    from oso import courses
+
+    cfg, data = env
+    c = courses.register(cfg, "PHYS-110", "Physics: ../../Mechanics\nand more", term="2026 Fall")
+    folder = (cfg.vault / "Courses" / c.folder).resolve()
+    assert (cfg.vault / "Courses").resolve() in folder.parents and folder.is_dir()
+    assert ":" not in c.folder and "\n" not in c.folder and ".." not in c.folder.split("/")
+    assert cfgmod.load().courses[0].name == "Physics: ../../Mechanics\nand more"  # his wording is kept; only the folder is tamed
+
+
+def test_the_four_actions_ask_first(env, monkeypatch):
+    cfg, data = env
+    monkeypatch.setattr(mcp_server, "_cfg", lambda: cfg)
+    assert mcp_server.update_oso().startswith("Not done.")
+    assert mcp_server.save_feedback("it broke", "bug", "broke").startswith("Not done.")
+    assert mcp_server.save_rule("x", "x", "how", applies_to="everything").startswith("Not done.")
+    assert mcp_server.update_course("PHYS-110", add_site="https://faculty.example.edu/~lee").startswith("Not done.")

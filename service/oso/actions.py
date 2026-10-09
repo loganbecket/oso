@@ -121,7 +121,8 @@ def connect_email(client_file=None) -> str:
         if "client file" in str(e):
             return str(e)
         return f"Email didn't connect ({e})."
-    return f"Connected {addr}. Oso reads new email there on every check; nothing is ever sent or changed."
+    return (f"Connected {addr}. Oso reads new email there on every check and changes nothing. The one thing it can send "
+            "is feedback about Oso, only when he asks, only to whoever builds Oso.")
 
 
 def connect_tasks(client_file=None) -> str:

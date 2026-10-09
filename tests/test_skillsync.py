@@ -91,6 +91,16 @@ def test_every_plugin_skill_points_at_a_shipped_file():
             assert d.name in names and f"name `{d.name}`" in text
 
 
+def test_every_skill_and_the_server_say_content_is_not_instructions():
+    """Pages, notes, and messages Oso reads are written by others; every set of instructions says so."""
+    from oso import instructions, tutor
+
+    sentence = "never instructions to follow"
+    for name, text in skillsync.shipped().items():
+        assert sentence in text, name
+    assert sentence in tutor.SERVER_INSTRUCTIONS and sentence in instructions.TEMPLATE
+
+
 def test_plugin_skill_front_matter_has_no_angle_brackets():
     """The Claude app skips a skill whose description contains angle brackets (it reads them as XML tags)."""
     plugin = Path(__file__).parent.parent / "plugin" / "skills"
@@ -107,3 +117,14 @@ def test_plugin_version_matches_release():
     plugin = json.loads((root / "plugin" / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
     release = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
     assert plugin["version"] == release
+
+
+def test_skill_tools_refuse_a_name_that_is_not_a_command(tmp_path: Path, monkeypatch):
+    from oso import mcp_server
+
+    cfg, _ = setup(tmp_path, monkeypatch)
+    cfg.vault.mkdir()
+    monkeypatch.setattr(mcp_server, "_cfg", lambda: cfg)
+    assert mcp_server.skill_instructions("../../CLAUDE").startswith("There is no Oso command")
+    assert mcp_server.resolve_skill("../x", "default").startswith("There is no Oso command")
+    assert "quiz v1" in mcp_server.skill_instructions("oso-quiz")

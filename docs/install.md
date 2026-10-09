@@ -153,7 +153,7 @@ The calendar feed only brings in due dates. Signing in to Canvas through Oso add
 2. A small window opens with your school's Canvas sign-in page. Sign in as usual, including any two-step check; the window closes by itself once you're in.
 3. Optional: to have Oso sign in again on its own when Canvas logs you out, give it your school username and password once (Actions tab, **Canvas username and password…**). They're kept in your computer's credential store, never in a file.
 
-If your school allows Canvas access tokens, you can use one instead: in Canvas, open **Account**, **Settings**, **+ New Access Token**, then run `oso init --vault "<your vault path>" --canvas-url https://<yourschool>.instructure.com --canvas-token <the token>`.
+If your school allows Canvas access tokens, you can use one instead: in Canvas, open **Account**, **Settings**, **+ New Access Token**, then run `oso init --vault "<your vault path>" --canvas-url https://<yourschool>.instructure.com --canvas-token` and paste the token when asked (it is typed, not shown, so it never lands in your command history).
 
 ### School email
 

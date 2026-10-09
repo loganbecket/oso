@@ -53,7 +53,7 @@ Tell Claude "mark Calculus II finished." Your briefing suggests this once a cour
 
 ## Starting over
 
-Quit the Claude app and run `oso fresh-start` in your command window; it asks you to confirm. It deletes everything in your vault except Obsidian's settings, your textbooks, and your feedback about Oso, plus everything Oso has recorded, with no backup. Your settings and connections are kept, and your Canvas deadlines come back on the next check. Then set up each course again. Fresh start is never done from a chat.
+Quit the Claude app and run `oso fresh-start` in your command window; it asks you to confirm. It deletes everything in your vault except Obsidian's settings and your textbooks, plus everything Oso has recorded, with no backup. Your settings and connections are kept, and your Canvas deadlines come back on the next check. Then set up each course again. Fresh start is never done from a chat.
 
 ## Good to know
 

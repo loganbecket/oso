@@ -184,10 +184,16 @@ class _Fetcher:
         wait = PAUSE_SECONDS - (time.monotonic() - self.last)
         if wait > 0:
             time.sleep(wait)
+        if not public_url(url):
+            raise requests.ConnectionError("not a public address")
         try:
-            return self.s.get(url, headers=headers or {}, timeout=TIMEOUT, stream=stream, allow_redirects=True)
+            r = self.s.get(url, headers=headers or {}, timeout=TIMEOUT, stream=stream, allow_redirects=True)
         finally:
             self.last = time.monotonic()
+        if not public_url(r.url):  # a redirect must not lead inside the network either
+            r.close()
+            raise requests.ConnectionError("redirected to a private address")
+        return r
 
 
 def _looks_like_sign_in(r: requests.Response, html: str) -> bool:
@@ -327,7 +333,7 @@ def _check_site(cfg: Config, conn: sqlite3.Connection, fetcher: _Fetcher, course
                 link = urldefrag(urljoin(r.url, href.strip()))[0]
                 if not link.startswith(("http://", "https://")):
                     continue
-                if _ext(link) in DOCUMENTS:
+                if _ext(link) in DOCUMENTS and public_url(link):
                     documents.setdefault(link, label)
                 elif url == root and _within(root, link) and _ext(link) in ("", ".html", ".htm", ".php", ".asp", ".aspx"):
                     queue.append(link)
@@ -462,6 +468,41 @@ def normalize(url: str) -> str:
     if not re.match(r"^https?://", url, re.IGNORECASE):
         url = "https://" + url
     u = urlparse(url)
-    if not u.netloc or "." not in u.netloc:
+    if not u.netloc or "." not in u.netloc or not u.hostname:
         raise ValueError(f"{url!r} doesn't look like a web address.")
+    if not public_host(u.hostname):
+        raise ValueError(f"{url!r} points inside a private network, which Oso doesn't read.")
     return urldefrag(url)[0]
+
+
+ALLOW_LOCAL = False  # tests run their sites on this computer
+
+
+def public_host(host: str) -> bool:
+    """A name or address on the public internet. Anything on this computer, a home or campus network, or the
+    link-local range (where cloud machines keep their credentials) is refused, so that a page or message can never
+    make Oso fetch something only this computer can reach."""
+    import ipaddress
+    import socket
+
+    if ALLOW_LOCAL:
+        return True
+    host = (host or "").strip("[]").lower()
+    if not host or host == "localhost" or host.endswith(".localhost") or host.endswith(".local"):
+        return False
+    try:
+        addresses = [ipaddress.ip_address(host)]
+    except ValueError:
+        try:
+            addresses = [ipaddress.ip_address(info[4][0]) for info in socket.getaddrinfo(host, None)]
+        except (socket.gaierror, OSError, ValueError):
+            return False
+    return bool(addresses) and all(a.is_global and not a.is_multicast for a in addresses)
+
+
+def public_url(url: str) -> bool:
+    try:
+        u = urlparse(url)
+    except ValueError:
+        return False
+    return u.scheme in ("http", "https") and bool(u.hostname) and public_host(u.hostname)

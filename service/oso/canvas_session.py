@@ -37,6 +37,7 @@ from . import secrets
 log = logging.getLogger("oso.canvas_session")
 
 SESSION = "canvas_session"
+SSO_HOST = "canvas_sso_host"  # where the stored password last got him signed in; a quiet sign-in fills it nowhere else
 USERNAME = "canvas_username"
 PASSWORD = "canvas_password"
 AUTO_EVERY_MINUTES = 60  # at most one quiet reconnect attempt this often
@@ -246,6 +247,7 @@ def sign_in(base: str, timeout_minutes: int = 10, quiet: bool = False) -> dict[s
     host = urlparse(base).netloc
     found: dict[str, dict[str, str]] = {}
     creds = login()
+    known_host = secrets.get(SSO_HOST)
 
     def watch(window) -> None:
         import time
@@ -281,10 +283,10 @@ def sign_in(base: str, timeout_minutes: int = 10, quiet: bool = False) -> dict[s
                 continue
             if url != last:
                 last = url
-                if creds and fills < 2:
+                if creds and fills < 2 and may_fill(url, host, quiet, known_host):
                     try:
                         if window.evaluate_js(FILL_JS % (json.dumps(creds[0]), json.dumps(creds[1]))) == "filled":
-                            fills, filled_at = fills + 1, time.monotonic()
+                            fills, filled_at, found["filled_at"] = fills + 1, time.monotonic(), {"host": u.netloc}
                             continue
                     except Exception:  # noqa: BLE001
                         pass
@@ -306,7 +308,20 @@ def sign_in(base: str, timeout_minutes: int = 10, quiet: bool = False) -> dict[s
         webview.start(watch, window, private_mode=False, storage_path=str(folder))
     except Exception as e:  # noqa: BLE001
         raise RuntimeError("This computer cannot show the Canvas sign-in window.") from e
+    if found.get("cookies") and found.get("filled_at") and found["filled_at"]["host"] != known_host:
+        secrets.set(SSO_HOST, found["filled_at"]["host"])
     return found.get("cookies")
+
+
+def may_fill(url: str, canvas_host: str, quiet: bool, known_host: str | None) -> bool:
+    """Whether the stored username and password may be typed into this page: only over https, and when nobody is
+    watching (a quiet reconnect) only on the sign-in page that worked before, or on Canvas itself."""
+    u = urlparse(url)
+    if u.scheme != "https" or not u.netloc:
+        return False
+    if not quiet:
+        return True
+    return u.netloc == canvas_host or (known_host is not None and u.netloc == known_host) or known_host is None
 
 
 def notify(body: str) -> None:

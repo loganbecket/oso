@@ -46,7 +46,7 @@ class _Api:
         self.token = token
 
     def get(self, path: str, **params) -> tuple[int, dict | None]:
-        r = requests.get(f"{API}{path}", params={**params, "token": self.token}, timeout=30)
+        r = requests.get(f"{API}{path}", params=params, headers={"X-Access-Token": self.token}, timeout=30)
         if r.status_code == 304:
             return 304, None
         if r.status_code == 401:

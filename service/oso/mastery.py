@@ -187,8 +187,10 @@ def write_all(conn: sqlite3.Connection, cfg: Config, now: datetime | None = None
         if not p["topics"]:
             continue
         folder.mkdir(parents=True, exist_ok=True)
-        name = f"{c.name} ({c.term}).md" if c.term else f"{c.name}.md"
-        path = folder / name.replace("/", "-")
+        from . import notes
+
+        name = notes.safe_name(f"{c.name} ({c.term})" if c.term else c.name, limit=120) or notes.safe_name(c.code, limit=120)
+        path = folder / f"{name}.md"
         text = render(p, cfg, now)
         old = path.read_text(encoding="utf-8") if path.exists() else None
         if old is None or old.split("---", 2)[-1] != text.split("---", 2)[-1]:

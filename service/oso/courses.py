@@ -46,7 +46,10 @@ def register(cfg: Config, code: str, name: str, term: str | None = None, related
         if related is not None:
             course.related = _codes(cfg, related, code)
     else:
-        course = Course(code=code, name=name, folder=folder or (f"{term}/{name}" if term else name), term=term,
+        from . import notes
+
+        safe = notes.safe_name(name, limit=80) or notes.safe_name(code, limit=80) or "Course"
+        course = Course(code=code, name=name, folder=folder or (f"{notes.safe_name(term, limit=40)}/{safe}" if term else safe), term=term,
                         related=_codes(cfg, related or [], code))
         cfg.courses.append(course)
     cfgmod.save(cfg)

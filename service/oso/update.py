@@ -30,12 +30,14 @@ from . import config as cfgmod
 from .config import Config
 from .db import now_iso
 
+REPO = "loganbecket/oso"  # fixed in the code on purpose: nothing on the student's computer can redirect updates
 API = "https://api.github.com/repos/{repo}"
 ZIP_BRANCH = "https://github.com/{repo}/archive/refs/heads/master.zip"
 ZIP_TAG = "https://github.com/{repo}/archive/refs/tags/{tag}.zip"
 ZIP_COMMIT = "https://github.com/{repo}/archive/{sha}.zip"
 CHANNELS = ("stable", "latest")
 _SEMVER = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)$")
+_COMMIT = re.compile(r"^[0-9a-f]{7,40}$")
 
 META = "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);"
 
@@ -66,11 +68,11 @@ def master_commit(repo: str) -> str:
 def target(cfg: Config) -> dict:
     """What the chosen channel points to right now: version label, download URL, and the note to show."""
     if cfg.channel == "stable":
-        tag = newest_tag(cfg.repo)
+        tag = newest_tag(REPO)
         if tag:
-            return {"version": tag, "url": ZIP_TAG.format(repo=cfg.repo, tag=tag), "fallback": False}
-    sha = master_commit(cfg.repo)
-    return {"version": sha[:12], "url": ZIP_BRANCH.format(repo=cfg.repo), "fallback": cfg.channel == "stable"}
+            return {"version": tag, "url": ZIP_TAG.format(repo=REPO, tag=tag), "fallback": False}
+    sha = master_commit(REPO)
+    return {"version": sha[:12], "url": ZIP_BRANCH.format(repo=REPO), "fallback": cfg.channel == "stable"}
 
 
 def status(cfg: Config) -> dict:
@@ -110,10 +112,13 @@ def run(cfg: Config, channel: str | None = None, version: str | None = None) -> 
         cfg.channel = channel
     try:
         if version:
+            version = version.strip()
             if _SEMVER.match(version):
-                t = {"version": version, "url": ZIP_TAG.format(repo=cfg.repo, tag=version), "fallback": False}
+                t = {"version": version, "url": ZIP_TAG.format(repo=REPO, tag=version), "fallback": False}
+            elif _COMMIT.match(version.lower()):
+                t = {"version": version[:12], "url": ZIP_COMMIT.format(repo=REPO, sha=version.lower()), "fallback": False}
             else:
-                t = {"version": version[:12], "url": ZIP_COMMIT.format(repo=cfg.repo, sha=version), "fallback": False}
+                return "The version must look like v0.18.1 or be a commit id."
         else:
             t = target(cfg)
     except (requests.RequestException, UpdateError, KeyError, ValueError) as e:
@@ -171,18 +176,20 @@ $log = '{log}'
 $uv = '{uv}'
 $url = '{url}'
 $oso = '{oso}'
+$toolDir = $null
+try {{ $toolDir = Join-Path (& $uv tool dir) 'oso' }} catch {{ }}
 "Update started $(Get-Date -Format s)" | Out-File -Encoding utf8 $log
 Write-Host 'Updating Oso. This window closes by itself when the update is done.' -ForegroundColor Cyan
 Wait-Process -Id {pid} -Timeout 60 -ErrorAction SilentlyContinue
 for ($i = 1; $i -le 3; $i++) {{
     Write-Host 'Stopping any running copy of Oso...'
     Get-CimInstance Win32_Process | Where-Object {{
-        $_.ProcessId -ne $PID -and ($_.Name -in @('oso.exe', 'oso-mcp.exe') -or $_.CommandLine -match '\\\\tools\\\\oso\\\\')
+        $_.ProcessId -ne $PID -and ($_.Name -in @('oso.exe', 'oso-mcp.exe') -or ($toolDir -and $_.CommandLine -like "*$toolDir*"))
     }} | ForEach-Object {{ Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }}
     Start-Sleep -Seconds 2
     Remove-Item (Join-Path (Split-Path $log) 'work.lock') -ErrorAction SilentlyContinue  # left by a stopped check
     Write-Host 'Installing...'
-    cmd /c "`"$uv`" tool install --force --python 3.12 `"$url`" 2>&1" | Tee-Object -FilePath $log -Append
+    & $uv tool install --force --python 3.12 $url 2>&1 | Tee-Object -FilePath $log -Append
     if ($LASTEXITCODE -eq 0) {{
         'Update finished' | Out-File -Append -Encoding utf8 $log
         Write-Host 'Making sure the automatic check is scheduled...'

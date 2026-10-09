@@ -148,7 +148,9 @@ def _claude() -> str | None:
 def ask_claude(exe: str, cfg: Config, prompt: str, payload: str) -> str:
     """One batch through Claude Code, with the messages on standard input. Raises subprocess.SubprocessError."""
     result = subprocess.run(
-        [exe, "-p", prompt, "--model", cfg.transcribe_model, "--output-format", "text", "--max-turns", "1"],
+        # Messages are written by strangers, so this Claude gets no tools at all: text in, text out.
+        [exe, "-p", prompt, "--model", cfg.transcribe_model, "--output-format", "text", "--tools", "", "--strict-mcp-config",
+         "--max-turns", "1"],
         input=payload, cwd=str(cfg.vault), capture_output=True, text=True, encoding="utf-8", timeout=300, check=False,
     )
     if result.returncode != 0 or not result.stdout.strip():

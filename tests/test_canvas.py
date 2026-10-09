@@ -15,7 +15,7 @@ from oso.connectors.canvas_api import CanvasApi, SessionExpired
 TZ = ZoneInfo("America/New_York")
 NOW = datetime(2026, 11, 2, 8, 0, tzinfo=TZ)
 
-STATE = {"cookie": "good", "hw4_score": 6.0, "comments": [], "rotate": False}
+STATE = {"cookie": "good", "hw4_score": 6.0, "comments": [], "rotate": False, "external": None}
 
 
 def canvas_data():
@@ -67,7 +67,8 @@ def canvas_data():
         "/api/v1/courses/1/pages/how-to-study": {"title": "How to study", "updated_at": "2026-08-20T00:00:00Z", "body":
             "<p>Read <b>before</b> lecture.</p><p><a href='/courses/1/files/504/download?wrap=1'>Study guide</a> and "
             "<a class='instructure_file_link' data-api-endpoint='SERVER/api/v1/courses/1/files/505' href='SERVER/courses/1/files/505?verifier=x'>Formula sheet</a>, "
-            "plus <a href='https://publisher.example/ch2.pdf'>chapter 2</a> and <a href='https://video.example/v'>a video</a>.</p>"},
+            "plus <a href='https://publisher.example/ch2.pdf'>chapter 2</a> and <a href='https://video.example/v'>a video</a>.</p>"
+            + (f"<p><a href='{STATE['external']}/ext/ch3.pdf'>chapter 3</a></p>" if STATE["external"] else "")},
         "/api/v1/courses/1/files/504": {"id": 504, "display_name": "Study guide.pdf", "url": "SERVER/dl/504", "updated_at": "2026-08-20T00:00:00Z", "size": 10},
         "/api/v1/courses/1/files/505": {"id": 505, "display_name": "Formula sheet.pdf", "url": "SERVER/dl/505", "updated_at": "2026-08-20T00:00:00Z", "size": 10},
         "/api/v1/courses/1/assignments/77": {"name": "Lab 1", "description": "<p>Use <a href='/courses/1/files/506/download'>the lab handout</a>.</p>", "due_at": "2026-09-01T00:00:00Z"},
@@ -82,7 +83,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         cookies = dict(c.strip().split("=", 1) for c in (self.headers.get("Cookie") or "").split(";") if "=" in c)
-        if cookies.get("canvas_session") != STATE["cookie"]:
+        if cookies.get("canvas_session") != STATE["cookie"] and self.headers.get("Authorization") != "Bearer tok":
             self.send_response(401)
             self.end_headers()
             self.wfile.write(b'{"status":"unauthenticated"}')
@@ -120,7 +121,7 @@ def server():
 
 @pytest.fixture
 def env(tmp_path: Path, monkeypatch):
-    STATE.update(cookie="good", hw4_score=6.0, comments=[], rotate=False)
+    STATE.update(cookie="good", hw4_score=6.0, comments=[], rotate=False, external=None)
     store = {}
     monkeypatch.setattr(secrets, "get", lambda name: store.get(name))
     monkeypatch.setattr(secrets, "set", lambda name, value: store.__setitem__(name, value))
@@ -431,3 +432,57 @@ def test_grade_table(env):
         ("Physics", "72% (C-)", "Lab 1 missing; 6/25 on Quiz 1"),
         ("World History", "about 73% (estimate)", "46/100 on Essay 1, late"),
     ]
+
+
+class ExternalHandler(BaseHTTPRequestHandler):
+    """A publisher's site: records what headers each request carried."""
+    seen: list[dict] = []
+
+    def log_message(self, *a):
+        pass
+
+    def do_GET(self):
+        ExternalHandler.seen.append({k.lower(): v for k, v in self.headers.items()})
+        self.send_response(200)
+        self.send_header("Content-Type", "application/pdf")
+        self.end_headers()
+        self.wfile.write(b"%PDF-1.4 external")
+
+
+@pytest.mark.parametrize("mode", ["token", "cookies"])
+def test_outside_documents_are_fetched_without_canvas_credentials(env, server, mode):
+    cfg, _ = env
+    ext = HTTPServer(("127.0.0.1", 0), ExternalHandler)
+    threading.Thread(target=ext.serve_forever, daemon=True).start()
+    try:
+        ExternalHandler.seen.clear()
+        STATE["external"] = f"http://localhost:{ext.server_port}"  # a different host name from the Canvas server's 127.0.0.1
+        api = CanvasApi(server, "tok", cfg) if mode == "token" else CanvasApi(server, None, cfg, cookies={"canvas_session": "good"})
+        api.fetch()
+        api.mirror()
+        week1 = cfg.vault / "Courses" / "2026 Fall" / "Physics" / "Canvas" / "Modules" / "01 Week 1 Motion"
+        assert (week1 / "ch3.pdf").read_bytes() == b"%PDF-1.4 external"
+        assert len(ExternalHandler.seen) == 1
+        assert "authorization" not in ExternalHandler.seen[0] and "cookie" not in ExternalHandler.seen[0]
+    finally:
+        ext.shutdown()
+
+
+def test_sync_keeps_what_canvas_said_even_when_the_today_page_fails(env, server, monkeypatch):
+    cfg, store = env
+    for name, value in (("_pull_tablet", lambda conn, cfg: "not connected"), ("_deliver_calendar", lambda conn, cfg, now: "not connected")):
+        monkeypatch.setattr(sync, name, value)
+    monkeypatch.setattr(sync.update, "check_daily", lambda conn, cfg, now: None)
+    monkeypatch.setattr(sync.search, "update", lambda cfg: {})
+    store[secrets.CANVAS_BASE_URL] = server
+    canvas_session.save({"canvas_session": "good"})
+
+    def broken(conn, cfg, now):
+        raise ValueError("Invalid isoformat string: 'soon'")
+
+    monkeypatch.setattr(today, "write", broken)
+    results = sync.run(cfg, NOW)
+    assert isinstance(results["canvas_api"], dict)
+    with db.connect() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM items WHERE source = 'canvas_api'").fetchone()[0] > 0
+    assert "couldn't build today's page" in (cfg.vault / "Today.md").read_text(encoding="utf-8")

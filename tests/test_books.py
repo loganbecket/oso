@@ -260,3 +260,46 @@ def test_the_computers_own_text_recognition():
     except ocr.OcrUnavailable as e:
         pytest.skip(str(e))
     assert "velocity" in text.lower() or "acceleration" in text.lower(), text
+
+
+def test_rebuilding_chapter_notes_leaves_the_students_files_alone(env):
+    cfg = env
+    pages = [f"Front page {i}" for i in range(2)] + [f"Chapter text {i}\n{LOREM}" for i in range(4)]
+    make_pdf(books_dir(cfg) / "Physics.pdf", pages, toc=[("1 Motion", 2), ("2 Forces", 4)], labels_from=101)
+    books.process(cfg)
+    folder = books_dir(cfg) / "Physics"
+    (folder / "01 My summary.md").write_text("My own notes on chapter 1.\n", encoding="utf-8")
+    (folder / "04 Scraped.md").write_text("---\ntype: textbook\nbook: Physics\npage: '4'\n---\n\nscraped page\n", encoding="utf-8")
+    (folder / "02 1 Motion.md").write_text("---\ntype: notes\n---\n\nI rewrote this one myself.\n", encoding="utf-8")
+    book = {"folder": folder, "course": "PHYS-110", "kind": "pdf", "files": [books_dir(cfg) / "Physics.pdf"]}
+    books.render(cfg, book, books.load_state(folder))
+    assert (folder / "01 My summary.md").read_text(encoding="utf-8") == "My own notes on chapter 1.\n"
+    assert (folder / "04 Scraped.md").exists()
+    assert "I rewrote this one myself." in (folder / "02 1 Motion.md").read_text(encoding="utf-8")
+    assert (folder / "03 2 Forces.md").exists()
+
+
+def test_readings_survive_a_new_timestamp_and_a_rewritten_copy_of_the_book(env):
+    import os
+
+    cfg = env
+    pages = [f"Front page {i}" for i in range(2)] + [f"Chapter text {i}\n{LOREM}" for i in range(4)]
+    pdf = books_dir(cfg) / "Physics.pdf"
+    make_pdf(pdf, pages, toc=[("1 Motion", 2), ("2 Forces", 4)], labels_from=101)
+    books.process(cfg)
+    books.save_page_reading(cfg, "Physics", "103", "Claude's careful reading of page 103.")
+    folder = books_dir(cfg) / "Physics"
+    assert "Claude's careful reading" in (folder / "02 1 Motion.md").read_text(encoding="utf-8")
+
+    os.utime(pdf, (pdf.stat().st_atime + 1000, pdf.stat().st_mtime + 1000))  # Drive touched the file
+    assert books.process(cfg)["books"] == 0
+    assert "Claude's careful reading" in (folder / "02 1 Motion.md").read_text(encoding="utf-8")
+
+    make_pdf(pdf, [t.replace("Chapter text", "Revised text") for t in pages], toc=[("1 Motion", 2), ("2 Forces", 4)], labels_from=101)
+    assert books.process(cfg)["books"] == 1  # the content changed, so it is read again
+    motion = (folder / "02 1 Motion.md").read_text(encoding="utf-8")
+    assert "Claude's careful reading" in motion and "Revised text 1" in motion  # the paid reading came along; the rest is new
+
+    make_pdf(pdf, pages[:5], toc=[("1 Motion", 2), ("2 Forces", 4)], labels_from=101)
+    books.process(cfg)
+    assert "Claude's careful reading" not in (folder / "02 1 Motion.md").read_text(encoding="utf-8")  # a different page count: start over

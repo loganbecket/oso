@@ -87,3 +87,19 @@ def test_real_model(tmp_path: Path, monkeypatch):
     db = tmp_path / "s.sqlite"
     assert search.update(cfg, db)["embedded"] == 3
     assert search.query(cfg, "how fast is the function changing", path=db)[0]["heading"] == "Slopes"
+
+
+def test_scraped_textbook_page_and_bad_note_do_not_stop_indexing(tmp_path: Path, fake_model):
+    """A scraped page has book and page but no title or chapter; a note with broken front matter is skipped, not fatal."""
+    cfg = vault(tmp_path)
+    book = cfg.vault / "Courses" / "Calculus" / "Books" / "Stewart"
+    book.mkdir(parents=True)
+    (book / "p. 42.md").write_text("---\ntype: textbook\nbook: Stewart\npage: '42'\nsource: scraped\n---\n\n## p. 42\n\nThe derivative measures slope.\n")
+    (book / "broken.md").write_text("---\ntitle: [unclosed\n---\n\nintegral area\n")
+    counts = search.update(cfg, path=tmp_path / "search.sqlite")
+    assert counts["indexed"] >= 3
+    with search.connect(tmp_path / "search.sqlite") as conn:
+        titles = {r["title"] for r in conn.execute("SELECT title FROM chunks")}
+    assert "Stewart, 42" in titles
+    hits = search.query(cfg, "slope", path=tmp_path / "search.sqlite")
+    assert any("p. 42" in h["path"] for h in hits)

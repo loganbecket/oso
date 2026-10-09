@@ -60,8 +60,21 @@ def ingest(cfg: Config, now: datetime | None = None) -> dict[str, object]:
             results["read_by_claude"] = _safe(lambda: reader.run(cfg, conn, now), {})
             results["search_after_reading"] = _safe(lambda: search.update(cfg), {})
             results["profiles"] = len(_safe(lambda: mastery.write_all(conn, cfg, now), []))
-            _safe(lambda: today.write(conn, cfg, now), None)
+            _safe(lambda: _write_today(conn, cfg, now), None)
     return results
+
+
+def _write_today(conn, cfg: Config, now: datetime) -> None:
+    """Today.md, or a one-line stand-in when building it fails, so a bad value never hides the whole page."""
+    try:
+        today.write(conn, cfg, now)
+    except Exception as e:  # noqa: BLE001
+        _record_failure("today")
+        path = cfg.vault / "Today.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(f"# Today\n\nOso couldn't build today's page ({plain_error(e)}). The next check will try again.\n",
+                        encoding="utf-8")
+        raise
 
 
 def _run(cfg: Config, now: datetime | None = None) -> dict[str, object]:
@@ -105,6 +118,7 @@ def _run(cfg: Config, now: datetime | None = None) -> dict[str, object]:
             db.finish_sync(conn, run_id, ok=True, items_seen=len(items))
             results[connector.name] = counts
             log.info("%s: %s", connector.name, counts)
+        conn.commit()  # what the sources said is kept even if a later step fails
 
         results.update(_read_messages(conn, cfg, now))
         _safe(lambda: filing.retire_inbox(cfg), 0)
@@ -126,7 +140,8 @@ def _run(cfg: Config, now: datetime | None = None) -> dict[str, object]:
         results["update"] = _safe(lambda: update.check_daily(conn, cfg, now), None)
         results["skill_conflicts"] = len(_safe(lambda: skillsync.sync(cfg), []))
         results["backup"] = _safe(lambda: backup.run(cfg, conn, now), {})
-        today.write(conn, cfg, now)
+        conn.commit()
+        _safe(lambda: _write_today(conn, cfg, now), None)
         _safe(lambda: dashboard.write(conn, cfg, now), None)
         _safe(lambda: instructions.write(cfg), None)
     return results

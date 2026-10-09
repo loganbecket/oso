@@ -357,3 +357,18 @@ def test_today_has_the_schedule_conflicts_and_coming_up(env):
 def test_briefing_weighs_the_trade_off():
     text = (Path(__file__).parent.parent / "service" / "oso" / "skills" / "oso-briefing.md").read_text()
     assert "Heads up" in text and "trade-off" in text and "he decides" in text
+
+
+def test_claude_reads_messages_with_no_tools(env, monkeypatch):
+    """Messages come from strangers, so the Claude that reads them must have no tools and no MCP servers."""
+    cfg, _ = env
+    seen = {}
+
+    class Done:
+        returncode, stdout, stderr = 0, "[]", ""
+
+    monkeypatch.setattr(messages.subprocess, "run", lambda argv, **kw: seen.update(argv=argv, kw=kw) or Done())
+    messages.ask_claude("claude", cfg, "the prompt", "[]")
+    argv = seen["argv"]
+    assert argv[argv.index("--tools") + 1] == "" and "--strict-mcp-config" in argv and "--mcp-config" not in argv
+    assert seen["kw"]["input"] == "[]"

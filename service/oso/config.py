@@ -109,8 +109,14 @@ def load(path: Path | None = None) -> Config:
             f"Oso is not set up yet. Run 'oso init --vault <path to your Obsidian vault>'. "
             f"(Looked for {path})"
         )
-    with path.open("rb") as f:
-        raw = tomllib.load(f)
+    try:
+        with path.open("rb") as f:
+            raw = tomllib.load(f)
+    except (tomllib.TOMLDecodeError, OSError) as e:
+        raise ConfigError(f"Oso's settings file could not be read ({path}). Run 'oso settings' to set it up again, "
+                          f"or fix the line it mentions: {str(e).splitlines()[0][:120]}") from e
+    if not isinstance(raw, dict):
+        raise ConfigError(f"Oso's settings file could not be read ({path}).")
     try:
         vault = Path(raw["vault"]).expanduser()
     except KeyError as e:
@@ -176,8 +182,8 @@ def save(cfg: Config, path: Path | None = None) -> Path:
         "# Oso configuration. Secrets are not stored here.",
         f"settings_version = {SETTINGS_VERSION}",
         f'vault = "{_toml_str(str(cfg.vault))}"',
-        f'timezone = "{cfg.timezone}"',
-        f'quiet_hours = "{cfg.quiet_hours}"' if cfg.quiet_hours else '# quiet_hours = "22:00-07:00"',
+        f'timezone = "{_toml_str(cfg.timezone)}"',
+        f'quiet_hours = "{_toml_str(cfg.quiet_hours)}"' if cfg.quiet_hours else '# quiet_hours = "22:00-07:00"',
         "muted_courses = [" + ", ".join(f'"{_toml_str(c)}"' for c in cfg.muted_courses) + "]",
         f'remarkable_folder = "{_toml_str(cfg.remarkable_folder)}"' if cfg.remarkable_folder else '# remarkable_folder = "School"',
         f"sync_interval_minutes = {cfg.sync_interval_minutes}",
@@ -226,4 +232,7 @@ def save(cfg: Config, path: Path | None = None) -> Path:
 
 
 def _toml_str(s: str) -> str:
-    return s.replace("\\", "\\\\").replace('"', '\\"')
+    """Escape a value for a basic TOML string: backslashes, quotes, and control characters (a newline in a
+    course name must not break the file)."""
+    out = str(s).replace("\\", "\\\\").replace('"', '\\"')
+    return "".join(f"\\u{ord(ch):04X}" if ord(ch) < 0x20 or ch == "\x7f" else ch for ch in out)

@@ -66,8 +66,59 @@ def sources(cfg: Config) -> list[dict]:
     return out
 
 
-def _stamp(files: list[Path]) -> dict[str, float]:
-    return {f.name: round(f.stat().st_mtime, 3) for f in files}
+def _stamp(files: list[Path]) -> dict[str, dict]:
+    return {f.name: {"size": f.stat().st_size, "mtime": round(f.stat().st_mtime, 3)} for f in files}
+
+
+def _hash(path: Path) -> str:
+    import hashlib
+
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _unchanged(old: dict, stamp: dict, files: list[Path]) -> bool:
+    """Same files by size and content. A new timestamp alone (Google Drive, a backup restore) is not a change,
+    so the pages Claude already read are not paid for twice. Fills the content hashes into `stamp`."""
+    if set(old) != set(stamp):
+        return False
+    for f in files:
+        o, n = old[f.name], stamp[f.name]
+        if not isinstance(o, dict):  # a stamp from before 0.18.1 held only the timestamp
+            if round(float(o), 3) != n["mtime"]:
+                return False
+            n["hash"] = _hash(f)
+            continue
+        if o.get("size") != n["size"]:
+            return False
+        if o.get("mtime") == n["mtime"] and o.get("hash"):
+            n["hash"] = o["hash"]
+            continue
+        n["hash"] = _hash(f)
+        if o.get("hash") and n["hash"] != o["hash"]:
+            return False
+    return True
+
+
+def _restore_readings(state: dict) -> None:
+    """Give pages back the readings Claude made of the earlier copy of the book, matched by page label, as long
+    as the book still has the same number of pages."""
+    readings = state.get("readings")
+    if not readings:
+        return
+    if state.get("total") is not None and state["total"] != state.get("readings_total"):
+        state.pop("readings", None)
+        state.pop("readings_total", None)
+        return
+    for p in state.get("pages", []):
+        if not p.get("claude_text") and p["label"] in readings:
+            p["claude_text"] = readings[p["label"]]
+    if state.get("total") is not None and state["done"] >= state["total"]:
+        state.pop("readings", None)
+        state.pop("readings_total", None)
 
 
 def load_state(folder: Path) -> dict:
@@ -319,6 +370,16 @@ def _note_name(n: int, title: str) -> str:
     return f"{n:02d} {notes.safe_name(title)[:80]}.md"
 
 
+def _is_chapter_note(path: Path) -> bool:
+    """True for a chapter note Oso wrote: textbook front matter with a chapter. A student's own file, or a
+    scraped page, has no such marker and is never touched."""
+    try:
+        fm, _ = notes.read_front_matter(path.read_text(encoding="utf-8", errors="replace")[:4000])
+    except OSError:
+        return False
+    return isinstance(fm, dict) and fm.get("type") == "textbook" and bool(fm.get("chapter"))
+
+
 def render(cfg: Config, book: dict, state: dict, conn=None) -> list[Path]:
     """Write the chapter notes and Book.md from the state. Returns the notes written."""
     folder: Path = book["folder"]
@@ -328,7 +389,8 @@ def render(cfg: Config, book: dict, state: dict, conn=None) -> list[Path]:
     edition = state.get("edition")
     course = book["course"]
     for old in folder.glob("[0-9][0-9] *.md"):
-        old.unlink()  # chapter notes are regenerated as a set
+        if _is_chapter_note(old):
+            old.unlink()  # Oso's chapter notes are regenerated as a set; anything the student put here stays
     written, index = [], []
     if state.get("kind") == "epub":
         chapters = [{"title": c["title"], "body": c["body"], "labels": c["pages"]} for c in state.get("chapters", [])]
@@ -355,6 +417,9 @@ def render(cfg: Config, book: dict, state: dict, conn=None) -> list[Path]:
         fm = {"type": "textbook", "course": course, "book": title, "author": author or None, "edition": edition,
               "chapter": ch["title"], "pages": pages}
         path = folder / _note_name(n, ch["title"])
+        if path.exists() and not _is_chapter_note(path):
+            index.append((ch["title"], pages, path.stem))  # the student made this one his own; leave it as it is
+            continue
         path.write_text(notes.with_front_matter(fm, f"# {ch['title']}\n\n{body}\n"), encoding="utf-8")
         written.append(path)
         index.append((ch["title"], pages, path.stem))
@@ -415,14 +480,23 @@ def process(cfg: Config, conn=None, budget: float = BUDGET_SECONDS) -> dict[str,
         folder: Path = book["folder"]
         state = load_state(folder)
         stamp = _stamp(book["files"])
-        if state.get("sources") != stamp:
-            old = state.get("sources") or {}
+        old = state.get("sources") or {}
+        if old and _unchanged(old, stamp, book["files"]):
+            if old != stamp:
+                state["sources"] = stamp
+                save_state(folder, state)
+        else:
             kept: list[dict] = []
-            if (book["kind"] == "scan" and old and all(stamp.get(k) == v for k, v in old.items())
+            if (book["kind"] == "scan" and old and all(_unchanged({k: v}, {k: stamp[k]}, [f]) for k, v in old.items()
+                                                       for f in book["files"] if f.name == k and k in stamp)
                     and min(k for k in stamp if k not in old) > max(old)):
                 kept = state.get("pages", [])  # new scans sort after the old ones: they join the end of the book
+            readings = {} if kept else {p["label"]: p["claude_text"] for p in state.get("pages", []) if p.get("claude_text")}
+            for f in book["files"]:
+                stamp[f.name].setdefault("hash", _hash(f))
             state = {**({k: state[k] for k in ("title",) if k in state} if kept else {}),
-                     "kind": book["kind"], "sources": stamp, "done": len(kept), "total": None, "pages": kept, "toc": []}
+                     "kind": book["kind"], "sources": stamp, "done": len(kept), "total": None, "pages": kept, "toc": [],
+                     **({"readings": readings, "readings_total": state.get("total")} if readings else {})}
         if state.get("total") is not None and state["done"] >= state["total"]:
             continue
         counts["books"] += 1
@@ -442,12 +516,14 @@ def process(cfg: Config, conn=None, budget: float = BUDGET_SECONDS) -> dict[str,
                     state["edition"] = _edition(state["title"], book["files"][0].stem)
                 state["pages"] += pages
                 state.update(total=total, done=state["done"] + len(pages))
+                _restore_readings(state)
                 counts["pages"] += len(pages)
             else:
                 pages, total = _scan_pages(cfg, book, state["done"], deadline)
                 state.setdefault("title", folder.name)
                 state["pages"] += pages
                 state.update(total=total, done=state["done"] + len(pages))
+                _restore_readings(state)
                 counts["pages"] += len(pages)
         except Exception as e:  # noqa: BLE001
             log.warning("could not read book %s: %s", folder.name, type(e).__name__)

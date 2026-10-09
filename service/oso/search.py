@@ -147,16 +147,11 @@ def update(cfg: Config, path: Path | None = None) -> dict[str, int]:
                 text = f.read_text(encoding="utf-8", errors="replace")
             except OSError:
                 continue
-            fm, body = notes.read_front_matter(text)
-            title = str(fm.get("title") or (f"{fm['book']}, {fm['chapter']}" if fm.get("type") == "textbook" else f.stem))
-            course = _course_for(cfg, rel, fm)
-            conn.execute("DELETE FROM chunks WHERE path = ?", (rel,))
-            for heading, chunk in notes.split_sections(body, max_chars=CHUNK_CHARS):
-                if chunk.strip():
-                    conn.execute(
-                        "INSERT INTO chunks (path, course, title, heading, text) VALUES (?, ?, ?, ?, ?)",
-                        (rel, course, title, heading, chunk),
-                    )
+            try:
+                _index_file(conn, cfg, rel, text)
+            except Exception as e:  # one bad note must never stop the rest of the vault from being indexed
+                log.warning("skipped %s while indexing: %s", rel, type(e).__name__)
+                continue
             conn.execute("INSERT OR REPLACE INTO files (path, mtime, size) VALUES (?, ?, ?)", (rel, st.st_mtime, st.st_size))
             counts["indexed"] += 1
         for rel in set(known) - seen:
@@ -176,6 +171,29 @@ def update(cfg: Config, path: Path | None = None) -> dict[str, int]:
             conn.commit()
             counts["embedded"] += len(rows)
     return counts
+
+
+def _title(fm: dict, stem: str) -> str:
+    """The note's title: its own, or book and chapter (or page) for a textbook note, or the file name."""
+    if fm.get("title"):
+        return str(fm["title"])
+    if fm.get("type") == "textbook" and fm.get("book"):
+        part = fm.get("chapter") or fm.get("page")
+        return f"{fm['book']}, {part}" if part else str(fm["book"])
+    return stem
+
+
+def _index_file(conn: sqlite3.Connection, cfg: Config, rel: str, text: str) -> None:
+    fm, body = notes.read_front_matter(text)
+    title = _title(fm if isinstance(fm, dict) else {}, Path(rel).stem)
+    course = _course_for(cfg, rel, fm if isinstance(fm, dict) else {})
+    conn.execute("DELETE FROM chunks WHERE path = ?", (rel,))
+    for heading, chunk in notes.split_sections(body, max_chars=CHUNK_CHARS):
+        if chunk.strip():
+            conn.execute(
+                "INSERT INTO chunks (path, course, title, heading, text) VALUES (?, ?, ?, ?, ?)",
+                (rel, course, title, heading, chunk),
+            )
 
 
 def _passage(r) -> str:

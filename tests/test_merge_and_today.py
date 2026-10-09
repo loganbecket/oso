@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from oso import db, merge, today
+from oso import db, merge, sync, today
 from oso.config import Config, Course
 from oso.db import Item
 
@@ -74,3 +74,23 @@ def test_today_renders_sections(tmp_path: Path):
     assert "Midterm 1" in text and "in 10 days" in text
     assert "**Calculus I**" in text
     assert "Canvas calendar feed is up to date" in text
+
+
+def test_a_broken_today_page_is_replaced_by_a_sentence_and_nothing_else_is_lost(tmp_path: Path, monkeypatch):
+    cfg = Config(vault=tmp_path / "vault", courses=[Course("MATH-101", "Calculus", "Calculus")])
+    cfg.vault.mkdir()
+    db_file = tmp_path / "oso.sqlite"
+    monkeypatch.setattr(db, "db_path", lambda: db_file)
+    with db.connect() as conn:
+        merge.apply(conn, [item("a1", "HW 1", NOW + timedelta(days=3))], "canvas_feed", NOW)
+
+    def broken(conn, cfg, now):
+        raise TypeError("can't compare offset-naive and offset-aware datetimes")
+
+    monkeypatch.setattr(today, "write", broken)
+    with db.connect() as conn:
+        assert sync._safe(lambda: sync._write_today(conn, cfg, NOW), None) is None
+    text = (cfg.vault / "Today.md").read_text(encoding="utf-8")
+    assert text.startswith("# Today") and "couldn't build today's page" in text and "Traceback" not in text
+    with db.connect() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM items").fetchone()[0] == 1

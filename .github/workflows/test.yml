@@ -22,7 +22,7 @@ jobs:
         with:
           enable-cache: true
       - name: Run tests
-        run: uv run --python 3.12 --extra dev pytest -q -x
+        run: uv run --locked --python 3.12 --extra dev pytest -q -x
 
   warm:
     # Caches made on master are the ones release tags can use.
@@ -43,8 +43,8 @@ jobs:
       - name: Download Oso's packages and the search model
         shell: bash
         run: |
-          uv sync --python 3.12 --extra dev
-          uv run --python 3.12 python -c "from fastembed import TextEmbedding; import os; TextEmbedding('BAAI/bge-small-en-v1.5', cache_dir=os.path.expanduser('~/oso-models'))"
+          uv sync --locked --python 3.12 --extra dev
+          uv run --locked --python 3.12 python -c "from fastembed import TextEmbedding; import os; TextEmbedding('BAAI/bge-small-en-v1.5', cache_dir=os.path.expanduser('~/oso-models'))"
 
   test:
     if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
@@ -76,13 +76,13 @@ jobs:
         shell: bash
         env:
           OSO_REAL_SEARCH_MODEL: "1"
-        run: OSO_MODEL_CACHE=~/oso-models uv run --python 3.12 --extra dev pytest -q -rs
+        run: OSO_MODEL_CACHE=~/oso-models uv run --locked --python 3.12 --extra dev pytest -q -rs
 
       - name: Run tests (Linux, with a virtual display for the quiz window)
         if: runner.os == 'Linux'
         env:
           OSO_REAL_SEARCH_MODEL: "1"
-        run: OSO_MODEL_CACHE=~/oso-models xvfb-run -a uv run --python 3.12 --extra dev pytest -q -rs
+        run: OSO_MODEL_CACHE=~/oso-models xvfb-run -a uv run --locked --python 3.12 --extra dev pytest -q -rs
 
       - name: Install the way students do and start it
         run: uvx --python 3.12 --from . oso --help
@@ -117,7 +117,7 @@ jobs:
         if: runner.os != 'Linux'
         shell: bash
         run: |
-          uv run --python 3.12 python - <<'PY'
+          uv run --locked --python 3.12 python - <<'PY'
           import tempfile
           from pathlib import Path
           from PIL import Image, ImageDraw, ImageFont

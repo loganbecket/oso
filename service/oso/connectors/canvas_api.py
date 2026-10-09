@@ -307,8 +307,11 @@ class CanvasApi:
     def _download(self, url: str, target: Path) -> bool:
         target.parent.mkdir(parents=True, exist_ok=True)
         tmp = target.with_name(target.name + ".part")
+        # The student's sign-in (token or cookies) goes only to Canvas itself. A document an instructor linked on
+        # another site is fetched with a bare request, so that site never sees his Canvas credentials.
+        client = self.s if urlparse(url).hostname == urlparse(self.base).hostname else requests
         try:
-            with self.s.get(url, stream=True, timeout=self.timeout) as r:
+            with client.get(url, stream=True, timeout=self.timeout) as r:
                 r.raise_for_status()
                 with tmp.open("wb") as out:
                     for chunk in r.iter_content(1 << 16):

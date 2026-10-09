@@ -92,6 +92,13 @@ def main(argv: list[str] | None = None) -> int:
     except cfgmod.ConfigError as e:
         print(e, file=sys.stderr)
         return 2
+    except KeyboardInterrupt:
+        print("Stopped.", file=sys.stderr)
+        return 130
+    except Exception as e:  # noqa: BLE001  a sentence for the student; the detail goes to errors.log
+        sync._record_failure(args.cmd or "oso")
+        print(f"Oso couldn't finish '{args.cmd}': {sync.plain_error(e)}", file=sys.stderr)
+        return 1
 
 
 def _dispatch(args: argparse.Namespace) -> int:

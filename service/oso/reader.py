@@ -23,7 +23,7 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from . import books, handwriting
+from . import books, handwriting, notes, vault
 from .config import Config
 from .db import EFFECTIVE
 
@@ -192,4 +192,5 @@ def _do(exe: str, cfg: Config, conn: sqlite3.Connection, job: dict) -> None:
         if m.group(0).startswith(marker):
             body = body[:m.start()] + f"{text}\n\n![[{job['image']}]]" + body[m.end():]
             break
-    job["file"].write_text(body, encoding="utf-8")
+    fm, inner = notes.read_front_matter(body)
+    vault.write_note(job["file"], fm, inner, vault.converted_copy)

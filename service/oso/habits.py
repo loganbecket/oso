@@ -202,7 +202,7 @@ def save(cfg: Config, narrative: str, h: dict, now: datetime | None = None) -> s
         "Do not edit; tell Claude if something here is wrong.", "",
         narrative.strip(), "", numbers_markdown(h),
     ])
-    path = cfg.vault / "Oso" / "Profile" / "Habits.md"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
+    from . import vault
+
+    path = vault.write_file(cfg.vault / "Oso" / "Profile" / "Habits.md", text)
     return path.relative_to(cfg.vault).as_posix()

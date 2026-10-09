@@ -23,7 +23,7 @@ import zipfile
 from pathlib import Path
 from xml.etree import ElementTree
 
-from . import notes
+from . import notes, vault
 from .config import Config
 
 log = logging.getLogger("oso.convert")
@@ -35,7 +35,7 @@ GOOGLE = {".gdoc": "document", ".gsheet": "spreadsheets", ".gslides": "presentat
 CONVERTIBLE = MARKITDOWN | OPENDOCUMENT | LEGACY | set(GOOGLE)
 
 _LO_TARGET = {".odt": "docx", ".doc": "docx", ".rtf": "docx", ".ods": "xlsx", ".odp": "pptx", ".ppt": "pptx"}
-SKIP_FOLDERS = {"Handwriting", "Quizzes", "Books", "pages", ".obsidian", ".trash"}  # books are read by books.py
+SKIP_FOLDERS = set(vault.SKIP_PARTS) | {"Books"}  # books are read by books.py
 
 
 def convert_vault(cfg: Config) -> list[Path]:
@@ -64,8 +64,8 @@ def convert_vault(cfg: Config) -> list[Path]:
                 "source": src.name,
                 "converted": notes.stamp(),
             }
-            out.write_text(notes.with_front_matter(fm, f"# {src.stem}\n\n{body.strip()}\n"), encoding="utf-8")
-            written.append(out)
+            if vault.write_note(out, fm, f"# {src.stem}\n\n{body.strip()}\n", vault.converted_copy):
+                written.append(out)
     return written
 
 

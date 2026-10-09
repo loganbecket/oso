@@ -23,12 +23,13 @@ from datetime import datetime
 from pathlib import Path
 
 from . import config as cfgmod
+from . import vault
 
 log = logging.getLogger("oso.watch")
 
 SETTLE_SECONDS = 20     # quiet time after the last change before taking files in
 HEARTBEAT_SECONDS = 300
-IGNORED_PARTS = {"pages", ".obsidian", ".trash", "Quizzes", "Canvas", "Announcements", "Web"}  # Oso fills these itself
+IGNORED_PARTS = (set(vault.SKIP_PARTS) - {"Handwriting"}) | set(vault.GENERATED_PARTS)  # Oso fills these itself
 _CONVERTED = re.compile(r"\.(pdf|docx?|pptx?|xlsx?|odt|odp|ods|rtf|epub|gdoc|gsheet|gslides|html?)\.md$", re.IGNORECASE)
 _CHAPTER = re.compile(r"^\d\d .+\.md$")
 _TEMP = re.compile(r"(^~\$|^\.~lock|\.part$|\.tmp$|\.crdownload$|\.download$|^\.)", re.IGNORECASE)
@@ -46,15 +47,20 @@ def matters(cfg: cfgmod.Config, path: Path) -> bool:
     name = parts[-1]
     if IGNORED_PARTS & set(parts) or _TEMP.search(name) or _CONVERTED.search(name):
         return False
-    if "Books" in parts:
-        i = parts.index("Books")
-        inside = parts[i + 1:]
-        # Oso writes Book.md and the numbered chapter notes; scans, clips, and highlights are his.
-        if len(inside) == 2 and (name == "Book.md" or _CHAPTER.match(name)):
-            return False
-    if "Notes" in parts and re.match(r"^\d{4}-\d\d-\d\d .+\.md$", name):
-        return False  # notes Oso transcribed from handwriting
+    if name.lower().endswith(".md"):
+        state = vault.ownership(path, _legacy)
+        if state == "ours":
+            return False  # Oso's own note (chapter notes, Book.md, transcribed handwriting), untouched by him
+        if state == "missing":  # just deleted or not yet readable: go by where it was and what it was called
+            if "Books" in parts and len(parts[parts.index("Books") + 1:]) == 2 and (name == "Book.md" or _CHAPTER.match(name)):
+                return False
+            if "Notes" in parts and re.match(r"^\d{4}-\d\d-\d\d .+\.md$", name):
+                return False
     return True
+
+
+def _legacy(fm: dict) -> bool:
+    return vault.textbook_note(fm) or vault.book_index(fm) or vault.transcribed_note(fm) or vault.converted_copy(fm)
 
 
 class Settler:

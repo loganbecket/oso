@@ -98,7 +98,9 @@ def write_inbox(conn: sqlite3.Connection, cfg: Config, now: datetime) -> int:
         existing += f"\n- {when} | {label}{describe(r)} | due {due}{link}{flags} {marker}"
         added += 1
     if added:
-        path.write_text(existing + "\n", encoding="utf-8")
+        from . import vault
+
+        vault.write_file(path, existing + "\n")
     return added
 
 

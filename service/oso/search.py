@@ -20,7 +20,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from . import config as cfgmod
-from . import notes
+from . import notes, vault
 from .config import Config
 
 log = logging.getLogger("oso.search")
@@ -28,7 +28,7 @@ log = logging.getLogger("oso.search")
 MODEL = "BAAI/bge-small-en-v1.5"
 DIM = 384
 ROOTS = ("Courses", "Clippings")
-SKIP_PARTS = {"pages", "Handwriting", "Quizzes", ".obsidian", ".trash"}
+SKIP_PARTS = set(vault.SKIP_PARTS)
 CHUNK_CHARS = 1500
 
 SCHEMA = """

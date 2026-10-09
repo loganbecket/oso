@@ -72,10 +72,10 @@ def _write_today(conn, cfg: Config, now: datetime) -> None:
         today.write(conn, cfg, now)
     except Exception as e:  # noqa: BLE001
         _record_failure("today")
-        path = cfg.vault / "Today.md"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(f"# Today\n\nOso couldn't build today's page ({plain_error(e)}). The next check will try again.\n",
-                        encoding="utf-8")
+        from . import vault
+
+        vault.write_file(cfg.vault / "Today.md",
+                         f"# Today\n\nOso couldn't build today's page ({plain_error(e)}). The next check will try again.\n")
         raise
 
 

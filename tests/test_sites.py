@@ -86,7 +86,7 @@ def test_follow_a_site_pages_documents_and_manners(env):
         web = next((cfg.vault / "Courses/2026 Fall/Physics/Web").iterdir())
         main = (web / "PHYS 110 - Dr. Lee.md").read_text(encoding="utf-8")
         assert "type: web-page" in main and "# General Physics" in main and "Office hours" in main and "University home" not in main
-        assert (web / "Week 5.md").exists()
+        assert list(web.glob("Week 5*.md"))  # a subpage carries a short tag from its address
         assert (web / "files" / "hw6.pdf").read_bytes() == b"%PDF-1.4 homework six" and (web / "files" / "slides5.pptx").exists()
         assert "/~lee/other/" not in HITS and "/private/secret.html" not in HITS  # outside the course's folder; disallowed by robots.txt
         assert [r["text"] for r in sites.recent_events(conn, now + timedelta(hours=1))] == [

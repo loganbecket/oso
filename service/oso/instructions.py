@@ -77,5 +77,7 @@ def write(cfg: Config) -> Path | None:
     if mine:
         text += RULES.format(rules="\n".join(f"- {w}" for w in mine))
     if not path.exists() or path.read_text(encoding="utf-8", errors="replace") != text:
-        path.write_text(text, encoding="utf-8")
+        from . import vault
+
+        vault.write_file(path, text)
     return path

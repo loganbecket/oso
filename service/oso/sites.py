@@ -32,7 +32,7 @@ from urllib.parse import unquote, urldefrag, urljoin, urlparse
 
 import requests
 
-from . import notes
+from . import notes, vault
 from .config import Config
 
 log = logging.getLogger("oso.sites")
@@ -317,9 +317,9 @@ def _check_site(cfg: Config, conn: sqlite3.Connection, fetcher: _Fetcher, course
             changed = prev is None or prev["content_hash"] != digest
             if changed:
                 folder.mkdir(parents=True, exist_ok=True)
-                note = folder / f"{notes.safe_name(title)[:80]}.md"
+                note = folder / _note_name(root, url, title)
                 fm = {"type": "web-page", "course": course, "source": url, "fetched": now.isoformat(timespec="minutes")}
-                note.write_text(notes.with_front_matter(fm, f"# {title}\n\n{text}\n"), encoding="utf-8")
+                vault.write_note(note, fm, f"# {title}\n\n{text}\n", vault.web_page)
                 counts["pages_changed"] += 1
                 if prev is not None and not first_time:
                     _event(conn, course, when, f"{_site_name(root)}: \"{title}\" changed")
@@ -378,15 +378,21 @@ def _fetch_file(cfg, conn, fetcher, course, root, folder, url, when) -> str | No
             return None
         name = notes.safe_name(Path(unquote(urlparse(url).path)).name, limit=120) or "file"
         dest = folder / "files" / name
+        if prev is None and dest.exists():  # another address on the site has a document of the same name
+            dest = dest.with_name(f"{dest.stem} {_short(url)}{dest.suffix}")
         dest.parent.mkdir(parents=True, exist_ok=True)
         tmp = dest.with_name(dest.name + ".part")
         written = 0
-        with tmp.open("wb") as f:
-            for chunk in r.iter_content(1 << 16):
-                written += len(chunk)
-                if written > MAX_FILE_MB * 1024 * 1024:
-                    break
-                f.write(chunk)
+        try:
+            with tmp.open("wb") as f:
+                for chunk in r.iter_content(1 << 16):
+                    written += len(chunk)
+                    if written > MAX_FILE_MB * 1024 * 1024:
+                        break
+                    f.write(chunk)
+        except (requests.RequestException, OSError):
+            tmp.unlink(missing_ok=True)
+            return None
         if written > MAX_FILE_MB * 1024 * 1024:
             tmp.unlink(missing_ok=True)
             return None
@@ -463,6 +469,17 @@ def status(conn: sqlite3.Connection, cfg: Config) -> list[dict]:
             out.append({"course": c.code, "site": root, "status": row["status"] if row else "not checked yet",
                         "checked_at": row["checked_at"] if row else None, "pages": pages, "files": files})
     return out
+
+
+def _short(url: str) -> str:
+    return hashlib.sha256(url.encode("utf-8")).hexdigest()[:6]
+
+
+def _note_name(root: str, url: str, title: str) -> str:
+    """The followed page keeps its title as its name; every other page carries a short tag from its address, so
+    two pages with the same title (most faculty sites title every page after the course) do not overwrite each other."""
+    base = notes.safe_name(title)[:72]
+    return f"{base}.md" if url == root else f"{base} {_short(url)}.md"
 
 
 def normalize(url: str) -> str:

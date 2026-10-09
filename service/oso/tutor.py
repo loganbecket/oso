@@ -584,5 +584,7 @@ def write_how_i_learn(conn: sqlite3.Connection, cfg: Config, now: datetime) -> P
     text = "\n".join(lines)
     old = path.read_text(encoding="utf-8") if path.exists() else None
     if old is None or old.split("---", 2)[-1] != text.split("---", 2)[-1]:
-        path.write_text(text, encoding="utf-8")
+        from . import vault
+
+        vault.write_file(path, text)
     return path

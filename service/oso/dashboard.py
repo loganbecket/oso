@@ -13,9 +13,9 @@ from .db import EFFECTIVE, connector_health
 
 
 def write(conn: sqlite3.Connection, cfg: Config, now: datetime) -> Path:
-    path = cfg.vault / "Dashboard.md"
-    path.write_text(render(conn, cfg, now), encoding="utf-8")
-    return path
+    from . import vault
+
+    return vault.write_file(cfg.vault / "Dashboard.md", render(conn, cfg, now))
 
 
 def render(conn: sqlite3.Connection, cfg: Config, now: datetime) -> str:

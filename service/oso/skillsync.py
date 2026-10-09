@@ -16,10 +16,14 @@ Files the student adds to `Oso/Skills/` that Oso does not ship are never touched
 
 from __future__ import annotations
 
+import logging
+
 from pathlib import Path
 
 from . import config as cfgmod
 from .config import Config
+
+log = logging.getLogger("oso.skillsync")
 
 SHIPPED = Path(__file__).parent / "skills"
 VAULT_DIR = ("Oso", "Skills")
@@ -38,9 +42,11 @@ def vault_file(cfg: Config, name: str) -> Path:
 
 
 def _read(p: Path) -> str | None:
+    """The file's text, or None when there is no such file. Any other trouble reading it is raised: a file that
+    exists but cannot be read right now (Drive still fetching it, a lock) must not be taken for a missing one."""
     try:
         return p.read_text(encoding="utf-8")
-    except (FileNotFoundError, OSError):
+    except FileNotFoundError:
         return None
 
 
@@ -63,9 +69,13 @@ def sync(cfg: Config, state: Path | None = None) -> list[str]:
     conflicts = []
     for name, new in shipped().items():
         local_path = vault_file(cfg, name)
-        local = _read(local_path)
         base_path, pending_path = st / "base" / f"{name}.md", st / "new" / f"{name}.md"
-        base = _read(base_path)
+        try:
+            local = _read(local_path)
+            base = _read(base_path)
+        except OSError as e:
+            log.warning("skipping the %s command this time: %s", name, type(e).__name__)
+            continue
         if local is None or _same(local, base) or _same(local, new):
             if not _same(local, new):
                 _write(local_path, new)

@@ -24,7 +24,7 @@ from collections import Counter
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from . import profile
+from . import profile, vault
 from .config import Config
 
 CREDIT = {"right": 1.0, "partly_right": 0.5, "wrong": 0.0, "skipped": 0.0}
@@ -194,7 +194,7 @@ def write_all(conn: sqlite3.Connection, cfg: Config, now: datetime | None = None
         text = render(p, cfg, now)
         old = path.read_text(encoding="utf-8") if path.exists() else None
         if old is None or old.split("---", 2)[-1] != text.split("---", 2)[-1]:
-            path.write_text(text, encoding="utf-8")
+            vault.write_file(path, text)
         written.append(path)
     how = tutor.write_how_i_learn(conn, cfg, now)
     if how:

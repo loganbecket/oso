@@ -15,7 +15,7 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
-from . import handwriting, notes
+from . import handwriting, notes, vault
 from .config import Config
 
 log = logging.getLogger("oso.transcribe")
@@ -55,10 +55,11 @@ def run(conn: sqlite3.Connection, cfg: Config, limit: int = 200, model: str | No
 
     for (course, notebook, _source), items in by_notebook.items():
         note_path = _note_path(cfg, course, notebook, items[0]["queued_at"])
-        first = not note_path.exists()
-        if first:
-            note_path.parent.mkdir(parents=True, exist_ok=True)
-            note_path.write_text(_header(cfg, course, notebook), encoding="utf-8")
+        if vault.ownership(note_path, vault.transcribed_note) in ("edited", "theirs"):
+            note_path = note_path.with_name(f"{note_path.stem} (continued).md")  # his edits stay his; new pages go beside them
+        if not note_path.exists():
+            fm, body = _header(cfg, course, notebook)
+            vault.write_note(note_path, fm, body)
         lowest: float | None = None
         for p in items:
             try:
@@ -67,8 +68,8 @@ def run(conn: sqlite3.Connection, cfg: Config, limit: int = 200, model: str | No
                 log.warning("page %s of %s failed: %s", p["page"], notebook, type(e).__name__)
                 counts["failed"] += 1
                 continue
-            with note_path.open("a", encoding="utf-8") as f:
-                f.write(f"\n## Page {p['page']}\n\n{text.strip()}\n\n![[{p['path']}]]\n")
+            fm, body = notes.read_front_matter(note_path.read_text(encoding="utf-8"))
+            vault.write_note(note_path, fm, body.rstrip("\n") + f"\n\n## Page {p['page']}\n\n{text.strip()}\n\n![[{p['path']}]]\n")
             handwriting.mark(conn, p["path"], str(note_path.relative_to(cfg.vault)), conf)
             conn.commit()
             counts["pages"] += 1
@@ -111,14 +112,13 @@ def _note_path(cfg: Config, course: str | None, notebook: str, queued_at: str) -
     return cfg.vault / "Courses" / c.folder / "Notes" / name
 
 
-def _header(cfg: Config, course: str | None, notebook: str) -> str:
+def _header(cfg: Config, course: str | None, notebook: str) -> tuple[dict, str]:
     c = cfg.course_for(course)
     fm = {"type": "notes", "course": c.code if c else None, "source": "handwriting", "notebook": notebook, "transcribed": notes.stamp(), "confidence": None}
-    return notes.with_front_matter(fm, f"# {notebook}\n")
+    return fm, f"# {notebook}\n"
 
 
 def _set_confidence(note_path: Path, value: float) -> None:
-    text = note_path.read_text(encoding="utf-8")
-    fm, body = notes.read_front_matter(text)
+    fm, body = notes.read_front_matter(note_path.read_text(encoding="utf-8"))
     fm["confidence"] = round(value, 2)
-    note_path.write_text(notes.with_front_matter(fm, body), encoding="utf-8")
+    vault.write_note(note_path, fm, body)

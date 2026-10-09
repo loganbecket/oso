@@ -17,7 +17,7 @@ from zoneinfo import ZoneInfo
 
 import requests
 
-from .. import notes
+from .. import notes, vault
 from ..config import Config
 from ..db import Item
 
@@ -242,10 +242,7 @@ class CanvasApi:
             index.append("")
         if modules:
             dest.mkdir(parents=True, exist_ok=True)
-            text = notes.with_front_matter({"type": "canvas-modules", "course": code}, "\n".join(index) + "\n")
-            target = dest / "Modules.md"
-            if not target.exists() or target.read_text(encoding="utf-8") != text:
-                target.write_text(text, encoding="utf-8")
+            vault.write_note(dest / "Modules.md", {"type": "canvas-modules", "course": code}, "\n".join(index) + "\n", vault.canvas_note)
         return counts
 
     def _module_file(self, course_id: int, code: str, file_id: int, folder: Path, seen: set[int], module: str):
@@ -302,10 +299,9 @@ class CanvasApi:
         prefix = "" if kind == "page" else f"{kind.title()} - "
         target = folder / f"{prefix}{notes.safe_name(heading)[:80]}.md"
         fm = {"type": f"canvas-{kind}", "updated": doc.get("updated_at"), "due": doc.get("due_at"), "source": doc.get("html_url")}
-        text = notes.with_front_matter(fm, body)
-        if not target.exists() or target.read_text(encoding="utf-8") != text:
-            folder.mkdir(parents=True, exist_ok=True)
-            target.write_text(text, encoding="utf-8")
+        before = vault.ownership(target, vault.canvas_note)
+        same = before == "ours" and target.read_text(encoding="utf-8", errors="replace") == notes.with_front_matter({**fm, vault.MARK: vault.body_hash(body)}, body)
+        if not same and vault.write_note(target, fm, body, vault.canvas_note):
             counts["pages"] += 1
         return target.relative_to(self.cfg.vault).with_suffix("").as_posix()
 
@@ -374,7 +370,7 @@ class CanvasApi:
             dest.mkdir(parents=True, exist_ok=True)
             fm = {"type": "announcement", "posted": posted.isoformat(timespec="minutes") if posted else None, "source": a.get("html_url")}
             body = f"# {a.get('title', 'Announcement')}\n\n{_strip_html(a.get('message') or '')}\n"
-            target.write_text(notes.with_front_matter(fm, body), encoding="utf-8")
+            vault.write_note(target, fm, body, vault.canvas_note)
             n += 1
             if posted and posted >= recent:  # older ones are history, not news
                 course = self.cfg.resolve(code)

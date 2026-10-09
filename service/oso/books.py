@@ -30,7 +30,7 @@ import time
 import zipfile
 from pathlib import Path, PurePosixPath
 
-from . import notes
+from . import notes, vault
 from .config import Config
 
 log = logging.getLogger("oso.books")
@@ -371,13 +371,9 @@ def _note_name(n: int, title: str) -> str:
 
 
 def _is_chapter_note(path: Path) -> bool:
-    """True for a chapter note Oso wrote: textbook front matter with a chapter. A student's own file, or a
-    scraped page, has no such marker and is never touched."""
-    try:
-        fm, _ = notes.read_front_matter(path.read_text(encoding="utf-8", errors="replace")[:4000])
-    except OSError:
-        return False
-    return isinstance(fm, dict) and fm.get("type") == "textbook" and bool(fm.get("chapter"))
+    """True for a chapter note Oso wrote and the student has not touched. His own file, a scraped page, or a
+    chapter note he rewrote is never touched."""
+    return vault.is_ours(path, vault.textbook_note)
 
 
 def render(cfg: Config, book: dict, state: dict, conn=None) -> list[Path]:
@@ -417,10 +413,9 @@ def render(cfg: Config, book: dict, state: dict, conn=None) -> list[Path]:
         fm = {"type": "textbook", "course": course, "book": title, "author": author or None, "edition": edition,
               "chapter": ch["title"], "pages": pages}
         path = folder / _note_name(n, ch["title"])
-        if path.exists() and not _is_chapter_note(path):
+        if not vault.write_note(path, fm, f"# {ch['title']}\n\n{body}\n", vault.textbook_note):
             index.append((ch["title"], pages, path.stem))  # the student made this one his own; leave it as it is
             continue
-        path.write_text(notes.with_front_matter(fm, f"# {ch['title']}\n\n{body}\n"), encoding="utf-8")
         written.append(path)
         index.append((ch["title"], pages, path.stem))
     _write_index(cfg, book, state, index, poor_pages, conn)
@@ -450,7 +445,7 @@ def _write_index(cfg: Config, book: dict, state: dict, index: list, poor_pages: 
     fm = {"type": "book", "course": book["course"], "title": state.get("title"), "author": state.get("author") or None,
           "edition": state.get("edition"), "source": ", ".join(f.name for f in book["files"]) if book["kind"] != "scan" else "Scans/",
           "pages": total or None}
-    (folder / "Book.md").write_text(notes.with_front_matter(fm, "\n".join(lines)), encoding="utf-8")
+    vault.write_note(folder / "Book.md", fm, "\n".join(lines), vault.book_index)
 
 
 def assigned_readings(conn, course: str) -> list[str]:

@@ -448,6 +448,16 @@ def move_book(book: str, course: str) -> str:
 
 
 @mcp.tool()
+def save_book_page(course: str, book: str, page: str, text: str, url: str | None = None) -> str:
+    """Save a textbook page read in Chrome into the course's copy of that book. text is the full transcription in
+    Markdown; split pages with "## p. N" headings when the web page spans more than one. page: the first printed page
+    number, or the section number and title when the site has no page numbers."""
+    from . import filing
+
+    return filing.save_book_page(_cfg(), course, book, page, text, url)
+
+
+@mcp.tool()
 def recently_filed_clips(days: int = 14) -> list[dict]:
     """Clips Oso filed by itself lately, with where they went. Course setup uses it when the syllabus isn't in Clippings."""
     from datetime import UTC

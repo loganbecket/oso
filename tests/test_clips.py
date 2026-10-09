@@ -121,3 +121,24 @@ def test_the_template_has_no_course_box():
     t = json.loads((Path(__file__).parent.parent / "obsidian" / "web-clipper-template.json").read_text())
     names = [p["name"] for p in t["properties"]]
     assert "course" not in names and "book" in names and "page" in names
+
+
+def test_a_page_read_in_chrome_joins_the_courses_book_and_replaces_itself(env):
+    cfg, conn = env
+    clip(cfg, "p1", "A page about charge.", book="Fundamentals of Physics, Halliday", page="'12'", course="PHYS-120")
+    filing.file_clippings(cfg, conn)
+    clipped = cfg.vault / "Courses/2026 Fall/Physics 2/Books/Fundamentals of Physics, Halliday/Clipped"
+    assert filing.save_book_page(cfg, "Physics 2", "Halliday", "13", "Text.\n\n> Figure 2.1: a charged rod.", "https://x") \
+        == "Saved to Courses/2026 Fall/Physics 2/Books/Fundamentals of Physics, Halliday/Clipped/p. 13.md."
+    page = (clipped / "p. 13.md").read_text()
+    assert "## p. 13" in page and "type: textbook" in page and "course: PHYS-120" in page and "Figure 2.1" in page
+    filing.save_book_page(cfg, "PHYS-120", "Halliday", "13", "Better text.")
+    assert "Better text." in (clipped / "p. 13.md").read_text() and not (clipped / "p. 13 (2).md").exists()
+    # A page he clipped himself is never replaced.
+    (clipped / "p1.md").rename(clipped / "p. 12.md")
+    filing.save_book_page(cfg, "PHYS-120", "Halliday", "12", "Mine.")
+    assert "A page about charge." in (clipped / "p. 12.md").read_text() and (clipped / "p. 12 (2).md").exists()
+    # No page numbers on the site: the section names it.
+    filing.save_book_page(cfg, "PHYS-120", "Halliday", "4.2 Projectile Motion", "Text.")
+    assert (clipped / "4.2 Projectile Motion.md").read_text().split("---")[2].lstrip().startswith("## 4.2 Projectile Motion")
+    assert filing.save_book_page(cfg, "NOPE", "Halliday", "1", "x") == "There is no course 'NOPE'."

@@ -12,7 +12,7 @@ Drop the book in the course's `Books` folder (for example `Courses/2026 Fall/Phy
 
 - **A PDF or EPUB** (one without copy protection): drop the file in `Books`. Oso reads it on the next check. A big book takes a few checks; `oso books` shows how far along it is.
 - **A scanned book or chapter, or photos of pages**: make a folder for the book with a `Scans` folder inside, `Books/<title>/Scans/`, and put the scans there, named so they sort in page order. Scans you add later join the end of the book.
-- **A book in a publisher's app or website**: print chapters to PDF and drop them in `Books`. Or take screenshots of pages and put them in `Books/<title>/Scans/`. Or clip pages with the Web Clipper, typing the book's title in the `book` box and the page number in `page`; each clip joins that book (see [Notes and Handwriting](notes-and-handwriting.md)).
+- **A book in a publisher's app or website**: open a page in Chrome and run `/scrape-page` with the course; Claude saves the page, figures described (see [Saving Textbook Pages from Chrome](scrape-page.md)). Or print chapters to PDF and drop them in `Books`. Or take screenshots of pages and put them in `Books/<title>/Scans/`. Or clip pages with the Web Clipper, typing the book's title in the `book` box and the page number in `page`; each clip joins that book (see [Notes and Handwriting](notes-and-handwriting.md)).
 - **Highlights and notes** exported from a reader app go in `Books/<title>/Highlights/`. They're kept as your notes, not as the book.
 
 Then:

@@ -8,7 +8,7 @@ Oso runs on Windows, macOS, and Linux. Setup takes about an hour, most of it ins
 4. [Install the Oso plugin](#install-the-oso-plugin)
 5. [Set up your courses](#set-up-your-courses)
 6. [Schedule the morning briefing](#schedule-the-morning-briefing)
-7. Optional extras: [a shared Google Drive folder](#a-shared-google-drive-folder), [a reMarkable tablet](#your-remarkable-tablet) if you have one
+7. Optional extras: [Claude in Chrome](#claude-in-chrome), [a shared Google Drive folder](#a-shared-google-drive-folder), [a reMarkable tablet](#your-remarkable-tablet) if you have one
 
 ---
 
@@ -218,6 +218,13 @@ The plugin is the set of instructions that teach Claude how to use Oso.
 In Cowork, create a scheduled task that runs every day at the time you wake up, with the instruction *"Run the oso-briefing skill."* It reads your day from the vault through Google Drive, and the result appears in the Claude app on your phone. It runs in Claude's cloud, so it works even when your computer is off. More in [The morning briefing](features/morning-briefing.md).
 
 ---
+
+## Claude in Chrome
+
+Needed only for `/scrape-page`, which saves online textbook pages to a course's book.
+
+1. Install the Claude extension from the Chrome Web Store ([claude.ai/chrome](https://claude.ai/chrome)) and sign in with your Claude account.
+2. The first time you run `/scrape-page` on a textbook site, allow Claude to read that site when the extension asks.
 
 ## A shared Google Drive folder
 

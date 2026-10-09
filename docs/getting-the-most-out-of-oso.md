@@ -34,6 +34,7 @@ Type `/` in the message box to see every Oso command, or just ask in plain Engli
 | `/oso-summarize` | You want the key points of a lecture, chapter, or reading |
 | `/oso-flashcards` | You need to memorize terms, formulas, or definitions |
 | `/oso-check-notes` | You want your notes compared against the textbook for mistakes and gaps |
+| `/scrape-page` | You're reading an online textbook in Chrome and want the page saved to the course's book |
 | `/oso-grades` | You want to know where you stand, or what you need on the final |
 | `/oso-profile` | You want to know what you're strong and weak at in a course |
 | `/create-course` | You're adding a new class (have the syllabus handy) |

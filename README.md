@@ -30,6 +30,7 @@ Setup takes about an hour, most of it installing and signing in to apps. Follow 
 - **[Where you stand](docs/features/where-you-stand.md)**: Oso tracks each topic from your actual results, tells you honestly where you're behind, and warns you when an exam is close and you aren't ready.
 - **[Grades](docs/features/grades.md)**: every class's grade side by side in the Oso window, lowest first, with the work pulling each one down.
 - **[Textbooks](docs/features/textbooks.md)**: put your textbook in the course folder and Claude cites it by page, and checks your notes against it.
+- **[Saving textbook pages from Chrome](docs/features/scrape-page.md)**: `/scrape-page` and a course saves the online textbook page you're reading as part of that course's book, with every diagram written out.
 - **[Notes and handwriting](docs/features/notes-and-handwriting.md)**: web clippings filed into the right course, course files made searchable, and handwritten notes, scanned or photographed, turned into text.
 
 ### Your sources

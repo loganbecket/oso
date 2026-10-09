@@ -163,6 +163,34 @@ def _syllabus_names(cfg: Config, course: Course, book: str) -> bool:
     return False
 
 
+SCRAPED = "scraped page"
+
+
+def save_book_page(cfg: Config, course_code: str, book: str, page: str, text: str, url: str | None = None) -> str:
+    """Save a page Claude read from an online textbook in Chrome (/scrape-page) into that course's copy of the book,
+    beside clipped pages. Reading the same page again replaces the earlier reading; a page he clipped is never touched."""
+    course = _match(cfg, course_code) or cfg.course_for(course_code)
+    if course is None:
+        return f"There is no course {course_code!r}."
+    book, page, text = book.strip(), str(page).strip(), text.strip()
+    if not book or not page or not text:
+        return "Nothing saved: the book title, the page (or section), and the page's text are all needed."
+    numbered = bool(re.fullmatch(r"\d+|[ivxlcdm]+", page, re.IGNORECASE))
+    folder = book_folder(cfg, course, book) or notes.safe_name(book)
+    dest = cfg.vault / "Courses" / course.folder / "Books" / folder / "Clipped" / f"{notes.safe_name(f'p. {page}' if numbered else page)}.md"
+    if dest.exists():
+        old, _ = notes.read_front_matter(dest.read_text(encoding="utf-8", errors="replace"))
+        if old.get("source") != SCRAPED:
+            dest = _free(dest)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    if not text.startswith("## "):
+        text = f"## {'p. ' if numbered else ''}{page}\n\n{text}"
+    fm = {"type": "textbook", "course": course.code, "book": folder, "page": page, "source": SCRAPED, "url": url or None,
+          "saved": datetime.now(UTC).date().isoformat()}
+    dest.write_text(notes.with_front_matter({k: v for k, v in fm.items() if v is not None}, text + "\n"), encoding="utf-8")
+    return f"Saved to {dest.relative_to(cfg.vault).as_posix()}."
+
+
 def move_book(cfg: Config, book: str, course_code: str, conn: sqlite3.Connection | None = None) -> str:
     """Move a whole book (every page clipped so far; later pages follow) to another course."""
     to = _match(cfg, course_code) or cfg.course_for(course_code)

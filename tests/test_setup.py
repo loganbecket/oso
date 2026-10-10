@@ -102,6 +102,19 @@ def test_window_walks_through_setup(settings_file: Path, tmp_path: Path, monkeyp
 
     root.update()
     assert title() == "A Google account"
+    from oso import gcal, mail, tasks
+
+    for module in (gcal, mail, tasks):
+        monkeypatch.setattr(module, "connected", lambda: True)
+    assert _find(wizard.page, ttk.Button, "Skip for now") is None  # nothing else is worth doing without email
+    while title() != "Connect email, calendar, and tasks":
+        press("Next")
+    for _ in range(40):  # the connections are checked off the window's thread
+        root.update()
+        if str(_find(wizard.page, ttk.Button, "Next").cget("state")) == "normal":
+            break
+        root.after(50)
+    press("Next")
     while title() != "Choose your vault":  # done before there are settings: kept until the vault is chosen
         press("Done")
     press("Next")
@@ -126,10 +139,6 @@ def test_window_walks_through_setup(settings_file: Path, tmp_path: Path, monkeyp
     press("Done")
     press("Skip for now")
     assert setup_gui.remaining(cfgmod.load())[0] == "claude_code"
-    while title() != "Register your own copy of Oso":
-        press("Skip for now")
-    press("Skip all of these")
-    assert title() == "GroupMe"
     while title() != "You're set up":
         press("Skip for now")
     assert cfgmod.load().setup_finished

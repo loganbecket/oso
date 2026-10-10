@@ -780,7 +780,7 @@ def _email_client_file():
 
     if gcal.client_config():
         return None
-    path = filedialog.askopenfilename(title="Choose the OAuth client file from Google Cloud (the one used for the Oso calendar)",
+    path = filedialog.askopenfilename(title="Choose the client file you downloaded from Google Cloud",
                                       filetypes=[("JSON", "*.json"), ("All files", "*")])
     return Path(path) if path else False
 

@@ -10,16 +10,15 @@ Getting Oso running touches a handful of apps and accounts: Google, Obsidian, Ca
 
 The installer opens it once it has installed Oso. The parts, in order:
 
-- **Google**: a Google account, and Google Drive on your computer.
+- **Google**: choose the Google account Oso uses (a new one just for Oso, or the one you already have; the window lays out what each means), register your own private copy of Oso with Google a page at a time, connect your email, calendar, and tasks, then install Google Drive on your computer.
 - **Obsidian**: install it, make your vault inside your Google Drive folder, and choose that vault for Oso, along with your time zone (filled in from your computer).
 - **Canvas**: paste your Canvas calendar feed address, then sign in to Canvas. The sign-in step ticks itself off once you're in. (On Linux, Canvas sign-in isn't available; skip it.)
 - **Claude**: the Pro plan and its privacy setting, the Claude apps, Claude Code, the Oso plugin, Google in Claude, and the School project.
 - **Obsidian add-ons**: the Web Clipper with Oso's template (the window downloads the template for you), and the flashcard and course list plugins.
 - **Your first course**: set it up from its syllabus with `/create-course`.
-- **Calendar, email, and tasks**: registering your own private copy of Oso with Google, a page at a time, then connecting Oso's calendar, Google Tasks, and your school email. **Skip all of these** passes over the whole run.
 - **GroupMe**, **Morning briefing**, **Claude in Chrome**, and **reMarkable tablet**: optional extras.
 
-Choosing your vault and adding Canvas are needed before Oso can run. Everything else has **Done** and **Skip for now**; if you already have something (Obsidian, say), just press **Done**. **Back** returns to an earlier step. Closing the window loses nothing: every step is remembered the moment you finish or skip it. Once your Canvas calendar is in, Oso starts checking for changes on its own, even if you stop there.
+The Google steps come first and can't be skipped: nothing else is worth doing until Oso can read your email. Choosing your vault and adding Canvas can't be skipped either. Everything else has **Done** and **Skip for now**; if you already have something (Obsidian, say), just press **Done**. **Back** returns to an earlier step. Closing the window loses nothing: every step is remembered the moment you finish or skip it. Once your Canvas calendar is in, Oso starts checking for changes on its own, even if you stop there.
 
 ## Coming back to it
 
@@ -29,8 +28,8 @@ Once every step is done or skipped, setup is over and the question never comes b
 
 ## Getting the most out of it
 
-- **Go straight through Google, Obsidian, and Canvas.** With the vault and Canvas in, Oso has your deadlines on its first check.
+- **Go straight through Obsidian and Canvas after Google.** With the vault and Canvas in, Oso has your deadlines on its first check.
 - **Skip what you don't use.** GroupMe, Chrome, and the reMarkable are only for students who use them. Skipping costs nothing, and the Status tab still offers them later.
-- **Set aside ten minutes for calendar, email, and tasks**, or skip them for now. Oso works without them; urgent changes just stay in your briefing until they're connected.
+- **Set aside ten minutes for the Google steps.** They're the longest part, and the rest goes quickly after them.
 - **Set up one course, not all of them.** The first course is enough to see Oso working; add the rest whenever you have their syllabi.
 - **Keep the installer's window open** until you close the setup window; it finishes the install after that.

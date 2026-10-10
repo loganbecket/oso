@@ -30,11 +30,15 @@ REPO = "loganbecket/oso"
 TEMPLATE_URL = f"https://raw.githubusercontent.com/{REPO}/master/obsidian/web-clipper-template.json"
 CLOUD = "https://console.cloud.google.com"
 
-GOOGLE_CLOUD = "Calendar, email, and tasks"
-
 # (step, group in the side list, page title)
 STEPS = [
     ("google_account", "Google", "A Google account"),
+    ("g_project", "Google", "Register your own copy of Oso"),
+    ("g_apis", "Google", "Turn on the three services"),
+    ("g_app", "Google", "Name your app"),
+    ("g_publish", "Google", "Publish it"),
+    ("g_client", "Google", "Download the client file"),
+    ("g_connect", "Google", "Connect email, calendar, and tasks"),
     ("google_drive", "Google", "Google Drive on this computer"),
     ("obsidian_install", "Obsidian", "Install Obsidian"),
     ("obsidian_vault", "Obsidian", "Make your vault"),
@@ -50,12 +54,6 @@ STEPS = [
     ("web_clipper", "Obsidian add-ons", "The Web Clipper"),
     ("obsidian_plugins", "Obsidian add-ons", "Flashcards and course lists"),
     ("first_course", "Your first course", "Your first course"),
-    ("g_project", GOOGLE_CLOUD, "Register your own copy of Oso"),
-    ("g_apis", GOOGLE_CLOUD, "Turn on the three services"),
-    ("g_app", GOOGLE_CLOUD, "Name your app"),
-    ("g_publish", GOOGLE_CLOUD, "Publish it"),
-    ("g_client", GOOGLE_CLOUD, "Download the client file"),
-    ("g_connect", GOOGLE_CLOUD, "Connect them"),
     ("groupme", "GroupMe", "GroupMe"),
     ("briefing", "Morning briefing", "The morning briefing"),
     ("chrome", "Claude in Chrome", "Claude in Chrome"),
@@ -63,7 +61,10 @@ STEPS = [
 ]
 STEP_IDS = [s for s, _, _ in STEPS]
 GROUPS = list(dict.fromkeys(g for _, g, _ in STEPS))
-REQUIRED = {"folder", "canvas_feed", "canvas_sign_in"}
+# Nothing else is worth doing until Oso can read the student's email: the Google account and its connection
+# come first and can't be skipped, then the vault and Canvas.
+REQUIRED = {"google_account", "g_project", "g_apis", "g_app", "g_publish", "g_client", "g_connect",
+            "folder", "canvas_feed", "canvas_sign_in"}
 BEFORE_FOLDER = STEP_IDS[:STEP_IDS.index("folder")]  # done before there are settings to record them in
 
 # Windows names its zones its own way; these cover the time zones in the settings list.
@@ -334,9 +335,6 @@ class Wizard:
         self.next_button.pack(side="right")
         if step not in REQUIRED or (step == "canvas_sign_in" and _linux()):
             ttk.Button(nav, text="Skip for now", command=lambda: self.advance(step)).pack(side="right", padx=8)
-        if step == "g_project":
-            rest = [s for s, g, _ in STEPS if g == GOOGLE_CLOUD]
-            ttk.Button(nav, text="Skip all of these", command=lambda: self.advance(*rest)).pack(side="right")
         getattr(self, f"page_{step}")(content)
 
     def advance(self, *steps: str) -> None:
@@ -655,8 +653,8 @@ class Wizard:
     # -- Google Cloud
 
     def page_g_project(self, frame) -> None:
-        self.why(frame, "To use your calendar, email, and tasks, Oso must be registered with Google. You register your own "
-                        "private copy: free, about ten minutes. Without it, alerts stay in your briefing.")
+        self.why(frame, "Google lets only registered apps use your email, calendar, and tasks, so you register your own "
+                        "private copy of Oso. It's free and takes about ten minutes.")
         self.steps(frame, "Press Open Google Cloud and sign in with your Oso Google account.",
                    "Click the project picker at the top, then New project.",
                    "Name it Oso, click Create, then select it in the project picker.")
@@ -691,20 +689,20 @@ class Wizard:
     def page_g_connect(self, frame) -> None:
         self.why(frame, "Google will say the app isn't verified, because it's your private copy. Click Advanced, then Go to "
                         "Oso.")
-        self.steps(frame, "Press Connect Google Calendar and pick the file you downloaded.",
-                   "Press Connect Google Tasks.",
-                   "Forward your school email to your Oso Gmail, then press Connect email.")
-        from . import actions
+        self.steps(frame, "Forward your school email to your Oso Gmail.",
+                   "Press Connect email and pick the file you downloaded.",
+                   "Press Connect Google Calendar, then Connect Google Tasks.")
+        from . import actions, gcal, mail, tasks
         from .settings_gui import _connect_calendar, _email_client_file
 
         def calendar() -> None:
-            path = filedialog.askopenfilename(parent=self.win, title="Choose the client file you downloaded from Google Cloud",
-                                              filetypes=[("JSON", "*.json"), ("All files", "*")])
-            if not path:
+            client = _email_client_file()
+            if client is False:
                 self.say("No file chosen.")
                 return
-            cfg = self.cfg()
-            self.background("Connecting Google Calendar (sign in in your browser)", lambda: _connect_calendar(cfg, Path(path)))
+            # The calendar is made in the student's time zone; before the vault is chosen that's the computer's.
+            cfg = self.cfg() or cfgmod.Config(vault=Path.home(), timezone=local_timezone())
+            self.background("Opening the Google sign-in in your browser", lambda: _connect_calendar(cfg, client))
 
         def google(connect) -> None:
             client = _email_client_file()
@@ -713,9 +711,49 @@ class Wizard:
                 return
             self.background("Opening the Google sign-in in your browser", lambda: connect(client))
 
-        ttk.Button(frame, text="Connect Google Calendar…", command=calendar).pack(anchor="w", pady=3)
-        ttk.Button(frame, text="Connect Google Tasks…", command=lambda: google(actions.connect_tasks)).pack(anchor="w", pady=3)
-        ttk.Button(frame, text="Connect email…", command=lambda: google(actions.connect_email)).pack(anchor="w", pady=3)
+        rows = {}
+        for key, label, command in (("email", "Connect email…", lambda: google(actions.connect_email)),
+                                    ("calendar", "Connect Google Calendar…", calendar),
+                                    ("tasks", "Connect Google Tasks…", lambda: google(actions.connect_tasks))):
+            row = ttk.Frame(frame)
+            row.pack(anchor="w", pady=3)
+            ttk.Button(row, text=label, command=command, width=26).pack(side="left")
+            rows[key] = ttk.Label(row, text="Not connected yet.", foreground="#666")
+            rows[key].pack(side="left", padx=10)
+
+        def states() -> dict:
+            out = {}
+            for key, connected in (("email", mail.connected), ("calendar", gcal.connected), ("tasks", tasks.connected)):
+                try:
+                    out[key] = bool(connected())
+                except Exception:  # noqa: BLE001
+                    out[key] = False
+            return out
+
+        def check() -> None:
+            if not self.polling or not self.win.winfo_exists():
+                return
+            box: dict = {}
+
+            def wait() -> None:
+                if not self.polling or not self.win.winfo_exists():
+                    return
+                if "states" not in box:
+                    self.win.after(300, wait)
+                    return
+                for key, ok in box["states"].items():
+                    rows[key].configure(text="Connected." if ok else "Not connected yet.", foreground="#2e7d32" if ok else "#666")
+                if all(box["states"].values()):
+                    self.next_button.configure(state="normal")
+                else:
+                    self.win.after(2000, check)
+
+            threading.Thread(target=lambda: box.update(states=states()), daemon=True).start()
+            self.win.after(300, wait)
+
+        self.next_button.configure(state="disabled")
+        self.polling = True
+        check()
 
     # -- extras
 

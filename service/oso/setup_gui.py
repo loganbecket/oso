@@ -36,13 +36,15 @@ STEPS = [
     ("g_project", "Google", "Register your own copy of Oso"),
     ("g_apis", "Google", "Turn on the three services"),
     ("g_app", "Google", "Name your app"),
-    ("g_publish", "Google", "Publish it"),
+    ("g_publish", "Google", "Prevent weekly sign-out"),
     ("g_client", "Google", "Download the client file"),
     ("g_connect", "Google", "Connect email, calendar, and tasks"),
     ("google_drive", "Google", "Google Drive on this computer"),
     ("obsidian_install", "Obsidian", "Install Obsidian"),
     ("obsidian_vault", "Obsidian", "Make your vault"),
     ("folder", "Obsidian", "Choose your vault"),
+    ("web_clipper", "Obsidian", "The Web Clipper"),
+    ("obsidian_plugins", "Obsidian", "Flashcards and course lists"),
     ("canvas_feed", "Canvas", "Your Canvas calendar"),
     ("canvas_sign_in", "Canvas", "Sign in to Canvas"),
     ("claude_pro", "Claude", "Claude Pro"),
@@ -51,20 +53,18 @@ STEPS = [
     ("plugin", "Claude", "Add Oso to Claude"),
     ("claude_google", "Claude", "Google in Claude"),
     ("project", "Claude", "The School project"),
-    ("web_clipper", "Obsidian add-ons", "The Web Clipper"),
-    ("obsidian_plugins", "Obsidian add-ons", "Flashcards and course lists"),
-    ("first_course", "Your first course", "Your first course"),
     ("groupme", "GroupMe", "GroupMe"),
     ("briefing", "Morning briefing", "The morning briefing"),
     ("chrome", "Claude in Chrome", "Claude in Chrome"),
     ("remarkable", "reMarkable tablet", "A reMarkable tablet"),
+    ("first_course", "Your first course", "Your first course"),
 ]
 STEP_IDS = [s for s, _, _ in STEPS]
 GROUPS = list(dict.fromkeys(g for _, g, _ in STEPS))
 # Nothing else is worth doing until Oso can read the student's email: the Google account and its connection
 # come first and can't be skipped, then the vault and Canvas.
 REQUIRED = {"google_account", "g_project", "g_apis", "g_app", "g_publish", "g_client", "g_connect",
-            "folder", "canvas_feed", "canvas_sign_in"}
+            "google_drive", "obsidian_install", "obsidian_vault", "folder", "canvas_feed", "canvas_sign_in"}
 BEFORE_FOLDER = STEP_IDS[:STEP_IDS.index("folder")]  # done before there are settings to record them in
 
 # Windows names its zones its own way; these cover the time zones in the settings list.
@@ -330,7 +330,7 @@ class Wizard:
         content.pack(fill="both", expand=True, anchor="n")
         if index > 0:
             ttk.Button(nav, text="Back", command=lambda: self.show(index - 1)).pack(side="left")
-        self.next_button = ttk.Button(nav, text="Next" if step in REQUIRED else "Done",
+        self.next_button = ttk.Button(nav, text="Next",
                                       command=lambda: self.advance(step))
         self.next_button.pack(side="right")
         if step not in REQUIRED or (step == "canvas_sign_in" and _linux()):
@@ -414,7 +414,7 @@ class Wizard:
             for w in after.winfo_children():
                 w.destroy()
             if choice.get() == "new":
-                self.steps(after, "Press Make a Google account and follow Google's steps.", "Come back and press Done.")
+                self.steps(after, "Press Make a Google account and follow Google's steps.", "Come back and press Next.")
                 self.link(after, "Make a Google account", "https://accounts.google.com/signup")
 
         make()
@@ -497,7 +497,7 @@ class Wizard:
         if have:
             self.text(frame, "One is already saved; paste a new one only to replace it.")
         feed_var = tk.StringVar()
-        ttk.Entry(frame, textvariable=feed_var, width=64, show="•").pack(anchor="w")
+        ttk.Entry(frame, textvariable=feed_var, width=64).pack(anchor="w")
 
         def done() -> None:
             url = feed_var.get().strip()
@@ -572,7 +572,7 @@ class Wizard:
     # -- Claude
 
     def page_claude_pro(self, frame) -> None:
-        self.why(frame, "Claude does Oso's thinking. Oso needs the Pro plan.")
+        self.why(frame, "Claude does Oso's thinking. Oso needs a paid plan.  Start with Pro and upgrade if needed.")
         self.steps(frame, "Press Open claude.ai, sign in or make an account, and upgrade to Pro.",
                    "In Settings, under Privacy, turn off using your chats to improve Claude.")
         self.link(frame, "Open claude.ai", "https://claude.ai")
@@ -653,7 +653,7 @@ class Wizard:
     # -- Google Cloud
 
     def page_g_project(self, frame) -> None:
-        self.why(frame, "Google lets only registered apps use your email, calendar, and tasks, so you register your own "
+        self.why(frame, "Google only lets registered apps use your email, calendar, and tasks, so you register your own "
                         "private copy of Oso. It's free and takes about ten minutes.")
         self.steps(frame, "Press Open Google Cloud and sign in with your Oso Google account.",
                    "Click the project picker at the top, then New project.",
@@ -675,9 +675,12 @@ class Wizard:
         self.link(frame, "Open Google Auth Platform", f"{CLOUD}/auth/overview")
 
     def page_g_publish(self, frame) -> None:
-        self.why(frame, "Otherwise Google signs Oso out every seven days. It stays private.")
-        self.steps(frame, "Press Open Audience, click Publish app, then Confirm.")
-        self.link(frame, "Open Audience", f"{CLOUD}/auth/audience")
+        self.why(frame, "Google treats a new app as a test and disconnects it every seven days. Switching it out of testing "
+                        "keeps Oso connected. Oso stays private: only you can use it.")
+        self.steps(frame, "Press Open the testing page.",
+                   "Under Publishing status, click Publish app.",
+                   "Click Confirm.")
+        self.link(frame, "Open the testing page", f"{CLOUD}/auth/audience")
 
     def page_g_client(self, frame) -> None:
         self.why(frame, "This file lets Oso sign in as your app. Keep it private.")

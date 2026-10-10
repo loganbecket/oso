@@ -28,18 +28,18 @@ def test_steps_are_recorded_until_every_one_is_done_or_skipped(settings_file: Pa
     cfg = setup_gui.begin(tmp_path / "Vault", "America/Chicago", setup_gui.BEFORE_FOLDER)
     assert (tmp_path / "Vault" / "Clippings").is_dir()
     assert cfg.timezone == "America/Chicago" and not cfg.setup_finished
-    assert setup_gui.remaining(cfgmod.load())[0] == "canvas_feed"
+    assert setup_gui.remaining(cfgmod.load())[0] == "web_clipper"
 
     # A course Claude adds while the window is open survives the next step being recorded.
     added = cfgmod.load()
     added.courses.append(cfgmod.Course("PHYS-110", "Physics", "2026 Fall/Physics"))
     cfgmod.save(added)
-    for step in setup_gui.STEP_IDS[setup_gui.STEP_IDS.index("canvas_feed"):-1]:
+    for step in setup_gui.STEP_IDS[setup_gui.STEP_IDS.index("web_clipper"):-1]:
         setup_gui.record(step)
     cfg = cfgmod.load()
-    assert setup_gui.remaining(cfg) == ["remarkable"] and [c.code for c in cfg.courses] == ["PHYS-110"]
+    assert setup_gui.remaining(cfg) == ["first_course"] and [c.code for c in cfg.courses] == ["PHYS-110"]
 
-    assert setup_gui.record("remarkable").setup_finished
+    assert setup_gui.record("first_course").setup_finished
     assert not setup_gui.needs_setup()
     assert "setup_steps" not in settings_file.read_text(encoding="utf-8")
 
@@ -116,12 +116,15 @@ def test_window_walks_through_setup(settings_file: Path, tmp_path: Path, monkeyp
         root.after(50)
     press("Next")
     while title() != "Choose your vault":  # done before there are settings: kept until the vault is chosen
-        press("Done")
+        press("Next")
     press("Next")
     assert "Choose your vault folder first." in str(wizard.message.cget("text"))
     _find(wizard.page, ttk.Entry).insert(0, str(tmp_path / "Vault"))
     press("Next")
     assert set(setup_gui.BEFORE_FOLDER) <= set(cfgmod.load().setup_steps)
+    assert title() == "The Web Clipper"
+    press("Next")
+    press("Skip for now")
     assert title() == "Your Canvas calendar"
     press("Next")
     assert "Paste the Calendar Feed address first." in str(wizard.message.cget("text"))
@@ -136,7 +139,7 @@ def test_window_walks_through_setup(settings_file: Path, tmp_path: Path, monkeyp
         root.after(50)
     press("Next")
     assert title() == "Claude Pro"
-    press("Done")
+    press("Next")
     press("Skip for now")
     assert setup_gui.remaining(cfgmod.load())[0] == "claude_code"
     while title() != "You're set up":

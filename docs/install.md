@@ -7,7 +7,7 @@ Oso runs on Windows, macOS, and Linux. Setup takes about an hour, most of it ins
 1. Open a command window: on Windows, press the Windows key, type `PowerShell`, and press Enter; on a Mac, open **Terminal** (in Applications, Utilities); on Linux, open a terminal.
 2. Paste the installer line for your computer from [Run the installer](#run-the-installer) and press Enter.
 
-The installer then opens the **Set up Oso** window, which takes you through everything else, click by click: your Google account and Drive, Obsidian and your vault, Canvas, Claude, the Oso plugin, your first course, and the optional extras, each with why it matters. You can skip any step and come back to it later. More in [Setting up](features/setup.md).
+The installer then opens the **Set up Oso** window, which takes you through everything else, click by click: your Google account and Drive, Obsidian and your vault, Canvas, Claude, the Oso plugin, the optional extras, and finally your first course, each with why it matters. You can skip any step and come back to it later. More in [Setting up](features/setup.md).
 
 The rest of this page is every one of those steps written out, for reference, and for anything you skipped. Where a step differs by platform, the differences are listed.
 
@@ -115,7 +115,7 @@ If the Claude app is open, quit it first (on Windows, also from the system tray)
 The installer:
 
 - installs a small helper called `uv` if you do not have it, then uses it to download and install the newest Oso release (on Windows it first stops any copy of Oso that is already running, so running it again is always safe)
-- opens the **Set up Oso** window, which walks you through the whole setup, from your Google account and vault to Canvas, Claude, and your first course; skip anything you want to do later ([Setting up](features/setup.md))
+- opens the **Set up Oso** window, which walks you through the whole setup, from your Google account and vault to Canvas, Claude, the extras, and finally your first course; skip anything you want to do later ([Setting up](features/setup.md))
 - adds the starting folders to your vault
 - schedules Oso to check for changes every 15 minutes, even when the computer is asleep
 - on Linux, offers to keep the vault in sync with Google Drive through rclone

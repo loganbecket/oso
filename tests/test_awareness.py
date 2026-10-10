@@ -167,6 +167,54 @@ def test_groupme_reads_new_messages_skips_muted_and_own(env):
     assert not any(c[0].startswith("/groups/2/") for c in api.calls)
 
 
+
+def test_groupme_pictures_are_read_before_the_chat(env):
+    cfg, conn = env
+    flyer = dict(gm("30", "", 2), attachments=[{"type": "image", "url": "https://i.groupme.com/1080x1350.jpeg.abc"},
+                                               {"type": "linked_image", "url": "https://example.com/tracker.png"}])
+    api = FakeGroupMe([{"id": "1", "name": "Sigma Chi"}], {"1": [flyer, gm("31", "see above, be there", 1)]})
+    groupme.fetch(conn, cfg, NOW, api=api)
+    row = conn.execute("SELECT * FROM messages WHERE external_id = '30'").fetchone()
+    assert row["state"] == "new" and json.loads(row["pictures"]) == ["https://i.groupme.com/1080x1350.jpeg.abc"]  # never another site
+    # A picture that can't be read yet holds the whole chat back.
+    seen, payloads = [], []
+
+    def broken(url, prompt):
+        raise OSError("offline")
+
+    def ask(prompt, payload):
+        payloads.append(json.loads(payload))
+        return json.dumps({"messages": [{"n": 1, "matters": True, "facts": [
+            {"type": "event", "title": "Fall formal", "when": "2026-10-10T20:00", "where": "Union ballroom", "change": "new"}]},
+            {"n": 2, "matters": False}]})
+
+    assert messages.read_new(conn, cfg, NOW, ask=ask, see=broken)["read"] == 0 and not payloads
+    counts = messages.read_new(conn, cfg, NOW, ask=ask, see=lambda url, prompt: seen.append(prompt) or "FALL FORMAL Sat 8pm Union ballroom")
+    assert counts["pictures"] == 1 and counts["read"] == 2 and "Sigma Chi" in seen[0]
+    assert payloads[0][0]["text"] == "[Picture: FALL FORMAL Sat 8pm Union ballroom]" and payloads[0][1]["text"] == "see above, be there"
+    assert conn.execute("SELECT location FROM happenings WHERE title = 'Fall formal'").fetchone()["location"] == "Union ballroom"
+    assert conn.execute("SELECT text, pictures FROM messages WHERE external_id = '30'").fetchone()[:] == (None, None)
+
+
+def test_a_picture_that_never_reads_lets_the_message_through(env):
+    cfg, conn = env
+    messages.store(conn, groupme.record(dict(gm("40", "tonight!", 1), attachments=[{"type": "image", "url": "https://i.groupme.com/x"}]),
+                                        "1", "Sigma Chi"))
+
+    def broken(url, prompt):
+        raise ValueError("not a picture")
+
+    payloads = []
+    for _ in range(messages.MAX_ATTEMPTS):
+        messages.read_new(conn, cfg, NOW, ask=lambda p, payload: payloads.append(json.loads(payload)) or "{}", see=broken)
+    assert payloads[-1][0]["text"] == "tonight!\n[Picture: a picture that could not be read]"
+
+
+def test_only_groupme_pictures_are_downloaded():
+    with pytest.raises(ValueError):
+        messages.fetch_picture("http://169.254.169.254/latest")
+
+
 # ---- picking out what matters -----------------------------------------------------------------------------
 
 

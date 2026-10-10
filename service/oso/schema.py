@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import sqlite3
 
-VERSION = 1
+VERSION = 2
 
 META = "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);"
 
@@ -20,6 +20,7 @@ COLUMNS: dict[str, dict[str, str]] = {
     "items": {"category": "TEXT"},  # the Canvas assignment group (or syllabus category) the item is graded under
     "pages": {"course": "TEXT"},
     "happenings": {"remind": "INTEGER NOT NULL DEFAULT 0"},  # a pop-up when it starts
+    "messages": {"pictures": "TEXT"},  # addresses of pictures in a GroupMe message not read yet (JSON list)
 }
 
 

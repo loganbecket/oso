@@ -3,11 +3,13 @@
 He signs in at dev.groupme.com, copies his access token, and gives it to Oso once (`oso connect-groupme`, or
 the Oso window); it is kept in the credential store. Every group is read unless he mutes it. Only group chats
 are read, never direct messages, and his own messages are skipped. New messages go through the same picking-out
-as email (`messages.py`), one batch per group, with the group's name as context.
+as email (`messages.py`), one batch per group, with the group's name as context. Pictures posted in a message
+(event flyers, mostly) are read by Claude first, and their words join the message's text.
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import sqlite3
 from datetime import datetime, timedelta
@@ -24,6 +26,8 @@ TOKEN = "groupme_token"
 USER = "groupme_user_id"
 FIRST_DAYS = 2  # the first read of a group looks back this far
 PAGES_PER_CHECK = 5
+PICTURES = "https://i.groupme.com/"  # GroupMe's own picture service; nothing else is fetched
+PICTURES_PER_MESSAGE = 6
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS groupme_groups (
@@ -143,9 +147,16 @@ def _event_text(m: dict) -> str:
     return ""
 
 
+def _pictures(m: dict) -> list[str]:
+    """The addresses of the pictures posted in a message."""
+    urls = [str(a.get("url") or "") for a in m.get("attachments") or [] if a.get("type") in ("image", "linked_image")]
+    return [u for u in urls if u.startswith(PICTURES)][:PICTURES_PER_MESSAGE]
+
+
 def record(m: dict, gid: str, group: str) -> dict:
     sent = datetime.fromtimestamp(int(m.get("created_at", 0))).astimezone().isoformat(timespec="minutes")
     text = " ".join(t for t in (m.get("text") or "", _event_text(m)) if t).strip()
+    pictures = _pictures(m)
     return {
         "source": "groupme",
         "external_id": str(m["id"]),
@@ -155,6 +166,7 @@ def record(m: dict, gid: str, group: str) -> dict:
         "channel": group,
         "sent_at": sent,
         "text": text[:1500],
+        "pictures": json.dumps(pictures) if pictures else None,
         "link": f"https://web.groupme.com/chats/{gid}",
-        "noise": "already seen" if m.get("_skip") else (None if text else "no text"),
+        "noise": "already seen" if m.get("_skip") else (None if text or pictures else "no text"),
     }

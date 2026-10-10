@@ -15,6 +15,8 @@ Once your accounts are connected, it runs on its own every 15 minutes. Claude re
 - **Things to do** that aren't coursework (sign a form, pay dues, register) go on your [task list](tasks.md).
 - **Class notes** (a class canceled, moved, or online; something to bring; something to read first) change that class on your calendar and lead your briefing. See [Class schedule](class-schedule.md).
 
+Pictures posted in GroupMe are read too. Claude writes out the words on a flyer, poster, or screenshot before reading the chat, so a party flyer with no caption still lands on your calendar.
+
 Most messages don't matter, like newsletters, chatter, and ads, and are skipped.
 
 You can control what it reads:
@@ -41,5 +43,6 @@ See [Install guide: School email](../install.md#school-email), [Install guide: G
 - Oso keeps the facts and a link back to the message, never the message itself. Once a message has been read, its text is dropped and nothing is copied into your vault.
 - Oso never sends, deletes, or changes anything in your email, GroupMe, or Canvas. It reads Canvas messages without marking them as read.
 - Ads, social-network notices, and Canvas's own notification emails are set aside without being read.
-- Reading messages uses some of your Claude plan. If it uses too much, set a daily limit in the Oso window's Settings tab. There's no limit by default.
+- A chat waits for its pictures, so Claude reads "see above" with the flyer it means. A picture that still can't be read after three tries is skipped, and the message is read without it.
+- Reading messages uses some of your Claude plan, and every GroupMe picture is read, memes included; mute the groups that are mostly memes. If it uses too much, set a daily limit in the Oso window's Settings tab. There's no limit by default.
 - Only recent announcements and Canvas messages, from the last few days, are read for changes. Older ones are already history.

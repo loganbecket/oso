@@ -48,7 +48,7 @@ def save(cfg: Config, name: str, url: str, about: str) -> SavedPage:
     else:
         page = SavedPage(name=name, url=url, about=about)
         cfg.saved_pages.append(page)
-    cfgmod.save(cfg)
+    _keep(cfg)
     return page
 
 
@@ -56,8 +56,19 @@ def forget(cfg: Config, name: str) -> bool:
     page = _find(cfg, name)
     if page:
         cfg.saved_pages.remove(page)
-        cfgmod.save(cfg)
+        _keep(cfg)
     return page is not None
+
+
+def _keep(cfg: Config) -> None:
+    """Save the settings and list the pages in the vault's instructions right away, so the next chat knows them."""
+    from . import instructions
+
+    cfgmod.save(cfg)
+    try:
+        instructions.write(cfg)
+    except OSError:
+        pass  # the next check writes it
 
 
 def read(cfg: Config, name: str | None = None, url: str | None = None, fetcher=None) -> dict | str:

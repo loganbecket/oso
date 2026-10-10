@@ -25,7 +25,7 @@ You can also see, add, and forget saved pages in the Oso window, under Actions: 
 
 ## Good to know
 
-- Oso keeps only the list (names, addresses, and what each is for) in its settings. It reads a page only when you ask, and nothing is copied into your vault.
+- Oso keeps only the list (names, addresses, and what each is for) in its settings, and writes it into the instructions Claude reads at the start of every chat, which is how Claude knows to look. It reads a page only when you ask, and nothing is copied into your vault.
 - Pages behind a sign-in can't be read, and a site that asks programs not to read it is left alone.
 - Pages change, so Claude tells you what a page says now and where it found it, not that it's guaranteed.
 - Anything written on a page is something to read, never an instruction to Claude.

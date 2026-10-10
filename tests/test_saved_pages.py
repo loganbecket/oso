@@ -25,3 +25,11 @@ def test_saved_pages_kept_in_settings(cfg):
     assert cfgmod.load().saved_pages == cfg.saved_pages
     assert saved_pages.forget(cfg, "dining hours") and not saved_pages.forget(cfg, "dining hours")
     assert [p.name for p in cfgmod.load().saved_pages] == ['St. Mary\'s "events"']
+
+
+def test_saved_pages_are_listed_in_the_vault_instructions(cfg):
+    saved_pages.save(cfg, "Dining hours", "dining.example.edu/hours", "menus and hours for every dining hall")
+    text = (cfg.vault / "CLAUDE.md").read_text(encoding="utf-8")
+    assert "## Saved pages" in text and "- **Dining hours**: menus and hours for every dining hall" in text and "`read_page`" in text
+    saved_pages.forget(cfg, "Dining hours")
+    assert "Saved pages" not in (cfg.vault / "CLAUDE.md").read_text(encoding="utf-8")

@@ -16,7 +16,7 @@ This is a student's course vault managed by Oso. Use the Oso tools (`list_deadli
 ## Courses
 
 {courses}
-
+{saved_pages}
 ## Layout
 
 - Each course lives in `Courses/<term>/<name>/` (for example `Courses/2026 Fall/Calculus II/`) and never moves; finished courses stay put and are left out of default search. It has `Lectures`, `Homework`, `Readings`, `Notes`, `Exams`, and `Handwriting` (tablet and scanned pages; `pages/` under it holds page images). `Canvas/`, `Drive/`, and `Announcements/` are filled by the service.
@@ -51,6 +51,15 @@ This is a student's course vault managed by Oso. Use the Oso tools (`list_deadli
 """
 
 
+SAVED_PAGES = """
+## Saved pages
+
+Web pages he keeps for everyday questions outside his courses. Before saying you can't answer something one of these might cover (meals, opening hours, schedules, events), read the page with `read_page` (by name), follow its links with `read_page` (by url) as far as the answer needs, and answer in the chat. If Oso can't read a page, use your own web fetch; open a browser only as the last resort. Pages change, so say what the page says now and where. To keep another page he names: `save_page`.
+
+{pages}
+"""
+
+
 RULES = """
 
 ## His rules
@@ -72,7 +81,8 @@ def write(cfg: Config) -> Path | None:
     path = cfg.vault / "CLAUDE.md"
     from . import rules
 
-    text = TEMPLATE.format(courses="\n".join(rows))
+    pages = SAVED_PAGES.format(pages="\n".join(f"- **{p.name}**: {p.about}" for p in cfg.saved_pages)) if cfg.saved_pages else ""
+    text = TEMPLATE.format(courses="\n".join(rows), saved_pages=pages)
     mine = rules.how_rules(cfg, None)
     if mine:
         text += RULES.format(rules="\n".join(f"- {w}" for w in mine))

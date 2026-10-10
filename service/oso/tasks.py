@@ -196,6 +196,8 @@ def _session():
     from google.auth.transport.requests import AuthorizedSession, Request
     from google.oauth2.credentials import Credentials
 
+    from . import gcal
+
     raw = secrets.get(TOKEN)
     if not raw:
         raise NotConnected("Google Tasks is not connected")

@@ -185,3 +185,16 @@ def test_task_tools(env, monkeypatch):
     assert mcp_server.change_task("oil", done=True) == 'Checked off "Get an oil change".'
     assert mcp_server.list_tasks() == [] and mcp_server.list_tasks(include_done=True)[0]["status"] == "done"
     assert "no task like" in mcp_server.change_task("groceries", done=True)
+
+
+def test_google_sessions_build_from_a_stored_sign_in(env):
+    import json
+
+    from oso import mail
+
+    creds = json.dumps({"token": "t", "refresh_token": "r", "client_id": "c", "client_secret": "s",
+                        "expiry": "2999-01-01T00:00:00Z", "scopes": tasks.SCOPES + mail.SCOPES})
+    secrets.set(tasks.TOKEN, creds)
+    secrets.set(mail.TOKEN, creds)
+    assert tasks._session() is not None
+    assert mail._session() is not None

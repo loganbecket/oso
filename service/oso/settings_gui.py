@@ -617,6 +617,8 @@ def open_settings(cfg: cfgmod.Config) -> None:
             cfg.message_reads_per_day = max(0, int(msg_limit_var.get()))
             known_ids = set(group_vars)
             cfg.muted_groups = [g for g in cfg.muted_groups if g not in known_ids] + [gid for gid, v in group_vars.items() if v.get()]
+            on_disk = cfgmod.load()  # the setup window records its steps there while this window is open
+            cfg.setup_finished, cfg.setup_steps = on_disk.setup_finished, on_disk.setup_steps
             cfgmod.save(cfg)
             if feed_var.get().strip():
                 secrets.set(secrets.CANVAS_FEED_URL, feed_var.get().strip())
@@ -668,6 +670,10 @@ def open_settings(cfg: cfgmod.Config) -> None:
 
     root.protocol("WM_DELETE_WINDOW", close)
     root.after(1000, watch_for_raise)
+    if not cfg.setup_finished:
+        from . import setup_gui
+
+        root.after(500, lambda: setup_gui.offer_resume(root, refresh))
     root.mainloop()
 
 

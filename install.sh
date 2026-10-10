@@ -27,20 +27,15 @@ uv tool install --force --python 3.12 "$TARGET"
 uv tool update-shell >/dev/null 2>&1 || true
 
 echo
-echo "Where is your vault? This is the folder you created in Obsidian (inside your Google Drive folder on macOS)."
-read -r -p "Vault folder: " VAULT
-VAULT="${VAULT/#\~/$HOME}"
-VAULT="${VAULT%\"}"; VAULT="${VAULT#\"}"
-mkdir -p "$VAULT"
+echo "The Set up Oso window is opening. Leave this window open until you close that one."
+oso setup
+VAULT=$(oso setup --show-vault || true)
+if [ -z "$VAULT" ]; then
+  echo
+  echo "Setup closed before a vault was chosen. Run this installer again to finish."
+  exit 1
+fi
 
-read -r -p "Time zone (press Enter for America/New_York, or type e.g. America/Chicago): " TZ_NAME
-TZ_NAME="${TZ_NAME:-America/New_York}"
-
-echo
-echo "In Canvas, open Calendar, click 'Calendar Feed', and copy the address."
-read -r -p "Paste the Canvas Calendar Feed URL (or press Enter to skip): " FEED
-
-oso init --vault "$VAULT" --timezone "$TZ_NAME" --canvas-feed-url "${FEED:-}"
 if [ -n "${TAG:-}" ]; then oso update --installed "$TAG"; else oso update; fi
 
 if [ "$(uname -s)" = "Linux" ] && command -v rclone >/dev/null 2>&1; then
@@ -78,8 +73,5 @@ oso install-task
 oso doctor --fix || true
 
 echo
-echo "Oso is installed. Next:"
-echo "  0. Close this terminal and open a new one. The 'oso' command only works in terminals opened after installing."
-echo "  1. Open Obsidian and open $VAULT as a vault."
-echo "  2. In the Claude app (or claude.ai), open Customize, then Plugins, choose Add marketplace, enter $REPO, and install Oso."
-echo "  3. Run 'oso settings' any time to change how often Oso checks, quiet hours, updates, and the rest."
+echo "Oso is installed. Open Oso from Applications (macOS) or the app menu (Linux) any time; anything you skipped"
+echo "in setup is on its Status tab."

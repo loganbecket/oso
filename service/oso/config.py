@@ -84,6 +84,8 @@ class Config:
     muted_groups: list[str] = field(default_factory=list)  # GroupMe group ids (or names) never read
     message_reads_per_day: int = 0  # optional daily limit on messages Claude reads (0 = no limit)
     saved_pages: list[SavedPage] = field(default_factory=list)  # web pages read live when he asks (saved_pages.py)
+    setup_finished: bool = True  # False from a new install until every setup step is done or skipped (setup_gui.py)
+    setup_steps: list[str] = field(default_factory=list)  # the setup steps done or skipped so far
 
     @property
     def tz(self) -> ZoneInfo:
@@ -197,6 +199,8 @@ def load(path: Path | None = None) -> Config:
         message_reads_per_day=int(raw.get("message_reads_per_day", 0)),
         saved_pages=[SavedPage(name=str(p["name"]), url=str(p["url"]), about=str(p.get("about", "")))
                      for p in raw.get("saved_pages", []) if isinstance(p, dict) and p.get("name") and p.get("url")],
+        setup_finished=bool(raw.get("setup_finished", True)),  # settings from before the setup window were set up already
+        setup_steps=[str(x) for x in raw.get("setup_steps", [])],
     )
 
 
@@ -248,6 +252,8 @@ def save(cfg: Config, path: Path | None = None) -> Path:
         "muted_senders = [" + ", ".join(f'"{_toml_str(x)}"' for x in cfg.muted_senders) + "]",
         "muted_groups = [" + ", ".join(f'"{_toml_str(x)}"' for x in cfg.muted_groups) + "]",
         f"message_reads_per_day = {cfg.message_reads_per_day}",
+        f"setup_finished = {'true' if cfg.setup_finished else 'false'}",
+        *(["setup_steps = [" + ", ".join(f'"{_toml_str(x)}"' for x in cfg.setup_steps) + "]"] if not cfg.setup_finished else []),
         "",
     ]
     for c in cfg.courses:

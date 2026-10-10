@@ -42,6 +42,8 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("install-task", help="schedule the sync (Windows scheduled task, macOS launch agent, or Linux systemd timer)")
     s.add_argument("--every", type=int, default=None, help="minutes between runs (default: the saved setting, 15)")
     sub.add_parser("settings", help="open the settings window")
+    s = sub.add_parser("setup", help="open the setup window that walks through everything after installing")
+    s.add_argument("--show-vault", action="store_true", help=argparse.SUPPRESS)  # for the installer, once setup closes
     s = sub.add_parser("update", help="install the newest Oso on your update channel (set in oso settings; stable by default)")
     s.add_argument("--version", help="install this exact version (e.g. v0.1.0) or commit, for rolling back")
     s.add_argument("--installed", help=argparse.SUPPRESS)  # set by the installers after they install
@@ -131,6 +133,21 @@ def _dispatch(args: argparse.Namespace) -> int:
         for sub in ("Clippings", "Courses", "Oso"):
             (vault / sub).mkdir(parents=True, exist_ok=True)
         print(f"Saved settings to {path}. Feed URL stored in the credential manager." if url else f"Saved settings to {path}.")
+        return 0
+
+    if args.cmd == "setup" or (args.cmd == "settings" and not cfgmod.config_path().exists()):
+        from . import setup_gui
+
+        if getattr(args, "show_vault", False):
+            try:
+                print(cfgmod.load().vault)
+            except cfgmod.ConfigError:
+                return 1  # no vault chosen yet; quietly, since the installer reads only what is printed
+            return 0
+        if not setup_gui.needs_setup():
+            print("Oso is already set up. Anything still to connect is on the Status tab of the Oso window ('oso settings').")
+            return 0
+        setup_gui.run()
         return 0
 
     cfg = cfgmod.load()

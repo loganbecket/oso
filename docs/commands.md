@@ -46,7 +46,8 @@ oso profile --raw         show every recorded quiz, question by question (--dele
 ## Setup and starting over
 
 ```
-oso init                  point Oso at your vault and Canvas calendar feed
+oso setup                 open the setup window again, if setup isn't finished
+oso init                  point Oso at your vault and Canvas calendar feed (the setup window does this)
 oso install-task          schedule the automatic check (every 15 minutes by default)
 oso watch                 take in new files as they arrive (runs on its own from sign-in)
 oso reset-skills [NAME]   put back Oso's version of its commands (all, or the ones named)

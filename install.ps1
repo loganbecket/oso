@@ -44,31 +44,20 @@ uv tool update-shell | Out-Null
 $env:Path = "$env:USERPROFILE\.local\bin;$env:Path"
 
 Write-Host ""
-Write-Host "Where is your vault? This is the folder you created in Obsidian, inside your Google Drive folder,"
-Write-Host "for example C:\Users\$env:USERNAME\My Drive\Vault"
-$Vault = Read-Host "Vault folder"
-$Vault = $Vault.Trim('"').Trim()
-if (-not (Test-Path $Vault)) {
-    New-Item -ItemType Directory -Path $Vault | Out-Null
+Write-Host "The Set up Oso window is opening. Leave this window open until you close that one."
+oso setup
+$Vault = oso setup --show-vault
+if (-not $Vault) {
+    Write-Host ""
+    Write-Host "Setup closed before a vault was chosen. Run this installer again to finish." -ForegroundColor Yellow
+    exit 1
 }
 
-$Timezone = Read-Host "Time zone (press Enter for America/New_York, or type e.g. America/Chicago)"
-if (-not $Timezone) { $Timezone = "America/New_York" }
-
-Write-Host ""
-Write-Host "In Canvas, open Calendar, click 'Calendar Feed', and copy the address."
-$Feed = Read-Host "Paste the Canvas Calendar Feed URL (or press Enter to skip)"
-
-oso init --vault "$Vault" --timezone $Timezone --canvas-feed-url "$Feed"
 if ($Version) { oso update --installed $Version | Out-Null }
 oso sync
 oso install-task
 oso doctor --fix
 
 Write-Host ""
-Write-Host "Oso is installed. Next:" -ForegroundColor Cyan
-Write-Host "  0. Close this PowerShell window and open a new one. The 'oso' command only works in windows opened after installing." -ForegroundColor Yellow
-Write-Host "  1. Open Obsidian and open $Vault as a vault."
-Write-Host "  2. In the Claude app, open Customize, then Plugins, choose Add marketplace, enter $Repo, and install Oso."
-Write-Host "  3. If the Claude app was open, quit and reopen it so it reconnects to Oso."
-Write-Host "  4. Run 'oso settings' any time to change how often Oso checks, quiet hours, updates, and the rest."
+Write-Host "Oso is installed. Open Oso from the Start menu (or press Ctrl+Alt+O) any time; anything you skipped in setup" -ForegroundColor Cyan
+Write-Host "is on its Status tab." -ForegroundColor Cyan

@@ -4,6 +4,7 @@ Start by asking Claude *"is Oso OK?"*, or say *"open my settings"* and look at t
 
 | What you see | What to do |
 | --- | --- |
+| The installer says setup closed before a vault was chosen | The setup window was closed on its first step. Run the installer again and choose your vault; nothing else is lost. |
 | Urgent changes or classes aren't reaching my calendar | Run `oso doctor`. If it says Google Calendar is not connected, [connect the Oso calendar](install.md#the-oso-calendar). If the connection expired, check the Google project is published (step 5 there) and connect again. |
 | My tasks aren't on my phone | Check Google Tasks is connected (status panel). Tasks with a due day show in Google Calendar; for the whole list, install the free Google Tasks app and open the list named **Oso**. |
 | The briefing did not arrive | Open the Claude app and check the scheduled task ran. Then check `Today.md` in your vault is from today; if not, run `oso doctor`. |

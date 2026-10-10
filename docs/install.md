@@ -1,6 +1,6 @@
 # Installing Oso
 
-Oso runs on Windows, macOS, and Linux. Setup takes about an hour, most of it installing and signing in to apps. Do the sections in order; where a step differs by platform, the differences are listed.
+Oso runs on Windows, macOS, and Linux. Setup takes about an hour, most of it installing and signing in to apps. Do the first two sections yourself; after that, the installer opens the **Set up Oso** window, which walks you through the rest one step at a time ([Setting up](features/setup.md)). The sections after the installer are those same steps in more detail, for reference. Where a step differs by platform, the differences are listed.
 
 1. [Accounts and apps](#accounts-and-apps)
 2. [Install the Oso service](#install-the-oso-service)
@@ -76,7 +76,7 @@ A few steps below use a command window. Open one now:
 
 ### Get your Canvas calendar feed
 
-Canvas is your school's course website where assignments and grades are posted. Every Canvas account has a private calendar feed that Oso reads.
+Canvas is your school's course website where assignments and grades are posted. Every Canvas account has a private calendar feed that Oso reads. The setup window asks for it, so find it now or when the window gets there.
 
 1. Sign in to Canvas in your browser.
 2. Click **Calendar** in the left menu.
@@ -106,13 +106,13 @@ If the Claude app is open, quit it first (on Windows, also from the system tray)
 The installer:
 
 - installs a small helper called `uv` if you do not have it, then uses it to download and install the newest Oso release (on Windows it first stops any copy of Oso that is already running, so running it again is always safe)
-- asks where your vault is, your time zone (US Eastern unless you type another, such as `America/Chicago`), and the Canvas calendar feed address (right-click or Cmd-V to paste, then Enter)
+- opens the **Set up Oso** window, which asks for your vault, your time zone (filled in from your computer), and the Canvas calendar feed address, signs you in to Canvas, then walks you through the plugin, your courses, and the rest; skip anything you want to do later ([Setting up](features/setup.md))
 - adds the starting folders to your vault
 - schedules Oso to check for changes every 15 minutes, even when the computer is asleep
 - on Linux, offers to keep the vault in sync with Google Drive through rclone
 - runs a first sync and a health check
 
-When it finishes it prints a short report. Lines starting with `ok` are fine. Anything marked `WARN` or `FAIL` says what to do in plain words.
+Leave the command window open while you use the setup window; the installer finishes once you close it, and prints a short report. Lines starting with `ok` are fine. Anything marked `WARN` or `FAIL` says what to do in plain words.
 
 **Then close the command window and open a new one.** The `oso` command only works in windows opened after the installer finishes.
 
@@ -124,7 +124,7 @@ Open your vault in Obsidian. There is now a file called `Today.md`. It lists wha
 
 ## Connect Oso to your accounts
 
-Most connections are made from the **Oso window**: say *"open my settings"* in the Claude app, press **Ctrl+Alt+O** on Windows, or open **Oso** from the Start menu (Applications on a Mac). Its **Actions** tab has a button for each connection, and its status panel shows a button beside anything not yet connected.
+The setup window walks through these; this section is the same steps in detail. Afterward, connections are made from the **Oso window**: say *"open my settings"* in the Claude app, press **Ctrl+Alt+O** on Windows, or open **Oso** from the Start menu (Applications on a Mac). Its **Actions** tab has a button for each connection, and its status panel shows a button beside anything not yet connected.
 
 ### Google in Claude
 

@@ -84,6 +84,12 @@ SERVER_INSTRUCTIONS = (
     "that on as feedback?\" and if he says yes, follow the oso-feedback command. "
     "If he asks for something from now on (\"from now on\", \"always\", \"every time\", \"stop doing that\"), ask in one "
     "line: \"Want me to keep that as a rule?\" and if he says yes, follow the oso-rules command. "
+    "He keeps saved pages: web pages, each with a line about what it's for (dining hours, the gym, his church's "
+    "events), as starting points for everyday questions. When a question might be answered from one, check "
+    "`saved_pages`, read the matching page with `read_page` (by name), and follow its links with `read_page` (by url) "
+    "as far as the answer needs, then answer in the chat. If Oso can't read a page, try your own web fetch; open a "
+    "browser only as the last resort. Pages change, so give what they say now and where it came from. When he asks to keep a page, `save_page` with its address, a short name, and what it's for in his "
+    "words (ask in one line if he didn't say), with `confirmed` true. "
     + CONTENT_GUARD
 )
 

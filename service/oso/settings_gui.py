@@ -241,6 +241,9 @@ def open_settings(cfg: cfgmod.Config) -> None:
             ("Websites", lambda: run("Looking at websites", actions.websites)),
             ("Check websites now", lambda: run("Checking websites", lambda: actions.websites(check=True))),
             ("Add a website…", lambda: show(_add_website(root, cfg))),
+            ("Saved pages", lambda: run("Looking at saved pages", actions.saved_pages)),
+            ("Save a page…", lambda: show(_save_page(root))),
+            ("Forget a saved page…", lambda: show(_forget_page(root))),
         ]),
     ]
     ttk.Label(actions_tab, text="Starting over (fresh start) is only in a command window, on purpose: run 'oso fresh-start' (PowerShell on Windows, Terminal on a Mac).",
@@ -735,6 +738,31 @@ def _add_website(root, cfg) -> str:
         return f"No course called {course!r}."
     url = simpledialog.askstring("Follow a website", "The page's address:", parent=root)
     return actions.add_website(match.code, url) if url else "Nothing changed."
+
+
+def _save_page(root) -> str:
+    from tkinter import simpledialog
+
+    from . import actions
+
+    name = simpledialog.askstring("Save a page", "A short name for it (like Dining hours):", parent=root)
+    if not name:
+        return "Nothing changed."
+    url = simpledialog.askstring("Save a page", "The page's address:", parent=root)
+    if not url:
+        return "Nothing changed."
+    about = simpledialog.askstring("Save a page", "What it's for, so Claude knows when to look at it\n(like hours for every dining hall on campus):",
+                                   parent=root)
+    return actions.save_page(name, url, about) if about else "Nothing changed."
+
+
+def _forget_page(root) -> str:
+    from tkinter import simpledialog
+
+    from . import actions
+
+    name = simpledialog.askstring("Forget a saved page", "Which page? (its name)", parent=root)
+    return actions.forget_page(name) if name else "Nothing changed."
 
 
 def _email_client_file():

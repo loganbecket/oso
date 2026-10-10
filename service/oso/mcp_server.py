@@ -389,6 +389,47 @@ def mute(group: str | None = None, sender: str | None = None, unmute: bool = Fal
             "muted_senders": cfg.muted_senders}
 
 
+# ---- saved pages -------------------------------------------------------------------------------
+
+
+@mcp.tool()
+def saved_pages() -> list[dict]:
+    """His saved web pages."""
+    from . import saved_pages as pages
+
+    return pages.describe(_cfg())
+
+
+@mcp.tool()
+def read_page(name: str | None = None, url: str | None = None) -> dict | str:
+    """Read a saved page or link."""
+    from . import saved_pages as pages
+
+    return pages.read(_cfg(), name, url)
+
+
+@mcp.tool()
+def save_page(name: str, url: str, about: str, confirmed: bool = False) -> dict | str:
+    """Save a web page."""
+    from . import saved_pages as pages
+
+    if not confirmed:
+        return ASK_FIRST
+    try:
+        p = pages.save(_cfg(), name, url, about)
+    except ValueError as e:
+        return str(e)
+    return {"name": p.name, "url": p.url, "about": p.about}
+
+
+@mcp.tool()
+def forget_page(name: str) -> str:
+    """Forget a saved page."""
+    from . import saved_pages as pages
+
+    return f"Forgot {name}." if pages.forget(_cfg(), name) else f"No saved page called {name!r}."
+
+
 # ---- learner profile ---------------------------------------------------------------------------
 
 

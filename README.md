@@ -24,6 +24,7 @@ Setup takes about an hour, most of it installing and signing in to apps. Follow 
 - **[Deadlines and alerts](docs/features/deadlines-and-alerts.md)**: one list of every assignment, quiz, and exam from Canvas and your syllabi. Urgent changes, like a moved due date, go straight onto your calendar.
 - **[Class schedule](docs/features/class-schedule.md)**: your classes on your calendar, kept current when an instructor cancels or moves one.
 - **[School messages](docs/features/school-messages.md)**: Oso reads your school email, GroupMe (including the event flyers posted as pictures), and Canvas announcements for what affects your schedule or what you have to do, so you don't have to.
+- **[Saved pages](docs/features/saved-pages.md)**: keep the web pages you check for everyday things, like dining hall hours, the gym, or your church's events, and Claude starts there when you ask.
 - **[Tasks](docs/features/tasks.md)**: a checklist for everything that isn't coursework (laundry, an oil change, registering to vote), on your phone in Google Tasks, plus reminders like "swing by the mail room after class".
 
 ### Studying

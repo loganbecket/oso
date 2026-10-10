@@ -157,3 +157,20 @@ def test_a_redirect_into_the_network_is_dropped(env):
         assert R.closed
     finally:
         sites.ALLOW_LOCAL = True
+
+
+def test_saved_pages_are_read_live_and_followed(env):
+    from oso import saved_pages
+
+    cfg, server = env
+    saved_pages.save(cfg, "Physics site", f"{server}/~lee/phys110/", "Dr. Lee's course page")
+    page = saved_pages.read(cfg, "physics SITE")
+    assert page["title"] == "PHYS 110 - Dr. Lee" and "Office hours are Tuesdays" in page["text"]
+    week5 = next(l for l in page["links"] if l["text"] == "Week 5")
+    assert week5["url"] == f"{server}/~lee/phys110/week5.html"
+    HITS.clear()
+    assert "Read chapter 5 before Monday" in saved_pages.read(cfg, url=week5["url"])["text"]
+    assert HITS[-1] == "/~lee/phys110/week5.html"  # read when asked, never a stored copy
+    assert "No saved page called" in saved_pages.read(cfg, "Gym")
+    for path, says in (("/app/", "inside a browser"), ("/locked/", "sign-in"), ("/private/secret.html", "asks programs"), ("/gone/", "didn't load")):
+        assert says in saved_pages.read(cfg, url=server + path)

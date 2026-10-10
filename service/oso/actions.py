@@ -281,6 +281,29 @@ def remove_website(course: str, url: str) -> str:
     return f"No longer following {url}."
 
 
+def saved_pages() -> str:
+    cfg = cfgmod.load()
+    if not cfg.saved_pages:
+        return "No saved pages yet. Tell Claude about one (\"save the dining hall hours page\"), or add it below."
+    return "\n".join(f"{p.name}: {p.about} ({p.url})" for p in cfg.saved_pages)
+
+
+def save_page(name: str, url: str, about: str) -> str:
+    from . import saved_pages as pages
+
+    try:
+        p = pages.save(cfgmod.load(), name, url, about)
+    except ValueError as e:
+        return str(e)
+    return f"Saved {p.name}. Claude starts there when you ask about {p.about}."
+
+
+def forget_page(name: str) -> str:
+    from . import saved_pages as pages
+
+    return f"Forgot {name}." if pages.forget(cfgmod.load(), name) else f"No saved page called {name!r}."
+
+
 # ---- the settings window, opened from Claude --------------------------------------------------------
 
 

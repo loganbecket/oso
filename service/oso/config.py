@@ -43,6 +43,13 @@ class Course:
 
 
 @dataclass
+class SavedPage:
+    name: str  # what he calls it: "Dining hours"
+    url: str
+    about: str  # what it's for, so Claude knows when to look at it: "hours for every dining hall on campus"
+
+
+@dataclass
 class Config:
     vault: Path
     timezone: str = "America/New_York"
@@ -76,6 +83,7 @@ class Config:
     muted_senders: list[str] = field(default_factory=list)  # email addresses, @domains, or mailing lists never read
     muted_groups: list[str] = field(default_factory=list)  # GroupMe group ids (or names) never read
     message_reads_per_day: int = 0  # optional daily limit on messages Claude reads (0 = no limit)
+    saved_pages: list[SavedPage] = field(default_factory=list)  # web pages read live when he asks (saved_pages.py)
 
     @property
     def tz(self) -> ZoneInfo:
@@ -187,6 +195,8 @@ def load(path: Path | None = None) -> Config:
         muted_senders=[str(x) for x in raw.get("muted_senders", [])],
         muted_groups=[str(x) for x in raw.get("muted_groups", [])],
         message_reads_per_day=int(raw.get("message_reads_per_day", 0)),
+        saved_pages=[SavedPage(name=str(p["name"]), url=str(p["url"]), about=str(p.get("about", "")))
+                     for p in raw.get("saved_pages", []) if isinstance(p, dict) and p.get("name") and p.get("url")],
     )
 
 
@@ -253,6 +263,8 @@ def save(cfg: Config, path: Path | None = None) -> Path:
             *(["sites = [" + ", ".join(f'"{_toml_str(u)}"' for u in c.sites) + "]"] if c.sites else []),
             "",
         ]
+    for p in cfg.saved_pages:
+        lines += ["[[saved_pages]]", f'name = "{_toml_str(p.name)}"', f'url = "{_toml_str(p.url)}"', f'about = "{_toml_str(p.about)}"', ""]
     path.write_text("\n".join(lines), encoding="utf-8")
     return path
 

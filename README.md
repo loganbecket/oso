@@ -1,5 +1,7 @@
 # Oso
 
+<img src="service/oso/assets/oso.png" alt="Oso" width="240">
+
 Oso is a study assistant and personal assistant for college students. It tracks every deadline, exam, and grade weight across your classes, keeps your classes and tasks on your phone, sends a short briefing each morning, and flags changes like a moved due date or a canceled class. When you study, it works from your own notes and course materials: it explains topics, writes study guides and practice tests, and checks your work, citing the note behind every answer.
 
 Oso combines three parts:

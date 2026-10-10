@@ -25,6 +25,22 @@ TIMEZONES = [
 DOT = {"ok": "#2e7d32", "warn": "#b26a00", "fail": "#c62828"}
 
 
+def _brand(root: tk.Tk) -> None:
+    """The bear on the taskbar and the logo across the top of the window. A logo that won't load is left out."""
+    from pathlib import Path
+
+    assets = Path(__file__).parent / "assets"
+    try:
+        root.iconphoto(True, tk.PhotoImage(master=root, file=str(assets / "oso-icon.png")))
+        logo = tk.PhotoImage(master=root, file=str(assets / "oso.png")).subsample(2)
+    except tk.TclError:
+        return
+    banner = tk.Frame(root, bg="white")
+    banner.pack(fill="x")
+    tk.Label(banner, image=logo, bg="white", borderwidth=0).pack(side="left", padx=12, pady=6)
+    banner.logo = logo  # Tk shows nothing once Python forgets the picture
+
+
 def open_settings(cfg: cfgmod.Config) -> None:
     import os
     import threading
@@ -37,6 +53,7 @@ def open_settings(cfg: cfgmod.Config) -> None:
 
     root.title(version_label(cfg.installed_version))
     root.geometry("1000x760")
+    _brand(root)
     pad = {"padx": 8, "pady": 4}
     notebook = ttk.Notebook(root)
     notebook.pack(fill="both", expand=True)

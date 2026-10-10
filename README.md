@@ -12,7 +12,7 @@ There is no Oso server. Your notes stay on your computer and in your own Google 
 
 ## Get started
 
-Setup takes about an hour, most of it installing and signing in to apps. Follow the **[install guide](docs/install.md)**; after the installer, the Set up Oso window walks you through the rest. Then read **[Getting the Most Out of Oso](docs/getting-the-most-out-of-oso.md)** for how to use chats, commands, and Oso's study tools well.
+Setup takes about an hour, most of it installing and signing in to apps. Paste the one installer line from the **[install guide](docs/install.md)** into a command window; the Set up Oso window that opens walks you through everything else, click by click. Then read **[Getting the Most Out of Oso](docs/getting-the-most-out-of-oso.md)** for how to use chats, commands, and Oso's study tools well.
 
 ## What Oso does
 
@@ -47,7 +47,7 @@ Setup takes about an hour, most of it installing and signing in to apps. Follow 
 
 ### Keeping it running
 
-- **[Setting up](docs/features/setup.md)**: after the installer, the Set up Oso window takes you through each step, from your vault and Canvas to the Claude plugin and your first course; skip anything and come back to it later.
+- **[Setting up](docs/features/setup.md)**: after the installer, the Set up Oso window takes you through the whole setup, click by click and with why each step matters, from your Google account and Obsidian to Canvas, Claude, and your first course; skip anything and come back to it later.
 - **[Looking after Oso](docs/features/looking-after-oso.md)**: the Oso window, status checks, updates, backups, settings, and the end of a semester.
 
 ## Where things live in your vault

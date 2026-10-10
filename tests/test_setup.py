@@ -25,7 +25,7 @@ def test_settings_from_before_setup_count_as_set_up(settings_file: Path, tmp_pat
 
 def test_steps_are_recorded_until_every_one_is_done_or_skipped(settings_file: Path, tmp_path: Path):
     assert setup_gui.needs_setup()
-    cfg = setup_gui.begin(tmp_path / "Vault", "America/Chicago")
+    cfg = setup_gui.begin(tmp_path / "Vault", "America/Chicago", setup_gui.BEFORE_FOLDER)
     assert (tmp_path / "Vault" / "Clippings").is_dir()
     assert cfg.timezone == "America/Chicago" and not cfg.setup_finished
     assert setup_gui.remaining(cfgmod.load())[0] == "canvas_feed"
@@ -34,7 +34,7 @@ def test_steps_are_recorded_until_every_one_is_done_or_skipped(settings_file: Pa
     added = cfgmod.load()
     added.courses.append(cfgmod.Course("PHYS-110", "Physics", "2026 Fall/Physics"))
     cfgmod.save(added)
-    for step in setup_gui.STEP_IDS[1:-1]:
+    for step in setup_gui.STEP_IDS[setup_gui.STEP_IDS.index("canvas_feed"):-1]:
         setup_gui.record(step)
     cfg = cfgmod.load()
     assert setup_gui.remaining(cfg) == ["remarkable"] and [c.code for c in cfg.courses] == ["PHYS-110"]
@@ -101,10 +101,15 @@ def test_window_walks_through_setup(settings_file: Path, tmp_path: Path, monkeyp
         root.update()
 
     root.update()
-    assert title() == "Your notes folder"
+    assert title() == "A Google account"
+    while title() != "Choose your vault":  # done before there are settings: kept until the vault is chosen
+        press("Done")
+    press("Next")
+    assert "Choose your vault folder first." in str(wizard.message.cget("text"))
     _find(wizard.page, ttk.Entry).insert(0, str(tmp_path / "Vault"))
     press("Next")
-    assert title() == "Canvas calendar"
+    assert set(setup_gui.BEFORE_FOLDER) <= set(cfgmod.load().setup_steps)
+    assert title() == "Your Canvas calendar"
     press("Next")
     assert "Paste the Calendar Feed address first." in str(wizard.message.cget("text"))
     _find(wizard.page, ttk.Entry).insert(0, "https://school.instructure.com/feeds/calendars/user_x.ics")
@@ -117,10 +122,14 @@ def test_window_walks_through_setup(settings_file: Path, tmp_path: Path, monkeyp
             break
         root.after(50)
     press("Next")
-    assert title() == "Add Oso to Claude"
+    assert title() == "Claude Pro"
     press("Done")
     press("Skip for now")
-    assert setup_gui.remaining(cfgmod.load())[0] == "project"
+    assert setup_gui.remaining(cfgmod.load())[0] == "claude_code"
+    while title() != "Register your own copy of Oso":
+        press("Skip for now")
+    press("Skip all of these")
+    assert title() == "GroupMe"
     while title() != "You're set up":
         press("Skip for now")
     assert cfgmod.load().setup_finished
@@ -140,7 +149,7 @@ def test_reminder_resumes_or_goes_away_for_good(settings_file: Path, tmp_path: P
     setup_gui.offer_resume(root, lambda: done.append(True))
     root.update()
     box = next(w for w in root.winfo_children() if isinstance(w, tk.Toplevel))
-    assert "Canvas calendar" in " ".join(str(w.cget("text")) for w in box.winfo_children()[0].winfo_children() if isinstance(w, ttk.Label))
+    assert "•  Canvas\n" in " ".join(str(w.cget("text")) for w in box.winfo_children()[0].winfo_children() if isinstance(w, ttk.Label))
     _find(box, ttk.Checkbutton, "Don't show this again").invoke()
     _find(box, ttk.Button, "Not now").invoke()
     root.update()

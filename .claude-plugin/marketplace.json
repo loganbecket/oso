@@ -11,7 +11,7 @@
       "name": "oso",
       "source": "./plugin",
       "description": "Study assistant: semester setup, deadlines, and the morning briefing from your own vault.",
-      "version": "0.19.1"
+      "version": "0.20.0"
     }
   ]
 }

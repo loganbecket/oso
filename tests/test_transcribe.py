@@ -132,7 +132,7 @@ def test_a_damaged_scan_is_skipped_and_the_rest_still_queued(tmp_path: Path, mon
     with db.connect(tmp_path / "t.sqlite") as conn:
         assert handwriting.queue_new(conn, cfg) == 1
         assert [p["notebook"] for p in handwriting.pending(conn)] == ["b"]
-        assert conn.execute("SELECT status FROM pages WHERE path = 'Courses/Physics/Handwriting/a.jpg'").fetchone()["status"] == "unreadable"
+        assert conn.execute("SELECT status FROM pages WHERE path = ?", (handwriting._rel(cfg, hw / "a.jpg"),)).fetchone()["status"] == "unreadable"
         looked = []
         real = handwriting.is_blank
         monkeypatch.setattr(handwriting, "is_blank", lambda p, **k: looked.append(p.name) or real(p, **k))

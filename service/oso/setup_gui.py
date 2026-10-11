@@ -16,10 +16,14 @@ import logging
 import shutil
 import sys
 import threading
-import tkinter as tk
 import webbrowser
 from pathlib import Path
-from tkinter import filedialog, ttk
+
+try:
+    import tkinter as tk
+    from tkinter import filedialog, ttk
+except ImportError:  # a Python without Tk: the steps can still be recorded, but no window can open
+    tk = ttk = filedialog = None
 
 from . import config as cfgmod
 from . import secrets
@@ -215,6 +219,9 @@ def _start_checking(cfg: cfgmod.Config) -> None:
 
 def run(master: tk.Misc | None = None, on_close=None) -> None:
     """Open the setup window: on its own (from the installer), or over the Oso window when master is given."""
+    if tk is None:
+        raise RuntimeError("This computer's Python can't show windows (Tk is missing), so the setup window can't open. "
+                           "Follow the install guide's steps in writing instead.")
     Wizard(master, on_close)
     if master is None:
         tk.mainloop()

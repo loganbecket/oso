@@ -170,3 +170,20 @@ def test_reminder_resumes_or_goes_away_for_good(settings_file: Path, tmp_path: P
     import gc
 
     gc.collect()
+
+
+def test_steps_are_recorded_even_on_a_python_without_tk(settings_file: Path, tmp_path: Path, monkeypatch):
+    import importlib
+    import sys
+
+    for name in ("tkinter", "tkinter.ttk", "tkinter.filedialog"):
+        monkeypatch.setitem(sys.modules, name, None)  # how a Python built without Tk answers the import
+    try:
+        bare = importlib.reload(setup_gui)
+        assert bare.tk is None
+        assert bare.begin(tmp_path / "Vault", "America/Chicago").timezone == "America/Chicago"
+        with pytest.raises(RuntimeError, match="can't show windows"):
+            bare.run()
+    finally:
+        monkeypatch.undo()
+        importlib.reload(setup_gui)

@@ -254,3 +254,36 @@ def test_choices_however_claude_sends_them(env):
         assert qs[0]["choices"][0] == "Test ideas by experiment" and qs[0]["choices"][1] == "Trust authority"
     with pytest.raises(profile.ProfileError, match="only letters"):
         profile.start_quiz(conn, cfg, "PHYS-110", [{**base, "choices": ["A", "B", "C", "D"], "answer": "A"}], window=True)
+
+
+def test_new_scans_in_the_handwriting_folder_are_offered_to_the_open_quiz(tmp_path: Path):
+    import os
+
+    from PIL import Image, ImageDraw
+
+    from oso import db, handwriting, quizwin
+
+    cfg = Config(vault=tmp_path / "vault", courses=[Course("PHYS-110", "Physics", "2026 Fall/Physics")])
+    hw = cfg.vault / "Courses" / "2026 Fall" / "Physics" / "Handwriting"
+    hw.mkdir(parents=True)
+    old = hw / "lecture.png"
+    Image.new("L", (400, 300), 255).save(old)
+    os.utime(old, (1_600_000_000, 1_600_000_000))  # scanned long before the quiz
+    with db.connect(tmp_path / "t.sqlite") as conn:
+        qid = profile.start_quiz(conn, cfg, "PHYS-110", [
+            {"number": 1, "topic": "Forces", "type": "worked_problem", "difficulty": "hard", "question": "Show it.", "criteria": "F = ma"},
+        ], window=True)
+        quiz = conn.execute("SELECT * FROM quizzes WHERE id = ?", (qid,)).fetchone()
+        assert quizwin.new_scans(cfg, dict(quiz)) == []
+        page = Image.new("L", (400, 300), 255)
+        ImageDraw.Draw(page).rectangle((50, 50, 300, 200), fill=0)
+        page.save(hw / "Q1 answer.png")
+        assert quizwin.new_scans(cfg, dict(quiz)) == [hw / "Q1 answer.png"]
+        assert quizwin.take_scans(conn, cfg, dict(quiz), [hw / "Q1 answer.png"]) == 1
+        assert quizwin.new_scans(cfg, dict(quiz)) == []  # attached, so not offered again
+        profile.window_submit(conn, qid, {1: {"response": None, "seconds": 90, "changes": 0}})
+        view = profile.grading_view(conn, cfg, qid)
+        assert [w["path"] for w in view["written_work"]] == [f"Courses/2026 Fall/Physics/Quizzes/Quiz {qid}/pages/page 01.png"]
+        # quiz answers are not lecture notes: the scan never reaches the transcription queue
+        assert handwriting.queue_new(conn, cfg) == 0
+        assert [p["notebook"] for p in handwriting.pending(conn)] == []

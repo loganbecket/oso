@@ -27,7 +27,7 @@ Setup takes about an hour, most of it installing and signing in to apps. Paste t
 
 ### Studying
 
-- **[Studying with Oso](docs/features/studying.md)**: explanations, summaries, study guides, practice tests in a timed quiz window with typeset equations, checks of your own work, flashcards, and study plans, all from your own course materials.
+- **[Studying with Oso](docs/features/studying.md)**: explanations, summaries, study guides, practice tests in a timed quiz window with typeset equations (matrices and derivations included) and handwritten answers graded from your scans, checks of your own work, flashcards, and study plans, all from your own course materials.
 - **[Where you stand](docs/features/where-you-stand.md)**: Oso tracks each topic from your actual results, tells you honestly where you're behind, and warns you when an exam is close and you aren't ready.
 - **[Grades](docs/features/grades.md)**: every class's grade side by side in the Oso window, lowest first, with the work pulling each one down.
 - **[Textbooks](docs/features/textbooks.md)**: put your textbook in the course folder and Claude cites it by page, and checks your notes against it.

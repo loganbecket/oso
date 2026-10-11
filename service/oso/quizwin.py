@@ -168,6 +168,7 @@ def review(quiz_id: int) -> None:
         text.delete("1.0", "end")
         mathimg.fill(text, q["question"], size=12, dpi=dpi)
         text.config(state="disabled")
+        mathimg.fit(text, at_least=3, at_most=16)
         for w in body.winfo_children():
             w.destroy()
         if q["type"] == "multiple_choice" and q["choices"]:
@@ -259,6 +260,40 @@ def import_work(conn, cfg: Config, quiz: dict, sources: list[Path], origin: str)
     return profile.add_work(conn, quiz["id"], added, origin)
 
 
+def new_scans(cfg: Config, quiz: dict) -> list[Path]:
+    """Scans and photos that landed in the course's Handwriting folder since the quiz was handed out and aren't
+    attached to it yet: the pages he just scanned, found for him."""
+    from . import handwriting
+
+    c = cfg.course_for(quiz["course"])
+    if c is None:
+        return []
+    folder = cfg.vault / "Courses" / c.folder / "Handwriting"
+    if not folder.is_dir():
+        return []
+    since = datetime.fromisoformat(quiz["handed_out_at"]).timestamp()
+    work = work_folder(cfg, quiz)
+    out: list[Path] = []
+    for src in sorted(folder.rglob("*")):
+        parts = src.relative_to(folder).parts
+        if not src.is_file() or "pages" in parts or "Transcripts" in parts or handwriting._kind(src) is None:
+            continue
+        if src.stat().st_mtime < since or (work / notes.safe_name(src.name)).exists():
+            continue
+        out.append(src)
+    return out
+
+
+def take_scans(conn, cfg: Config, quiz: dict, sources: list[Path]) -> int:
+    """Attach scans from the Handwriting folder to the quiz; they are quiz answers, so they are not turned into notes."""
+    from . import handwriting
+
+    n = import_work(conn, cfg, quiz, sources, "scan")
+    for src in sources:
+        handwriting.claim_for_quiz(conn, cfg, src)
+    return n
+
+
 def tablet_notebooks(cfg: Config) -> list[dict]:
     """Notebooks on the plugged-in tablet, most recently changed first; empty if it is not connected."""
     from .connectors.remarkable_usb import RemarkableUsb
@@ -332,8 +367,8 @@ def _line(parent, text: str, dpi: int, foreground: str | None = None):
                   width=80, **({"foreground": foreground} if foreground else {}))
     mathimg.fill(box, text, size=11, dpi=dpi)
     box.config(state="disabled")
-    rows = text.count("\n") + 1 + 2 * sum(1 for kind, _ in mathimg.split(text) if kind == "display")
-    box.config(height=min(8, rows + 1))  # pictures stand taller than a line of text, so one row of slack
+    box.pack(anchor="w")  # laid out now, so its height can be measured; the caller's pack keeps it in place
+    mathimg.fit(box, at_least=1, at_most=10)
     return box
 
 
@@ -391,6 +426,7 @@ def run(quiz_id: int) -> None:
         text.delete("1.0", "end")
         mathimg.fill(text, q["question"], size=12, dpi=dpi)
         text.config(state="disabled")
+        mathimg.fit(text, at_least=3, at_most=16)
         for w in body.winfo_children():
             w.destroy()
         entry = None
@@ -500,6 +536,42 @@ def run(quiz_id: int) -> None:
 
         ttk.Button(buttons, text="Pull from reMarkable", command=from_tablet).grid(row=0, column=0, padx=(0, 8))
         ttk.Button(buttons, text="Pick a scan or photo…", command=from_file).grid(row=0, column=1, padx=(0, 8))
+        fresh = ttk.Frame(frm)
+        fresh.pack(anchor="w", pady=(10, 0))
+        fresh_lbl = ttk.Label(fresh, wraplength=560)
+        fresh_btn = ttk.Button(fresh, text="Add them")
+        found: list[Path] = []
+
+        def add_fresh() -> None:
+            try:
+                with db.connect() as conn:
+                    n = take_scans(conn, cfg, quiz, list(found))
+                status.config(text=f"Added {n} page{'s' if n != 1 else ''} from your new scans.")
+            except Exception:  # noqa: BLE001
+                messagebox.showerror("Oso", "Could not read those scans. Use PDF, PNG, or JPG.", parent=root)
+            look()
+
+        def look() -> None:
+            """Scans he saves to the course's Handwriting folder while this screen is open appear here on their own."""
+            try:
+                found[:] = new_scans(cfg, quiz)
+            except OSError:
+                found[:] = []
+            if found:
+                names = ", ".join(p.name for p in found[:3]) + (", …" if len(found) > 3 else "")
+                fresh_lbl.config(text=f"New in the {c.name if c else quiz['course']} Handwriting folder since the quiz started: {names}")
+                fresh_lbl.pack(side="left", padx=(0, 8))
+                fresh_btn.pack(side="left")
+            else:
+                fresh_lbl.pack_forget()
+                fresh_btn.pack_forget()
+            try:
+                root.after(3000, look)
+            except tk.TclError:  # the window is closing
+                pass
+
+        fresh_btn.config(command=add_fresh)
+        look()
         ttk.Label(frm, wraplength=700, text="When you're done, close this window and tell Claude in the chat: \"I finished the quiz.\"").pack(anchor="w", pady=(18, 6))
         ttk.Button(frm, text="Done", command=root.destroy).pack(anchor="e")
 
@@ -533,7 +605,8 @@ Answer with JSON only, no other text:
 Rules: multiple choice has the text of each choice without letters, every wrong choice a plausible mistake, and
 "answer" is the right letter. Every other question has its "criteria". Difficulty is honest: hard means several
 steps or a real idea, not bigger numbers. Every equation, expression, or symbol is LaTeX: `$...$` inline, `$$...$$` on its own line for a
-display equation (the window typesets them); plain text otherwise. No matrices or multi-line alignments.
+display equation (the window typesets them); plain text otherwise. Matrices (`pmatrix`, `bmatrix`), piecewise definitions
+(`cases`), and multi-line derivations (`aligned`, with `&` before each `=`) are fine inside `$$...$$`.
 
 Course: {course}
 Open misconceptions: {misconceptions}

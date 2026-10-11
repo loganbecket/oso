@@ -80,8 +80,22 @@ def queue_new(conn: sqlite3.Connection, cfg: Config, scale: float | None = None)
 
 
 def _unreadable(conn: sqlite3.Connection, cfg: Config, src: Path) -> bool:
-    """A scan that could not be opened or rendered on an earlier check; it is not tried again."""
-    return conn.execute("SELECT 1 FROM pages WHERE source_file = ? AND status = 'unreadable'", (_rel(cfg, src),)).fetchone() is not None
+    """A scan that could not be opened or rendered on an earlier check, or one the student attached to a quiz as his
+    answers; neither is turned into notes."""
+    return conn.execute("SELECT 1 FROM pages WHERE source_file = ? AND status IN ('unreadable', 'quiz')", (_rel(cfg, src),)).fetchone() is not None
+
+
+def claim_for_quiz(conn: sqlite3.Connection, cfg: Config, src: Path) -> None:
+    """A scan in a Handwriting folder that the student attached to a quiz: its pages are answers, not notes, so any
+    still waiting are taken out of the transcription queue and it is never queued again."""
+    ensure(conn)
+    rel = _rel(cfg, src)
+    conn.execute("UPDATE pages SET status = 'quiz' WHERE source_file = ? AND status = 'pending'", (rel,))
+    conn.execute(
+        "INSERT OR IGNORE INTO pages (path, notebook, page, source_file, queued_at, status) VALUES (?, ?, 0, ?, ?, 'quiz')",
+        (rel, src.stem, rel, now_iso()),
+    )
+    conn.commit()
 
 
 def _kind(src: Path) -> str | None:

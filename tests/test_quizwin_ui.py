@@ -25,7 +25,9 @@ def test_window_steps_through_and_submits(tmp_path: Path, monkeypatch):
         qid = profile.start_quiz(conn, cfg, "PHYS-110", [
             {"number": 1, "topic": "K", "type": "multiple_choice", "difficulty": "easy", "question": "Pick B", "choices": ["ex", "why"], "answer": "B"},
             {"number": 2, "topic": "F", "type": "worked_problem", "difficulty": "hard",
-             "question": "Evaluate\n$$\\int_0^{\\pi} \\sin(x)\\,dx$$\nand compare with $\\frac{\\pi}{2}$.", "criteria": "x = 2"},
+             "question": "Evaluate\n$$\\int_0^{\\pi} \\sin(x)\\,dx$$\nand compare with $\\frac{\\pi}{2}$. Then find\n"
+                         "$$\\det\\begin{pmatrix} 1 & 2 \\\\ 3 & 4 \\end{pmatrix} \\quad\\text{and}\\quad "
+                         "\\begin{aligned} y &= mx + b \\\\ &= 2x + 1 \\end{aligned}$$", "criteria": "x = 2"},
         ], window=True)
     monkeypatch.setattr(cfgmod, "data_dir", lambda: tmp_path / "data")
 
@@ -50,7 +52,8 @@ def test_window_steps_through_and_submits(tmp_path: Path, monkeypatch):
         root.update()
         box = find(root, tk.Text)
         seen.append(find(root, ttk.Label).cget("text"))
-        seen.append(len(box.image_names()))  # the two equations are drawn in the question
+        seen.append(len(box.image_names()))  # the three equations are drawn in the question, the matrix and derivation too
+        seen.append(int(box.cget("height")))
         seen.append(box.get("1.0", "end"))
         find(root, ttk.Button, "Review and submit").invoke()
         root.update()
@@ -62,8 +65,9 @@ def test_window_steps_through_and_submits(tmp_path: Path, monkeypatch):
     import gc
 
     gc.collect()  # free the window's Tcl objects here, on the main thread; Tcl aborts if a later test's thread frees them
-    assert seen[0] == "Question 2 of 2" and seen[1] == 2 and seen[-1] == "Answers submitted."
-    assert "Evaluate" in seen[2] and "compare with" in seen[2] and "\\int" not in seen[2]  # LaTeX is not shown as text
+    assert seen[0] == "Question 2 of 2" and seen[1] == 3 and seen[-1] == "Answers submitted."
+    assert seen[2] > 8  # the question box grew past its usual eight rows to fit the pictures
+    assert "Evaluate" in seen[3] and "compare with" in seen[3] and "\\int" not in seen[3] and "pmatrix" not in seen[3]  # LaTeX is not shown as text
     with db.connect() as conn:
         view = profile.grading_view(conn, cfg, qid)
     assert view["questions"][0]["graded_by_window"] == "right" and view["questions"][1]["response"] is None

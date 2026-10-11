@@ -539,8 +539,8 @@ def window_submit(conn: sqlite3.Connection, quiz_id: int, responses: dict[int, d
 def add_work(conn: sqlite3.Connection, quiz_id: int, pages: list[str], origin: str, now: str | None = None) -> int:
     """Attach page images of written work (vault paths) to a quiz."""
     ensure(conn)
-    if origin not in ("tablet", "file"):
-        raise ProfileError("Written work comes from the tablet or a file.")
+    if origin not in ("tablet", "file", "scan"):
+        raise ProfileError("Written work comes from the tablet, a file, or a new scan.")
     conn.executemany("INSERT INTO quiz_work (quiz_id, page, origin, added_at) VALUES (?, ?, ?, ?)",
                      [(quiz_id, p, origin, now or _now()) for p in pages])
     return len(pages)

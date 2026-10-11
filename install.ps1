@@ -3,7 +3,7 @@
 #   powershell -ExecutionPolicy Bypass -File $env:TEMP\oso-install.ps1
 
 $ErrorActionPreference = "Stop"
-$Repo = if ($env:OSO_REPO) { $env:OSO_REPO } else { "loganbecket/oso" }
+$Repo = "loganbecket/oso"  # fixed on purpose: nothing on the student's computer can redirect the install
 
 Write-Host ""
 Write-Host "Oso installer" -ForegroundColor Cyan

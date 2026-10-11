@@ -372,8 +372,12 @@ def test_long_secret_is_split_to_fit_windows(monkeypatch):
     assert set(store) == {canvas_session.SESSION}
 
     canvas_session.save(session)
+    folder = canvas_session.browser_folder()
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "cookies").write_text("remember-me", encoding="utf-8")
     canvas_session.forget()
     assert store == {}
+    assert not folder.exists()  # the sign-in window's browser memory goes with the session
 
 
 def test_recent_inbox_messages_are_kept_for_reading_without_marking_them_read(env, server, monkeypatch):
@@ -495,6 +499,77 @@ def test_the_stored_password_is_only_typed_where_it_belongs():
     canvas = "school.instructure.com"
     assert not canvas_session.may_fill("http://login.school.edu/", canvas, quiet=False, known_host=None)  # never over plain http
     assert canvas_session.may_fill("https://anything.example/login", canvas, quiet=False, known_host=None)  # he is watching
+    # once a sign-in page has worked, a link clicked from it to some other site never gets his password, even watching
+    assert not canvas_session.may_fill("https://help.vendor.example/reset", canvas, quiet=False, known_host="login.school.edu")
+    assert canvas_session.may_fill("https://login.school.edu/", canvas, quiet=False, known_host="login.school.edu")
     assert canvas_session.may_fill("https://login.school.edu/", canvas, quiet=True, known_host="login.school.edu")
     assert not canvas_session.may_fill("https://lookalike.example/", canvas, quiet=True, known_host="login.school.edu")
     assert canvas_session.may_fill(f"https://{canvas}/login", canvas, quiet=True, known_host="login.school.edu")
+
+
+class TrickyHandler(BaseHTTPRequestHandler):
+    """An outside site that redirects inward, serves an endless body, or serves a plain document."""
+
+    def log_message(self, *a):
+        pass
+
+    def do_GET(self):
+        if self.path == "/redirect":
+            self.send_response(302)
+            self.send_header("Location", "http://169.254.169.254/latest/meta-data/")
+            self.end_headers()
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", "application/pdf")
+        self.end_headers()
+        if self.path == "/big":
+            try:
+                for _ in range(64):
+                    self.wfile.write(b"x" * 65536)  # 4 MB, no Content-Length, well past a 1 MB cap
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+            return
+        self.wfile.write(b"%PDF-1.4 plain")
+
+
+@pytest.fixture
+def tricky():
+    srv = HTTPServer(("127.0.0.1", 0), TrickyHandler)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    yield f"http://localhost:{srv.server_port}"
+    srv.shutdown()
+
+
+def test_an_outside_link_that_redirects_inward_is_not_saved(env, server, tricky, monkeypatch):
+    from oso import sites
+
+    monkeypatch.setattr(sites, "public_url", lambda url: "169.254." not in url)  # the test site itself counts as public
+    cfg, _ = env
+    api = CanvasApi(server, "tok", cfg)
+    target = cfg.vault / "Courses" / "x" / "meta.pdf"
+    assert not api._download(f"{tricky}/redirect", target)
+    assert not target.exists() and not target.with_name("meta.pdf.part").exists()
+
+
+def test_an_outside_document_past_the_size_cap_is_not_saved(env, server, tricky, monkeypatch):
+    from oso.connectors import canvas_api
+
+    monkeypatch.setattr(canvas_api, "MAX_FILE_MB", 1)
+    cfg, _ = env
+    api = CanvasApi(server, "tok", cfg)
+    target = cfg.vault / "Courses" / "x" / "big.pdf"
+    assert not api._download(f"{tricky}/big", target)
+    assert not target.exists() and not target.with_name("big.pdf.part").exists()
+    own = cfg.vault / "Courses" / "x" / "own.pdf"  # the cap holds for Canvas's own files too
+    monkeypatch.setattr(canvas_api, "MAX_FILE_MB", 0)
+    assert not api._download(f"{server}/dl/own.pdf", own)
+    assert not own.exists() and not own.with_name("own.pdf.part").exists()
+
+
+def test_a_plain_outside_document_still_downloads(env, server, tricky):
+    cfg, _ = env
+    api = CanvasApi(server, "tok", cfg)
+    target = cfg.vault / "Courses" / "x" / "plain.pdf"
+    assert api._download(f"{tricky}/plain.pdf", target)
+    assert target.read_bytes() == b"%PDF-1.4 plain"
+    assert not target.with_name("plain.pdf.part").exists()

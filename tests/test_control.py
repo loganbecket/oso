@@ -275,3 +275,22 @@ def test_the_four_actions_ask_first(env, monkeypatch):
     assert mcp_server.save_feedback("it broke", "bug", "broke").startswith("Not done.")
     assert mcp_server.save_rule("x", "x", "how", applies_to="everything").startswith("Not done.")
     assert mcp_server.update_course("PHYS-110", add_site="https://faculty.example.edu/~lee").startswith("Not done.")
+
+
+def test_a_google_sign_in_that_fails_is_one_plain_sentence(tmp_path: Path, monkeypatch):
+    from oso import mail, tasks
+
+    not_json = tmp_path / "notes.txt"
+    not_json.write_text("not the client file")
+    assert actions.connect_email(not_json) == ("That isn't the client file from Google Cloud. "
+                                               "Download the Desktop app client's JSON file and pick that.")
+    monkeypatch.setattr(tasks, "connect", lambda f=None: (_ for _ in ()).throw(ValueError("Client secrets is not in the correct format.")))
+    assert actions.connect_tasks(tmp_path / "wrong.json").startswith("That isn't the client file from Google Cloud.")
+    monkeypatch.setattr(mail, "connect", lambda f=None: (_ for _ in ()).throw(FileNotFoundError(2, "No such file", "/home/x/secret.json")))
+    out = actions.connect_email(tmp_path / "gone.json")
+    assert out == "Email didn't connect (the client file wasn't found; pick it again)." and "/home" not in out
+    import requests
+
+    monkeypatch.setattr(tasks, "connect", lambda f=None: (_ for _ in ()).throw(requests.ConnectionError("Max retries exceeded with url: https://oauth2.googleapis.com/token")))
+    out = actions.connect_tasks()
+    assert out == "Google Tasks didn't connect (could not reach the source; check the internet connection)."

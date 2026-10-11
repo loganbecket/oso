@@ -26,7 +26,7 @@ import re
 import sqlite3
 from datetime import UTC, datetime
 
-from . import notes
+from . import notes, vault
 from .config import Config, Course
 
 log = logging.getLogger("oso.filing")
@@ -209,6 +209,8 @@ def move_book(cfg: Config, book: str, course_code: str, conn: sqlite3.Connection
         dest.parent.mkdir(parents=True, exist_ok=True)
         src.replace(dest)
         for md in dest.rglob("*.md"):
+            if vault.ownership(md, vault.book_note) != "ours":
+                continue  # a note he wrote (or edited) inside the book folder moves with it, untouched
             fm, body = notes.read_front_matter(md.read_text(encoding="utf-8", errors="replace"))
             if fm.get("course"):
                 fm["course"] = to.code
@@ -310,7 +312,8 @@ def file_clip(cfg: Config, name: str, course_code: str, conn: sqlite3.Connection
     belonging to no course ("none"), which keeps it in Clippings and stops Oso asking."""
     hits = [p for p in (cfg.vault / CLIPPINGS).glob("*.md") if name.lower() in p.stem.lower()] if (cfg.vault / CLIPPINGS).is_dir() else []
     if not hits:
-        hits = [p for c in cfg.courses for p in (cfg.vault / "Courses" / c.folder / "Readings").glob("*.md") if name.lower() in p.stem.lower()]
+        hits = [p for c in cfg.courses for p in (cfg.vault / "Courses" / c.folder / "Readings").glob("*.md")
+                if name.lower() in p.stem.lower() and vault.ownership(p, vault.clipped_page) not in ("theirs", "edited")]
     if not hits:
         return f"No clip called {name!r} in Clippings or a course's Readings."
     if len(hits) > 1:

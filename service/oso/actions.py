@@ -118,9 +118,7 @@ def connect_email(client_file=None) -> str:
     try:
         addr = mail.connect(client_file)
     except Exception as e:  # noqa: BLE001
-        if "client file" in str(e):
-            return str(e)
-        return f"Email didn't connect ({e})."
+        return _connect_failure("Email", e)
     return (f"Connected {addr}. Oso reads new email there on every check and changes nothing. The one thing it can send "
             "is feedback about Oso, only when he asks, only to whoever builds Oso.")
 
@@ -131,10 +129,21 @@ def connect_tasks(client_file=None) -> str:
     try:
         tasks.connect(client_file)
     except Exception as e:  # noqa: BLE001
-        if "client file" in str(e):
-            return str(e)
-        return f"Google Tasks didn't connect ({e})."
+        return _connect_failure("Google Tasks", e)
     return "Connected Google Tasks. His tasks are in the list named Oso, on his phone and in Google Calendar."
+
+
+def _connect_failure(what: str, e: Exception) -> str:
+    """One plain sentence for a Google sign-in that didn't go through: never a file path or a library's words."""
+    from . import sync
+
+    if "client file" in str(e):
+        return str(e)
+    if isinstance(e, ValueError):  # the chosen file isn't JSON, or isn't the OAuth client's JSON (json.JSONDecodeError is one)
+        return "That isn't the client file from Google Cloud. Download the Desktop app client's JSON file and pick that."
+    if isinstance(e, FileNotFoundError):
+        return f"{what} didn't connect (the client file wasn't found; pick it again)."
+    return f"{what} didn't connect ({sync.plain_error(e)})."
 
 
 def disconnect_tasks() -> str:

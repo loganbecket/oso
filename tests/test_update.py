@@ -60,7 +60,7 @@ def test_status_and_daily_check(tmp_path: Path, monkeypatch):
 def test_run_installs_channel_target_and_pins(monkeypatch):
     monkeypatch.setattr(update.requests, "get", fake_github(["v0.2.0"]))
     installed = []
-    monkeypatch.setattr(update, "install", lambda url: installed.append(url) or True)
+    monkeypatch.setattr(update, "install", lambda url, version="": installed.append(url) or True)
     monkeypatch.setattr(update, "_reschedule", lambda cfg: "rescheduled")
     monkeypatch.setattr(update.cfgmod, "save", lambda cfg, path=None: None)
     cfg = Config(vault=Path("/tmp/v"))
@@ -85,32 +85,34 @@ def test_github_unreachable_is_plain(monkeypatch):
 
 def test_windows_install_says_so_and_skips_reschedule(monkeypatch):
     monkeypatch.setattr(update.requests, "get", fake_github(["v0.2.0"]))
-    monkeypatch.setattr(update, "install", lambda url: False)
+    monkeypatch.setattr(update, "install", lambda url, version="": False)
     monkeypatch.setattr(update, "_reschedule", lambda cfg: (_ for _ in ()).throw(AssertionError("rescheduled")))
     monkeypatch.setattr(update.cfgmod, "save", lambda cfg, path=None: None)
     cfg = Config(vault=Path("/tmp/v"))
     out = update.run(cfg)
     assert "installing in a new window" in out and "restart the Claude app" in out
-    assert cfg.installed_version == "v0.2.0"
+    assert cfg.installed_version is None  # recorded by the window once its install finishes, so a failed window can't claim it
+    assert "already at" not in update.run(cfg)  # a second try after a failed window installs again
 
 
 def test_windows_script_quotes_paths():
-    text = update._WIN_SCRIPT.format(log="C:\\Users\\O''Neil\\update.log", pid=42, uv="uv.exe", url="https://x/y.zip", oso="oso.exe")
+    text = update._WIN_SCRIPT.format(log="C:\\Users\\O''Neil\\update.log", pid=42, uv="uv.exe", url="https://x/y.zip", oso="oso.exe", version="v1")
     assert "Wait-Process -Id 42" in text and "'C:\\Users\\O''Neil\\update.log'" in text
     assert "uv tool dir" in text and '-like "*$toolDir*"' in text and "cmd /c" not in text
 
 
 def test_record_does_not_reinstall(monkeypatch):
-    monkeypatch.setattr(update, "install", lambda url: (_ for _ in ()).throw(AssertionError("installed")))
+    monkeypatch.setattr(update, "install", lambda url, version="": (_ for _ in ()).throw(AssertionError("installed")))
     monkeypatch.setattr(update.cfgmod, "save", lambda cfg, path=None: None)
     cfg = Config(vault=Path("/tmp/v"))
     assert "v0.2.0" in update.record(cfg, "v0.2.0") and cfg.installed_version == "v0.2.0"
 
 
 def test_update_window_reschedules_the_check():
-    text = update._WIN_SCRIPT.format(log="L", pid=1, uv="uv.exe", url="https://x/y.zip", oso="C:\\bin\\oso.exe")
-    assert "$oso = 'C:\\bin\\oso.exe'" in text
+    text = update._WIN_SCRIPT.format(log="L", pid=1, uv="uv.exe", url="https://x/y.zip", oso="C:\\bin\\oso.exe", version="v0.2.0")
+    assert "$oso = 'C:\\bin\\oso.exe'" in text and "$version = 'v0.2.0'" in text
     assert text.index("& $oso install-task") > text.index("'Update finished'")
+    assert text.index("'Update finished'") < text.index("& $oso update --installed $version") < text.index("'Update failed")
 
 
 def test_doctor_fix_recreates_a_missing_schedule(monkeypatch):

@@ -85,7 +85,11 @@ def save(cookies: dict[str, str]) -> None:
 
 
 def forget() -> None:
+    """Forget the session, and the sign-in window's browser memory with it (the school's remember-me cookies)."""
+    import shutil
+
     secrets.delete(SESSION)
+    shutil.rmtree(browser_folder(), ignore_errors=True)
 
 
 def set_login(username: str, password: str) -> None:
@@ -316,14 +320,18 @@ def sign_in(base: str, timeout_minutes: int = 10, quiet: bool = False) -> dict[s
 
 
 def may_fill(url: str, canvas_host: str, quiet: bool, known_host: str | None) -> bool:
-    """Whether the stored username and password may be typed into this page: only over https, and when nobody is
-    watching (a quiet reconnect) only on the sign-in page that worked before, or on Canvas itself."""
+    """Whether the stored username and password may be typed into this page: only over https, and once a sign-in
+    page has worked before, only on that page or on Canvas itself (watching or not), so a link clicked from the
+    school's page never gets his password. Before any page has worked, a quiet reconnect may fill wherever
+    Canvas's own sign-in link lands; watching, he can fill anywhere, since the first sign-in finds the page."""
     u = urlparse(url)
     if u.scheme != "https" or not u.netloc:
         return False
-    if not quiet:
+    if u.netloc == canvas_host:
         return True
-    return u.netloc == canvas_host or (known_host is not None and u.netloc == known_host) or known_host is None
+    if known_host is not None:
+        return u.netloc == known_host
+    return True
 
 
 def notify(body: str) -> None:

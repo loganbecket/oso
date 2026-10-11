@@ -53,6 +53,10 @@ FOLLOW_DAYS = 120  # blocks older than a term no longer follow their item around
 
 OFF_LIMITS = ("sync_now", "update_oso", "backup_now", "open_settings", "run_health_check", "save_rule", "change_rule",
               "resolve_skill", "delete_quiz", "update_course", "add_course", "mute")
+# The only Oso tools a rule running in the background may call: what ACT_PROMPT tells it to use (find free time, add to
+# the Oso calendar) and the read-only lookups it needs to make sense of a deadline, exam, or course. It acts on text
+# written by outsiders, so nothing that writes a note, changes an item, or reads the vault is on the list.
+BACKGROUND_TOOLS = ("open_time", "add_to_calendar", "schedule", "list_deadlines", "get_item", "list_courses", "class_times")
 FIRE_ENV = "OSO_RULE_FIRE"  # set for the background Claude, so what it adds to the calendar is tied to the rule
 
 SCHEMA = """
@@ -205,6 +209,13 @@ class FormError(ValueError):
     """A plain sentence saying why Oso can't follow the form."""
 
 
+def _whole(value, key: str) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        raise FormError(f"{key} should be a whole number, not {value!r}.") from None
+
+
 def check_form(form: dict) -> dict:
     """The form, cleaned; FormError when Oso can't follow it."""
     if not isinstance(form, dict):
@@ -231,13 +242,13 @@ def check_form(form: dict) -> dict:
     if form.get("days_before") is not None:
         if watch != "item":
             raise FormError("Only deadlines and exams have a date to count back from.")
-        out["days_before"] = max(0, int(form["days_before"]))
+        out["days_before"] = max(0, _whole(form["days_before"], "days_before"))
     elif form.get("within_hours") is not None:
-        out["within_hours"] = max(1, int(form["within_hours"]))
+        out["within_hours"] = max(1, _whole(form["within_hours"], "within_hours"))
     else:
         out["within_hours"] = 24
     if do == "block":
-        minutes = int(form.get("minutes") or 0)
+        minutes = _whole(form.get("minutes") or 0, "minutes")
         if not 15 <= minutes <= 12 * 60:
             raise FormError("A block of time has to be between 15 minutes and 12 hours.")
         out["minutes"] = minutes
@@ -747,7 +758,7 @@ def _background_claude(cfg: Config):
             raise NoClaude("Claude Code isn't installed on this computer")
         result = subprocess.run(
             [exe, "-p", "--model", cfg.background_model, "--output-format", "text", "--tools", "",
-             "--strict-mcp-config", "--mcp-config", str(_mcp_config()), "--allowedTools", "mcp__oso",
+             "--strict-mcp-config", "--mcp-config", str(_mcp_config()), "--allowedTools", *[f"mcp__oso__{t}" for t in BACKGROUND_TOOLS],
              "--disallowedTools", *[f"mcp__oso__{t}" for t in OFF_LIMITS], "--max-turns", "15"],
             cwd=str(cfg.vault), input=prompt, capture_output=True, text=True, encoding="utf-8", timeout=600, check=False,
             env={**os.environ, FIRE_ENV: str(fire)},
@@ -811,7 +822,12 @@ def _reform(conn, cfg: Config, rule: Rule, now: datetime, ask) -> int:
     key = f"reform:{fingerprint(rule.words)}"
     try:
         m = re.search(r"\{.*\}", ask(prompt), re.S)
-        data = json.loads(m.group(0)) if m else {}
+        try:
+            data = json.loads(m.group(0)) if m else {}
+        except json.JSONDecodeError:
+            raise FormError("Claude's answer wasn't readable") from None
+        if not isinstance(data, dict):
+            raise FormError("Claude's answer wasn't readable")
         kind = data.get("kind")
         if kind not in ("how", "when"):
             raise FormError("Claude couldn't tell what the rule asks for")

@@ -123,6 +123,58 @@ def test_a_lock_held_by_a_live_program_is_respected(cfg):
     p.unlink()
 
 
+def test_an_old_lock_held_by_a_live_program_is_still_respected(cfg):
+    import os
+
+    p = cfgmod.data_dir() / "work.lock"
+    p.write_text(str(os.getpid()))
+    old = time.time() - lock.STALE_SECONDS - 60
+    os.utime(p, (old, old))
+    with lock.held(wait_seconds=0) as got:
+        assert not got
+    assert p.read_text() == str(os.getpid())
+
+
+def test_an_unreadable_old_lock_is_taken_over_by_age(cfg):
+    import os
+
+    p = cfgmod.data_dir() / "work.lock"
+    p.write_text("")  # never finished being written
+    with lock.held(wait_seconds=0) as got:
+        assert not got  # fresh: assume busy
+    old = time.time() - lock.STALE_SECONDS - 60
+    os.utime(p, (old, old))
+    with lock.held(wait_seconds=0) as got:
+        assert got
+
+
+def test_releasing_never_removes_a_lock_another_run_took(cfg):
+    p = cfgmod.data_dir() / "work.lock"
+    with lock.held(wait_seconds=0) as got:
+        assert got
+        p.write_text("424242")  # another run took it over meanwhile
+    assert p.read_text() == "424242"
+    p.unlink()
+
+
+def test_a_stale_lock_is_left_alone_when_replaced_while_judged(cfg, monkeypatch):
+    import os
+
+    p = cfgmod.data_dir() / "work.lock"
+    p.write_text("999999")
+    real = lock._stale
+
+    def judged_then_replaced(path, owner):
+        r = real(path, owner)
+        path.write_text(str(os.getpid()))  # a live run takes the lock between the judgment and the removal
+        return r
+
+    monkeypatch.setattr(lock, "_stale", judged_then_replaced)
+    with lock.held(wait_seconds=0) as got:
+        assert not got
+    assert p.read_text() == str(os.getpid())
+
+
 def test_windows_check_runs_windowless():
     from oso import install_windows
 

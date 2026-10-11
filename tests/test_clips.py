@@ -142,3 +142,31 @@ def test_a_page_read_in_chrome_joins_the_courses_book_and_replaces_itself(env):
     filing.save_book_page(cfg, "PHYS-120", "Halliday", "4.2 Projectile Motion", "Text.")
     assert (clipped / "4.2 Projectile Motion.md").read_text().split("---")[2].lstrip().startswith("## 4.2 Projectile Motion")
     assert filing.save_book_page(cfg, "NOPE", "Halliday", "1", "x") == "There is no course 'NOPE'."
+
+
+def test_his_own_reading_is_never_moved_at_a_clips_name(env):
+    cfg, conn = env
+    readings = cfg.vault / "Courses/2026 Fall/Physics 2/Readings"
+    readings.mkdir(parents=True)
+    his = readings / "Energy notes.md"
+    his.write_text("---\ntitle: Energy notes\ntype: lecture\n---\n\nWhat I think about energy.\n")
+    assert filing.file_clip(cfg, "energy", "PHYS-110", conn) == "No clip called 'energy' in Clippings or a course's Readings."
+    assert his.exists() and "What I think about energy." in his.read_text()
+    clip(cfg, "Energy", "force charge voltage velocity")
+    assert filing.file_clip(cfg, "energy", "Physics 2", conn) == "Filed Energy in Physics 2."
+    assert filing.file_clip(cfg, "energy", "PHYS-110", conn) == "Filed Energy in Physics 1."  # the clip moves; his note is not a match
+    assert his.exists() and "type: lecture" in his.read_text()
+
+
+def test_moving_a_book_leaves_his_notes_in_it_untouched(env):
+    cfg, conn = env
+    clip(cfg, "p1", "A page about charge.", book="Fundamentals of Physics, Halliday", page="'12'", course="PHYS-120")
+    filing.file_clippings(cfg, conn)
+    book = cfg.vault / "Courses/2026 Fall/Physics 2/Books/Fundamentals of Physics, Halliday"
+    his = book / "My summary.md"
+    his.write_text("---\ncourse: PHYS-120\ntags: [mine, 'odd: value']\n---\n\nMy summary of the book.\n")
+    before = his.read_text()
+    assert "Moved" in filing.move_book(cfg, "Halliday", "PHYS-110")
+    moved = cfg.vault / "Courses/2026 Fall/Physics 1/Books/Fundamentals of Physics, Halliday"
+    assert (moved / "My summary.md").read_text() == before  # same bytes, course line and all
+    assert "course: PHYS-110" in (moved / "Clipped/p1.md").read_text()

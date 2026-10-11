@@ -168,7 +168,10 @@ def test_rule_needing_judgment_runs_claude_with_only_osos_tools(env, monkeypatch
     assert rules.on_messages(cfg, conn, NOW) == 1
     argv = seen["argv"]
     assert argv[argv.index("--tools") + 1] == "" and "--strict-mcp-config" in argv
-    assert argv[argv.index("--allowedTools") + 1] == "mcp__oso"
+    allowed = argv[argv.index("--allowedTools") + 1:argv.index("--disallowedTools")]
+    assert allowed == [f"mcp__oso__{t}" for t in rules.BACKGROUND_TOOLS] and "mcp__oso" not in argv
+    assert {"mcp__oso__open_time", "mcp__oso__add_to_calendar", "mcp__oso__list_deadlines"} <= set(allowed)
+    assert not any(t.startswith("mcp__oso__read_") or t in ("mcp__oso__add_item", "mcp__oso__file_clip") for t in allowed)
     assert "mcp__oso__update_oso" in argv[argv.index("--disallowedTools"):]
     mcp = json.loads(Path(argv[argv.index("--mcp-config") + 1]).read_text())
     assert list(mcp["mcpServers"]) == ["oso"]
@@ -304,3 +307,23 @@ def test_offering_a_rule_is_in_every_conversation():
     from oso.tutor import SERVER_INSTRUCTIONS
 
     assert "Want me to keep that as a rule?" in SERVER_INSTRUCTIONS
+
+
+def test_background_tools_all_exist_on_the_server():
+    from oso import mcp_server
+
+    for name in rules.BACKGROUND_TOOLS:
+        assert callable(getattr(mcp_server, name)), name
+
+
+def test_form_mistakes_are_said_plainly(env):
+    cfg, conn = env
+    with pytest.raises(rules.FormError, match="days_before should be a whole number"):
+        rules.check_form({**EXAM_RULE, "days_before": "three"})
+    with pytest.raises(rules.FormError, match="minutes should be a whole number"):
+        rules.check_form({**EXAM_RULE, "minutes": "ninety"})
+    r = rules.save(cfg, conn, "Study before exams", "three hours", "when", NOW, form=EXAM_RULE)
+    r.path.write_text(r.path.read_text().replace("three hours", "two hours"))
+    rules.run(cfg, conn, NOW, ask=lambda p: "{this is: not, json}", ask_claude=no_claude)
+    text = today.render(conn, cfg, NOW)
+    assert "Claude's answer wasn't readable" in text and "Expecting" not in text and "invalid literal" not in text

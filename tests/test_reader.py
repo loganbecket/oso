@@ -113,3 +113,55 @@ def test_handwriting_first(env, monkeypatch):
     monkeypatch.setattr(reader, "read_page", lambda *a: order.append("book") or "text")
     assert reader.run(cfg, conn, NOW)["read"] == 2
     assert order == ["handwriting", "book"]
+
+
+def _handout(cfg, monkeypatch):
+    """A scanned worksheet converted with one poor page, as in test_scanned_handout_pages_read_in_place."""
+    monkeypatch.setattr(ocr, "available", lambda: True)
+    monkeypatch.setattr(ocr, "read_images", lambda ps: [GOOD, "∫ f(x) dx = ?"])
+    lect = cfg.vault / "Courses/2026 Fall/Physics/Lectures"
+    lect.mkdir(parents=True)
+    pdf = lect / "Worksheet 3.pdf"
+    Image.new("L", (600, 800), 255).save(pdf, save_all=True, append_images=[Image.new("L", (600, 800), 255)])
+    convert.convert_vault(cfg)
+    return lect / "Worksheet 3.pdf.md"
+
+
+def test_markers_outside_the_pages_folder_or_in_his_notes_are_never_sent(env, monkeypatch):
+    conn, cfg, calls = env
+    md = _handout(cfg, monkeypatch)
+    assert len(reader.waiting(cfg, conn, NOW)) == 1
+    # A marker that arrived inside the converted document itself, pointing outside the vault.
+    md.write_text(md.read_text(encoding="utf-8").replace('image="Courses/2026 Fall/Physics/Lectures/pages/Worksheet 3/p002.png"',
+                                                          'image="../../../etc/passwd"'), encoding="utf-8")
+    fm, body = reader.notes.read_front_matter(md.read_text(encoding="utf-8"))
+    reader.vault.write_note(md, {k: v for k, v in fm.items() if k != "oso"}, body)  # rewritten as Oso's own copy
+    assert reader.waiting(cfg, conn, NOW) == []
+    # The same marker, with a real page image, in a note the student wrote himself.
+    (md.parent / "Mine.md").write_text('# Mine\n\n<!-- oso:needs-reading image="Courses/2026 Fall/Physics/Lectures/pages/Worksheet 3/p002.png" -->\nx\n<!-- oso:end -->\n', encoding="utf-8")
+    assert reader.waiting(cfg, conn, NOW) == []
+    assert reader.run(cfg, conn, NOW) == {"read": 0, "failed": 0, "waiting": 0}
+    assert calls == []
+
+
+def test_an_edited_handout_is_left_alone_and_not_charged(env, monkeypatch):
+    conn, cfg, calls = env
+    md = _handout(cfg, monkeypatch)
+    cfg.auto_read_per_day = 5
+    md.write_text(md.read_text(encoding="utf-8") + "\nMy own remark.\n", encoding="utf-8")  # the student edited the converted note
+    assert reader.waiting(cfg, conn, NOW) == []
+    for _ in range(2):
+        assert reader.run(cfg, conn, NOW) == {"read": 0, "failed": 0, "waiting": 0}
+    assert calls == [] and reader.used_today(conn, NOW) == 0
+    assert "oso:needs-reading" in md.read_text(encoding="utf-8") and "My own remark." in md.read_text(encoding="utf-8")
+
+
+def test_a_handout_edited_after_queuing_is_not_sent_or_charged(env, monkeypatch):
+    conn, cfg, calls = env
+    md = _handout(cfg, monkeypatch)
+    cfg.auto_read_per_day = 5
+    jobs = reader.waiting(cfg, conn, NOW)
+    monkeypatch.setattr(reader, "waiting", lambda cfg, conn, now: jobs)
+    md.write_text(md.read_text(encoding="utf-8") + "\nMy own remark.\n", encoding="utf-8")
+    assert reader.run(cfg, conn, NOW)["read"] == 0
+    assert calls == [] and reader.used_today(conn, NOW) == 0

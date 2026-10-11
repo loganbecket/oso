@@ -89,3 +89,52 @@ def test_transcribe_without_claude_is_a_plain_error(tmp_path: Path, monkeypatch)
             raise AssertionError("expected ClaudeMissing")
         except transcribe.ClaudeMissing as e:
             assert "claude.ai/code" in str(e)
+
+
+def test_his_notes_are_never_overwritten_and_pages_stay_queued(tmp_path: Path, monkeypatch):
+    cfg = make_cfg(tmp_path)
+    hw = cfg.vault / "Courses" / "Physics" / "Handwriting"
+    img = Image.new("L", (800, 1000), 255)
+    ImageDraw.Draw(img).rectangle((100, 100, 700, 300), fill=0)
+    img.save(hw / "page1.png")
+    monkeypatch.setattr(transcribe.shutil, "which", lambda name: "claude")
+    monkeypatch.setattr(transcribe, "_transcribe_page", lambda exe, cfg, model, p, course: ("$F = ma$", 0.9))
+    notes_dir = cfg.vault / "Courses" / "Physics" / "Notes"
+    notes_dir.mkdir()
+    with db.connect(tmp_path / "t.sqlite") as conn:
+        handwriting.queue_new(conn, cfg)
+        day = transcribe._note_path(cfg, "PHYS-110", "page1", handwriting.pending(conn)[0]["queued_at"])
+        day.write_text("# Mine\n\nmy own notes\n", encoding="utf-8")
+        cont = day.with_name(f"{day.stem} (continued).md")
+        cont.write_text("# Also mine\n", encoding="utf-8")
+        # Both the dated note and "(continued)" are his: the page goes to "(continued 2)".
+        counts = transcribe.run(conn, cfg)
+        assert counts["pages"] == 1 and counts["failed"] == 0
+        assert day.read_text(encoding="utf-8") == "# Mine\n\nmy own notes\n" and cont.read_text(encoding="utf-8") == "# Also mine\n"
+        cont2 = day.with_name(f"{day.stem} (continued 2).md")
+        assert "$F = ma$" in cont2.read_text(encoding="utf-8") and handwriting.pending(conn) == []
+        # A write that is refused (the note became his between the check and the write) leaves the page queued.
+        img.save(hw / "page2.png")
+        handwriting.queue_new(conn, cfg)
+        monkeypatch.setattr(transcribe.vault, "write_note", lambda *a, **k: False)
+        counts = transcribe.run(conn, cfg)
+        assert counts["pages"] == 0 and counts["failed"] == 1
+        assert [p["notebook"] for p in handwriting.pending(conn)] == ["page2"]
+
+
+def test_a_damaged_scan_is_skipped_and_the_rest_still_queued(tmp_path: Path, monkeypatch):
+    cfg = make_cfg(tmp_path)
+    hw = cfg.vault / "Courses" / "Physics" / "Handwriting"
+    (hw / "a.jpg").write_bytes(b"not a picture at all")  # sorts before the good one
+    img = Image.new("L", (800, 1000), 255)
+    ImageDraw.Draw(img).rectangle((100, 100, 700, 300), fill=0)
+    img.save(hw / "b.png")
+    with db.connect(tmp_path / "t.sqlite") as conn:
+        assert handwriting.queue_new(conn, cfg) == 1
+        assert [p["notebook"] for p in handwriting.pending(conn)] == ["b"]
+        assert conn.execute("SELECT status FROM pages WHERE path = 'Courses/Physics/Handwriting/a.jpg'").fetchone()["status"] == "unreadable"
+        looked = []
+        real = handwriting.is_blank
+        monkeypatch.setattr(handwriting, "is_blank", lambda p, **k: looked.append(p.name) or real(p, **k))
+        assert handwriting.queue_new(conn, cfg) == 0
+        assert looked == []  # neither the damaged scan nor the already queued one is opened again

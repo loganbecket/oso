@@ -47,6 +47,10 @@ Write out the page as Markdown, faithfully and completely:
 Output only the page's content. Do not add commentary, a summary, or a page heading."""
 
 
+class _NotSent(Exception):
+    """A queued page that must not go to Claude after all (the note changed hands since it was queued)."""
+
+
 def _claude() -> str | None:
     return shutil.which("claude")
 
@@ -105,12 +109,30 @@ def waiting(cfg: Config, conn: sqlite3.Connection, now: datetime) -> list[dict]:
                 text = md.read_text(encoding="utf-8", errors="replace")
             except OSError:
                 continue
+            if "oso:needs-reading" not in text or vault.ownership(md, vault.converted_copy) != "ours":
+                continue  # only a converted copy Oso wrote and he has not touched can ask for a page to be read
             for n, m in enumerate(HANDOUT_BLOCK.finditer(text)):
+                if _page_image(cfg, md, m.group("image")) is None:
+                    continue
                 jobs.append({"kind": "handout", "course": c.code, "file": md, "image": m.group("image"), "order": n,
                              "mtime": md.stat().st_mtime})
     jobs.sort(key=lambda j: (rank.get(j["course"], 99), j["kind"] != "book", -j.get("mtime", 0) if j["kind"] == "handout" else 0,
                              str(j.get("folder") or j.get("file")), j["order"]))
     return jobs
+
+
+def _page_image(cfg: Config, md: Path, rel: str) -> Path | None:
+    """The page image a marker names, only when it is one convert.py wrote for this note: an existing file in the
+    note's own `pages/<document>/` folder inside the vault. Anything else (a marker that arrived inside a converted
+    document, say) is ignored."""
+    try:
+        pages = (md.parent / "pages" / Path(md.stem).stem).resolve()
+        image = (cfg.vault / rel).resolve()
+        if not image.is_relative_to(cfg.vault.resolve()) or image.parent != pages or not image.is_file():
+            return None
+    except (OSError, ValueError):
+        return None
+    return image
 
 
 def handwriting_waiting(conn: sqlite3.Connection) -> int:
@@ -168,6 +190,9 @@ def run(cfg: Config, conn: sqlite3.Connection, now: datetime) -> dict[str, int]:
             try:
                 _do(exe, cfg, conn, job)
                 counts["read"] += 1
+            except _NotSent as e:
+                log.info("%s", e)
+                continue  # nothing was sent, so nothing is charged to today's allowance
             except (subprocess.SubprocessError, OSError, ValueError) as e:
                 log.warning("could not read a page: %s", type(e).__name__)
                 counts["failed"] += 1
@@ -185,7 +210,9 @@ def _do(exe: str, cfg: Config, conn: sqlite3.Connection, job: dict) -> None:
         text = read_page(exe, cfg, Path(p["image_full_path"]), job["page"], f'the textbook "{job["book"]}"', course)
         books.save_page_reading(cfg, job["book"], job["page"], text, conn)
         return
-    image = cfg.vault / job["image"]
+    image = _page_image(cfg, job["file"], job["image"])
+    if image is None or vault.ownership(job["file"], vault.converted_copy) != "ours":
+        raise _NotSent(f"{job['file'].name} changed or is the student's, so its page was not sent to Claude")
     text = read_page(exe, cfg, image, str(job["order"] + 1), f'the handout "{job["file"].stem}"', course)
     body = job["file"].read_text(encoding="utf-8")
     marker = f'<!-- oso:needs-reading image="{job["image"]}" -->'
@@ -194,4 +221,5 @@ def _do(exe: str, cfg: Config, conn: sqlite3.Connection, job: dict) -> None:
             body = body[:m.start()] + f"{text}\n\n![[{job['image']}]]" + body[m.end():]
             break
     fm, inner = notes.read_front_matter(body)
-    vault.write_note(job["file"], fm, inner, vault.converted_copy)
+    if not vault.write_note(job["file"], fm, inner, vault.converted_copy):
+        raise ValueError("the student edited the handout note, so the page read was not written into it")

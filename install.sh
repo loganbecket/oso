@@ -3,7 +3,7 @@
 #   bash -c "$(curl -fsSL https://raw.githubusercontent.com/loganbecket/oso/master/install.sh)"
 set -euo pipefail
 
-REPO="${OSO_REPO:-loganbecket/oso}"
+REPO="loganbecket/oso"  # fixed on purpose: nothing on the student's computer can redirect the install
 
 echo
 echo "Oso installer"

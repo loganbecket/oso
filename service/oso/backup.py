@@ -242,11 +242,20 @@ def restore(cfg: Config, folder: Path, day: str | None = None, overwrite: bool =
         dbfile = src_oso / "history" / f"oso-{day}.sqlite"
         if not dbfile.exists():
             raise BackupError(f"There is no backup of Oso's records from {day}.")
-    try:
-        _copy(dbfile, db.db_path())
-    except PermissionError as e:
-        raise BackupError("Oso's records are in use. Quit the Claude app, wait a minute, and run the restore again; "
-                          "the notes already restored are in place.") from e
+    from . import lock
+
+    with lock.held(wait_seconds=30) as got:
+        if not got:
+            raise BackupError("Oso is in the middle of a check. Wait a minute and run the restore again; "
+                              "the notes already restored are in place.")
+        try:
+            target = db.db_path()
+            for side in ("-wal", "-shm"):  # leftovers from the old database would corrupt the restored one
+                target.with_name(target.name + side).unlink(missing_ok=True)
+            _copy(dbfile, target)
+        except PermissionError as e:
+            raise BackupError("Oso's records are in use. Quit the Claude app, wait a minute, and run the restore again; "
+                              "the notes already restored are in place.") from e
     lines.append("Restored Oso's records" + (f" from {day}." if day else "."))
     if (src_oso / "config.toml").exists():
         old = cfgmod.load(src_oso / "config.toml")

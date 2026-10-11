@@ -159,9 +159,18 @@ def _record_failure(name: str) -> None:
 
     try:
         with (data_dir() / "errors.log").open("a", encoding="utf-8") as f:
-            f.write(f"\n--- {datetime.now().isoformat(timespec='seconds')} {name}\n{traceback.format_exc()}")
+            f.write(f"\n--- {datetime.now().isoformat(timespec='seconds')} {name}\n{_without_addresses(traceback.format_exc())}")
     except OSError:
         pass
+
+
+def _without_addresses(text: str) -> str:
+    """Strip every web address: a feed URL is a secret, and library errors quote the address they failed on."""
+    import re
+
+    text = re.sub(r"https?://\S+", "(address)", text)
+    text = re.sub(r"(?i)\burl: ?\S+", "url: (address)", text)
+    return re.sub(r"/feeds/calendars/\S+", "/feeds/calendars/(address)", text)
 
 
 def _tasks(conn, cfg: Config, now: datetime) -> str | dict:
@@ -323,6 +332,5 @@ def plain_error(e: Exception) -> str:
     if isinstance(e, (requests.ConnectionError, requests.Timeout)) or "ConnectionError" in name or "Timeout" in name or "timed out" in text:
         return "could not reach the source; check the internet connection"
     # Never an address: a feed URL is a secret, and these sentences end up in Today.md.
-    text = re.sub(r"https?://\S+", "(address)", text)
-    text = re.sub(r"(?i)\burl: ?\S+", "url: (address)", text)
+    text = _without_addresses(text)
     return text.split("\n")[0][:160] or name

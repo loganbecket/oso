@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from pathlib import Path
+import pytest
 from zoneinfo import ZoneInfo
 
 from oso import dashboard, db, drive, merge, today
@@ -154,3 +155,50 @@ def test_create_course_tools_list_and_file_syllabus(tmp_path: Path, monkeypatch)
     text = (cfg.vault / out["path"]).read_text(encoding="utf-8")
     assert "type: syllabus" in text and "course: EGR-1301-001" in text and "# Intro to Engineering" in text
     assert [n["path"] for n in mcp_server.list_notes("Courses/Intro to Engineering")] == ["Courses/Intro to Engineering/Syllabus.md"]
+
+
+def test_reading_a_missing_or_folder_path_says_so_plainly(tmp_path: Path, monkeypatch):
+    from oso import mcp_server
+
+    cfg = Config(vault=tmp_path / "vault")
+    (cfg.vault / "Courses" / "Physics").mkdir(parents=True)
+    monkeypatch.setattr(mcp_server, "_cfg", lambda: cfg)
+    gone = mcp_server.read_note("Courses/Physics/nope.md")
+    assert gone["found"] is False and gone["note"] == "There is no note at Courses/Physics/nope.md." and gone["text"] == ""
+    assert "FileNotFoundError" not in str(gone) and "Errno" not in str(gone)
+    folder = mcp_server.read_section("Courses/Physics", "Intro")
+    assert folder["found"] is False and "There is no note at Courses/Physics." == folder["note"]
+    assert mcp_server.list_notes("Courses/Physics") == []
+
+
+def test_file_syllabus_moves_clips_and_oso_notes_but_never_his(tmp_path: Path, monkeypatch):
+    from oso import mcp_server, vault
+    from oso.config import Config, Course
+
+    cfg = Config(vault=tmp_path / "vault", courses=[Course("PHYS-110", "Physics", "Physics")])
+    monkeypatch.setattr(mcp_server, "_cfg", lambda: cfg)
+    for folder in ("Clippings", "Courses/Physics/Notes", "Courses/Physics/Books/Halliday", "Oso/Rules", ".obsidian"):
+        (cfg.vault / folder).mkdir(parents=True)
+    his = cfg.vault / "Courses/Physics/Notes/2026-09-01 Lecture.md"
+    his.write_text("---\ntitle: Lecture\ntype: lecture\n---\n\nMy own notes.\n", encoding="utf-8")
+    plain = cfg.vault / "Courses/Physics/Notes/Thoughts.md"
+    plain.write_text("Just my thoughts, no front matter.\n", encoding="utf-8")
+    chapter = cfg.vault / "Courses/Physics/Books/Halliday/Chapter 1.md"
+    vault.write_note(chapter, {"type": "textbook", "chapter": 1, "course": "PHYS-110"}, "# Chapter 1\n")
+    rule = cfg.vault / "Oso/Rules/Weather.md"
+    rule.write_text("Start with the weather.\n", encoding="utf-8")
+    hidden = cfg.vault / ".obsidian/app.json"
+    hidden.write_text("{}", encoding="utf-8")
+    for path, why in ((his, "a note he wrote"), (plain, "a note he wrote"), (chapter, "isn't a syllabus"), (rule, "isn't a syllabus"), (hidden, "isn't a syllabus")):
+        before = path.read_text(encoding="utf-8")
+        with pytest.raises(ValueError, match=why):
+            mcp_server.file_syllabus("PHYS-110", path.relative_to(cfg.vault).as_posix())
+        assert path.exists() and path.read_text(encoding="utf-8") == before
+    assert not (cfg.vault / "Courses/Physics/Syllabus.md").exists()
+
+    clipped = cfg.vault / "Clippings/PHYS 110 Syllabus.md"
+    clipped.write_text("---\ntitle: PHYS 110 Syllabus\ntype: reading\nsource: https://school.edu/phys110\n---\n\n# Syllabus\n", encoding="utf-8")
+    assert mcp_server.file_syllabus("PHYS-110", "Clippings/PHYS 110 Syllabus.md")["path"] == "Courses/Physics/Syllabus.md"
+    ours = cfg.vault / "Courses/Physics/Canvas/Syllabus page.md"
+    vault.write_note(ours, {"type": "canvas-page", "course": "PHYS-110"}, "# The syllabus\n")
+    assert mcp_server.file_syllabus("PHYS-110", "Courses/Physics/Canvas/Syllabus page.md")["path"] == "Courses/Physics/Syllabus (2).md"

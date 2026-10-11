@@ -62,11 +62,26 @@ def queue_new(conn: sqlite3.Connection, cfg: Config, scale: float | None = None)
                 continue
             pages_dir = src.parent / "pages"
             kind = _kind(src)
-            if kind == "pdf":
-                queued += _queue_pdf(conn, cfg, src, pages_dir, scale, course)
-            elif kind == "image":
-                queued += _queue_image(conn, cfg, src, course)
+            if kind is None or _unreadable(conn, cfg, src):
+                continue
+            try:
+                if kind == "pdf":
+                    queued += _queue_pdf(conn, cfg, src, pages_dir, scale, course)
+                else:
+                    queued += _queue_image(conn, cfg, src, course)
+            except Exception as e:  # noqa: BLE001  one damaged scan must not stop the rest from being queued
+                log.warning("%s could not be read as a scan and will be skipped: %s", src.name, type(e).__name__)
+                conn.execute(
+                    "INSERT OR REPLACE INTO pages (path, notebook, page, source_file, queued_at, course, status) VALUES (?, ?, 0, ?, ?, ?, 'unreadable')",
+                    (_rel(cfg, src), src.stem, _rel(cfg, src), now_iso(), course),
+                )
+                conn.commit()
     return queued
+
+
+def _unreadable(conn: sqlite3.Connection, cfg: Config, src: Path) -> bool:
+    """A scan that could not be opened or rendered on an earlier check; it is not tried again."""
+    return conn.execute("SELECT 1 FROM pages WHERE source_file = ? AND status = 'unreadable'", (_rel(cfg, src),)).fetchone() is not None
 
 
 def _kind(src: Path) -> str | None:

@@ -125,6 +125,29 @@ def test_restore_into_a_fresh_install(env, tmp_path):
     assert backup.restore(new, nas, overwrite=True)
 
 
+def test_restore_waits_for_the_work_lock_and_clears_wal_leftovers(env, tmp_path, monkeypatch):
+    from oso import lock
+
+    cfg, nas = env
+    real_held = lock.held
+    monkeypatch.setattr(lock, "held", lambda wait_seconds=600, path=None: real_held(wait_seconds=0, path=path))
+    with db.connect() as conn:
+        backup.run(cfg, conn, NIGHT)
+    new = Config(vault=tmp_path / "newvault")
+    new.vault.mkdir()
+    target = db.db_path()
+    wal, shm = target.with_name(target.name + "-wal"), target.with_name(target.name + "-shm")
+    wal.write_bytes(b"stale")
+    shm.write_bytes(b"stale")
+    with real_held() as got:
+        assert got
+        with pytest.raises(backup.BackupError, match="in the middle of a check"):
+            backup.restore(new, nas)
+    assert wal.exists()  # the records weren't touched while the lock was refused
+    assert backup.restore(new, nas, overwrite=True)
+    assert not wal.exists() and not shm.exists()
+
+
 def test_check_folder(env, tmp_path):
     with pytest.raises(backup.BackupError, match="can't reach"):
         backup.check_folder(tmp_path / "nope")

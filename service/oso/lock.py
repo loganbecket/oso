@@ -34,30 +34,45 @@ def _alive(pid: int) -> bool:
     return True
 
 
-def _owner_alive(p: Path) -> bool:
+def _owner(p: Path) -> str | None:
+    """What the lock file says (the owner's pid), or None when it can't be read this instant."""
     try:
-        return _alive(int(p.read_text().strip() or 0))
-    except (OSError, ValueError):
-        return True  # unreadable this instant (being written): assume busy
+        return p.read_text().strip()
+    except OSError:
+        return None
+
+
+def _stale(p: Path, owner: str | None) -> bool:
+    """A lock left by a run that is no longer running. A live owner keeps it however old it is; only when
+    the owner can't be read at all does age decide."""
+    if owner is None or not owner.isdigit():
+        try:
+            return time.time() - p.stat().st_mtime > STALE_SECONDS
+        except OSError:
+            return False
+    return not _alive(int(owner))
 
 
 @contextmanager
 def held(wait_seconds: float = 600, path: Path | None = None):
     """Yields True once Oso's work lock is held, or False if it could not be had within wait_seconds."""
     p = path or cfgmod.data_dir() / "work.lock"
+    mine = str(os.getpid())
     deadline = time.monotonic() + wait_seconds
     got = False
     while True:
         try:
             fd = os.open(str(p), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-            os.write(fd, str(os.getpid()).encode())
+            os.write(fd, mine.encode())
             os.close(fd)
             got = True
             break
         except FileExistsError:
             try:
-                if time.time() - p.stat().st_mtime > STALE_SECONDS or not _owner_alive(p):
-                    p.unlink(missing_ok=True)  # left by a run that was stopped (an update, a crash)
+                owner = _owner(p)
+                if _stale(p, owner):
+                    if _owner(p) == owner:  # still the same dead owner, not a fresh lock taken meanwhile
+                        p.unlink(missing_ok=True)  # left by a run that was stopped (an update, a crash)
                     continue
             except FileNotFoundError:
                 continue
@@ -67,5 +82,5 @@ def held(wait_seconds: float = 600, path: Path | None = None):
     try:
         yield got
     finally:
-        if got:
+        if got and _owner(p) == mine:  # never remove a lock another run has taken since
             p.unlink(missing_ok=True)

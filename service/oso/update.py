@@ -130,10 +130,11 @@ def run(cfg: Config, channel: str | None = None, version: str | None = None) -> 
         cfgmod.save(cfg)
         return f"Oso is already at {t['version']} on the {cfg.channel} channel."
     try:
-        done = install(t["url"])
+        done = install(t["url"], t["version"])
     except UpdateError as e:
         return f"Could not install Oso {t['version']}: {e}"
-    cfg.installed_version = t["version"]
+    if done:  # on Windows the update window records the version itself once its install has finished
+        cfg.installed_version = t["version"]
     cfgmod.save(cfg)
     label = f"{t['version']} ({'pinned' if version else cfg.channel})"
     if done:
@@ -155,13 +156,14 @@ def record(cfg: Config, version: str) -> str:
     return f"Recorded Oso {version} as installed."
 
 
-def install(url: str) -> bool:
-    """Reinstall from url. True when done now; False when handed to the update window (Windows)."""
+def install(url: str, version: str = "") -> bool:
+    """Reinstall from url. True when done now; False when handed to the update window (Windows), which
+    records version as installed only after its install succeeds."""
     uv = shutil.which("uv")
     if not uv:
         raise UpdateError("uv is not installed; run the Oso installer again")
     if sys.platform == "win32":
-        _install_in_window(uv, url)
+        _install_in_window(uv, url, version)
         return False
     r = subprocess.run([uv, "tool", "install", "--force", "--python", "3.12", url], capture_output=True, text=True, timeout=900)
     if r.returncode != 0:
@@ -178,6 +180,7 @@ $log = '{log}'
 $uv = '{uv}'
 $url = '{url}'
 $oso = '{oso}'
+$version = '{version}'
 $toolDir = $null
 try {{ $toolDir = Join-Path (& $uv tool dir) 'oso' }} catch {{ }}
 "Update started $(Get-Date -Format s)" | Out-File -Encoding utf8 $log
@@ -194,6 +197,7 @@ for ($i = 1; $i -le 3; $i++) {{
     & $uv tool install --force --python 3.12 $url 2>&1 | Tee-Object -FilePath $log -Append
     if ($LASTEXITCODE -eq 0) {{
         'Update finished' | Out-File -Append -Encoding utf8 $log
+        if ($version) {{ & $oso update --installed $version 2>&1 | Tee-Object -FilePath $log -Append }}
         Write-Host 'Making sure the automatic check is scheduled...'
         & $oso install-task 2>&1 | Tee-Object -FilePath $log -Append
         Write-Host 'Oso is updated. Restart the Claude app so it reconnects.' -ForegroundColor Green
@@ -210,14 +214,15 @@ exit 1
 """
 
 
-def _install_in_window(uv: str, url: str) -> None:
+def _install_in_window(uv: str, url: str, version: str = "") -> None:
     def q(text: str) -> str:  # inside a single-quoted PowerShell string
         return str(text).replace("'", "''")
 
     script = cfgmod.data_dir() / "update.ps1"
     log = cfgmod.data_dir() / "update.log"
     oso = shutil.which("oso") or str(Path.home() / ".local" / "bin" / "oso.exe")
-    script.write_text(_WIN_SCRIPT.format(log=q(log), pid=os.getpid(), uv=q(uv), url=q(url), oso=q(oso)), encoding="utf-8")
+    script.write_text(_WIN_SCRIPT.format(log=q(log), pid=os.getpid(), uv=q(uv), url=q(url), oso=q(oso), version=q(version)),
+                      encoding="utf-8")
     # Created through WMI so the job outlives this process: the oso.exe launcher kills its children on exit.
     # ShowWindow 1 makes the window visible, so the student can watch the installer.
     command = f'powershell -NoProfile -ExecutionPolicy Bypass -File "{script}"'

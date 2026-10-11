@@ -497,7 +497,7 @@ class Wizard:
         if have:
             self.text(frame, "One is already saved; paste a new one only to replace it.")
         feed_var = tk.StringVar()
-        ttk.Entry(frame, textvariable=feed_var, width=64).pack(anchor="w")
+        ttk.Entry(frame, textvariable=feed_var, width=64, show="•").pack(anchor="w")
 
         def done() -> None:
             url = feed_var.get().strip()

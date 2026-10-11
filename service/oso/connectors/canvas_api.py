@@ -12,7 +12,7 @@ import logging
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 from zoneinfo import ZoneInfo
 
 import requests
@@ -25,6 +25,12 @@ log = logging.getLogger("oso.canvas_api")
 
 NAME = "canvas_api"
 MAX_FILE_MB = 50
+
+
+class _TooLarge(Exception):
+    """A download that passed the size cap mid-stream."""
+
+
 ANNOUNCEMENT_NEWS = timedelta(days=3)  # an announcement newer than this is read for schedule changes
 
 
@@ -311,25 +317,42 @@ class CanvasApi:
         # The student's sign-in (token or cookies) goes only to Canvas itself. A document an instructor linked on
         # another site is fetched with a bare request, so that site never sees his Canvas credentials.
         own = urlparse(url).hostname == urlparse(self.base).hostname
-        if not own:
-            from ..sites import public_url
-
-            if not public_url(url):
-                log.warning("not downloading %s: not a public address", target.name)
-                return False
-        client = self.s if own else requests
+        limit = MAX_FILE_MB * 1024 * 1024
         try:
-            with client.get(url, stream=True, timeout=self.timeout) as r:
+            with (self.s.get(url, stream=True, timeout=self.timeout) if own else self._outside(url)) as r:
                 r.raise_for_status()
+                if int(r.headers.get("Content-Length") or 0) > limit:
+                    raise _TooLarge
+                size = 0
                 with tmp.open("wb") as out:
                     for chunk in r.iter_content(1 << 16):
+                        size += len(chunk)
+                        if size > limit:
+                            raise _TooLarge
                         out.write(chunk)
             tmp.replace(target)
             return True
+        except _TooLarge:
+            log.warning("not downloading %s: larger than %d MB", target.name, MAX_FILE_MB)
         except (requests.RequestException, OSError) as e:
             log.warning("could not download %s: %s", target.name, type(e).__name__)
-            tmp.unlink(missing_ok=True)
-            return False
+        tmp.unlink(missing_ok=True)
+        return False
+
+    def _outside(self, url: str) -> requests.Response:
+        """A document on another site, fetched bare. Every address along the way, including each redirect, must be
+        on the public internet, so a link can never make Oso read something only this computer can reach."""
+        from ..sites import public_url
+
+        for _ in range(5):
+            if not public_url(url):
+                raise requests.ConnectionError("not a public address")
+            r = requests.get(url, stream=True, timeout=self.timeout, allow_redirects=False)
+            if r.status_code not in (301, 302, 303, 307, 308) or not r.headers.get("Location"):
+                return r
+            url = urljoin(url, r.headers["Location"])
+            r.close()
+        raise requests.TooManyRedirects("too many redirects")
 
     # ---- the Files section ---------------------------------------------------------------------
 

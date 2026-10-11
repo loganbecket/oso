@@ -39,3 +39,19 @@ def test_command_line_failures_are_one_sentence(tmp_path: Path, monkeypatch, cap
     assert "Oso couldn't finish 'sync'" in err and "Traceback" not in err
     assert "Traceback" in (tmp_path / "errors.log").read_text(encoding="utf-8")
     assert sync is not None
+
+
+@pytest.mark.parametrize("make", [
+    lambda url: __import__("requests").HTTPError(f"404 Client Error: Not Found for url: {url}"),
+    lambda url: __import__("requests").ConnectionError(f"HTTPSConnectionPool(host='canvas.school.edu', port=443): "
+                                                        f"Max retries exceeded with url: /feeds/calendars/user_SECRET123.ics"),
+])
+def test_error_log_never_holds_the_feed_address(tmp_path: Path, monkeypatch, make):
+    monkeypatch.setattr(cfgmod, "data_dir", lambda: tmp_path)
+    url = "https://canvas.school.edu/feeds/calendars/user_" + "SECRET123" + ".ics"
+    try:
+        raise make(url)
+    except Exception:  # noqa: BLE001
+        sync._record_failure("canvas")
+    text = (tmp_path / "errors.log").read_text(encoding="utf-8")
+    assert "Traceback" in text and "SECRET123" not in text

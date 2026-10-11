@@ -38,7 +38,8 @@ If your school allows Canvas access tokens, you can use one instead of signing i
 
 - **Oso only reads.** It never submits, posts, or changes anything in Canvas. Messages from instructors stay unread in Canvas, so you'll still see them there.
 - **Only recent announcements and messages are read for changes** (about the last three days). Older ones are history, not news.
-- **Your username and password** are kept in your computer's credential store, never in a file.
+- **Your username and password** are kept in your computer's credential store, never in a file. Oso types them only into Canvas itself and the school sign-in page that worked before, never into a page you reach by clicking a link from there.
+- **The sign-in window keeps its own browser memory** so the school's sign-in can remember you between sessions. `oso disconnect-canvas` clears it along with the sign-in.
 - **Canvas's notification emails are set aside** without being read, because Oso reads the same things from Canvas directly.
 - `oso canvas --raw` shows everything Oso has read from Canvas. `oso disconnect-canvas` makes it forget the sign-in.
 - If the sign-in stops working or the feed is rejected, see [Troubleshooting](../troubleshooting.md).

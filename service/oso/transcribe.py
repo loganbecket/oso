@@ -54,12 +54,13 @@ def run(conn: sqlite3.Connection, cfg: Config, limit: int = 200, model: str | No
         by_notebook.setdefault((p["course"], p["notebook"], p["source_file"]), []).append(p)
 
     for (course, notebook, _source), items in by_notebook.items():
-        note_path = _note_path(cfg, course, notebook, items[0]["queued_at"])
-        if vault.ownership(note_path, vault.transcribed_note) in ("edited", "theirs"):
-            note_path = note_path.with_name(f"{note_path.stem} (continued).md")  # his edits stay his; new pages go beside them
+        note_path = _free_note_path(_note_path(cfg, course, notebook, items[0]["queued_at"]))
         if not note_path.exists():
             fm, body = _header(cfg, course, notebook)
-            vault.write_note(note_path, fm, body)
+            if not vault.write_note(note_path, fm, body):
+                log.warning("%s could not be started, so its %d pages stay queued", note_path.name, len(items))
+                counts["failed"] += len(items)
+                continue
         lowest: float | None = None
         for p in items:
             try:
@@ -69,7 +70,10 @@ def run(conn: sqlite3.Connection, cfg: Config, limit: int = 200, model: str | No
                 counts["failed"] += 1
                 continue
             fm, body = notes.read_front_matter(note_path.read_text(encoding="utf-8"))
-            vault.write_note(note_path, fm, body.rstrip("\n") + f"\n\n## Page {p['page']}\n\n{text.strip()}\n\n![[{p['path']}]]\n")
+            if not vault.write_note(note_path, fm, body.rstrip("\n") + f"\n\n## Page {p['page']}\n\n{text.strip()}\n\n![[{p['path']}]]\n"):
+                log.warning("page %s of %s stays queued: the note %s is the student's now", p["page"], notebook, note_path.name)
+                counts["failed"] += 1
+                continue  # the page is still pending and is tried again on the next check
             handwriting.mark(conn, p["path"], str(note_path.relative_to(cfg.vault)), conf)
             conn.commit()
             counts["pages"] += 1
@@ -112,6 +116,17 @@ def _note_path(cfg: Config, course: str | None, notebook: str, queued_at: str) -
     if c is None:
         raise ValueError(f"no course {course!r} for handwritten page")
     return cfg.vault / "Courses" / c.folder / "Notes" / name
+
+
+def _free_note_path(path: Path) -> Path:
+    """The dated note, or when the student owns or edited it, the first "(continued)" note beside it that is free
+    or still Oso's, so his edits stay his and new pages go next to them."""
+    candidate = path
+    for n in range(1, 1000):
+        if vault.ownership(candidate, vault.transcribed_note) not in ("edited", "theirs"):
+            return candidate
+        candidate = path.with_name(f"{path.stem} (continued{'' if n == 1 else f' {n}'}).md")
+    return candidate
 
 
 def _header(cfg: Config, course: str | None, notebook: str) -> tuple[dict, str]:

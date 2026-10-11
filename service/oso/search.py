@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 import re
 import sqlite3
+import threading
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -59,6 +60,7 @@ END;
 
 _model = None
 _model_failed_at: float | None = None
+_model_lock = threading.Lock()  # the warm-up thread and a search can both arrive first; the model is built once
 RETRY_MODEL_SECONDS = 600  # a load that failed (offline at startup, say) is tried again after this long
 
 
@@ -67,16 +69,19 @@ def _embedder():
     import time
 
     global _model, _model_failed_at
-    if _model is None and (_model_failed_at is None or time.monotonic() - _model_failed_at > RETRY_MODEL_SECONDS):
-        try:
-            from fastembed import TextEmbedding
+    if _model is not None:
+        return _model
+    with _model_lock:
+        if _model is None and (_model_failed_at is None or time.monotonic() - _model_failed_at > RETRY_MODEL_SECONDS):
+            try:
+                from fastembed import TextEmbedding
 
-            _model = TextEmbedding(MODEL, cache_dir=str(cfgmod.data_dir() / "models"))
-            _model_failed_at = None
-        except Exception as e:  # noqa: BLE001
-            log.warning("search model unavailable, using exact words only: %s", type(e).__name__)
-            _model_failed_at = time.monotonic()
-    return _model
+                _model = TextEmbedding(MODEL, cache_dir=str(cfgmod.data_dir() / "models"))
+                _model_failed_at = None
+            except Exception as e:  # noqa: BLE001
+                log.warning("search model unavailable, using exact words only: %s", type(e).__name__)
+                _model_failed_at = time.monotonic()
+        return _model
 
 
 def rebuild(path: Path | None = None) -> None:

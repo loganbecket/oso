@@ -110,3 +110,14 @@ def converted_copy(fm: dict) -> bool:
 
 def transcribed_note(fm: dict) -> bool:
     return fm.get("source") == "handwriting"
+
+
+def clipped_page(fm: dict) -> bool:
+    """A page saved by the Web Clipper (its template writes `type: reading`, `clipped`, and the page's address as
+    `source`), or a syllabus Oso filed from one."""
+    return fm.get("type") in ("reading", "syllabus") or "clipped" in fm or str(fm.get("source") or "").startswith(("http://", "https://"))
+
+
+def book_note(fm: dict) -> bool:
+    """Any note Oso keeps inside a book folder: chapter notes, the book index, and pages clipped or read in Chrome."""
+    return fm.get("type") in ("textbook", "book")

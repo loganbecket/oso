@@ -11,6 +11,7 @@ from mcp.server.mcpserver import MCPServer
 
 from . import config as cfgmod
 from . import db
+from . import vault
 from .db import EFFECTIVE
 
 from .tutor import SERVER_INSTRUCTIONS
@@ -696,7 +697,10 @@ def save_page_reading(book: str, page: str, text: str) -> str:
 def read_note(path: str, start: int = 0, max_chars: int | None = None) -> dict:
     """Read a vault file (path relative to the vault) from `start`. Long files are capped (see `truncated`, `next_start`); prefer read_section."""
     cfg = _cfg()
-    text = _vault_file(cfg, path).read_text(encoding="utf-8", errors="replace")
+    try:
+        text = _vault_file(cfg, path).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return {"path": path, "found": False, "text": "", "note": f"There is no note at {path}."}
     cap = cfg.read_cap_chars if max_chars is None else max_chars
     if cap and cap > 0 and len(text) - start > cap:
         chunk = text[start:start + cap]
@@ -710,7 +714,10 @@ def read_section(path: str, heading: str) -> dict:
     from .notes import read_front_matter, split_sections
 
     cfg = _cfg()
-    text = _vault_file(cfg, path).read_text(encoding="utf-8", errors="replace")
+    try:
+        text = _vault_file(cfg, path).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return {"path": path, "heading": heading, "text": "", "found": False, "note": f"There is no note at {path}."}
     _, body = read_front_matter(text)
     want = heading.strip().lower()
     parts = [t for h, t in split_sections(body, max_chars=10**9) if h.strip().lower() == want]
@@ -728,16 +735,23 @@ def list_notes(folder: str = "Clippings", limit: int = 50) -> list[dict]:
     root = cfg.vault.resolve() if folder.strip("/. ") == "" else _vault_file(cfg, folder)
     if not root.is_dir():
         return []
-    files = [f for f in root.rglob("*") if f.is_file() and not any(p.startswith(".") or p == "pages" for p in f.relative_to(root).parts)]
-    files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
+    try:
+        files = [f for f in root.rglob("*") if f.is_file() and not any(p.startswith(".") or p == "pages" for p in f.relative_to(root).parts)]
+        files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
+    except OSError:
+        return []
     out = []
     for f in files[:limit]:
         fm = {}
-        if f.suffix.lower() == ".md":
-            fm, _ = read_front_matter(f.read_text(encoding="utf-8", errors="replace")[:4000])
+        try:
+            if f.suffix.lower() == ".md":
+                fm, _ = read_front_matter(f.read_text(encoding="utf-8", errors="replace")[:4000])
+            stat = f.stat()
+        except OSError:
+            continue
         out.append({
             "path": f.relative_to(cfg.vault.resolve()).as_posix(),
-            "modified": datetime.fromtimestamp(f.stat().st_mtime, cfg.tz).isoformat(timespec="minutes"),
+            "modified": datetime.fromtimestamp(stat.st_mtime, cfg.tz).isoformat(timespec="minutes"),
             "title": fm.get("title"),
             "type": fm.get("type"),
             "course": fm.get("course"),
@@ -757,6 +771,11 @@ def file_syllabus(course: str, path: str) -> dict:
     src = _vault_file(cfg, path)
     if not src.is_file():
         raise ValueError(f"{path} is not a file in the vault")
+    rel = src.relative_to(cfg.vault.resolve()).parts
+    if rel[0] in ("Oso", ".obsidian") or (rel[0] == "Courses" and "Books" in rel):
+        raise ValueError(f"{path} isn't a syllabus Oso can move: only clipped pages and files Oso wrote can be filed.")
+    if src.suffix.lower() == ".md" and vault.ownership(src, vault.clipped_page) in ("theirs", "edited"):
+        raise ValueError(f"{path} is a note he wrote, and Oso never moves or edits those; file a clipped copy instead.")
     dest = cfg.vault / "Courses" / c.folder / f"Syllabus{src.suffix.lower()}"
     if dest.resolve() == src:
         return {"path": dest.relative_to(cfg.vault).as_posix()}

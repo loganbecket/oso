@@ -121,3 +121,29 @@ def test_a_damaged_index_is_rebuilt_and_bad_vectors_are_dropped(tmp_path: Path, 
     index.write_bytes(b"garbage" * 1000)
     assert search.query(cfg, "slope", path=index) == []  # a sentence-free miss, and the index is gone for the next check
     assert not index.exists()
+
+
+def test_the_model_is_built_once_even_from_two_threads(tmp_path: Path, monkeypatch):
+    import sys
+    import threading
+    import time
+    import types
+
+    built = []
+
+    class CountingModel:
+        def __init__(self, *a, **k):
+            built.append(1)
+            time.sleep(0.2)  # long enough for the second thread to arrive while the first is still building
+
+    monkeypatch.setitem(sys.modules, "fastembed", types.SimpleNamespace(TextEmbedding=CountingModel))
+    monkeypatch.setattr(search.cfgmod, "data_dir", lambda: tmp_path)
+    monkeypatch.setattr(search, "_model", None)
+    monkeypatch.setattr(search, "_model_failed_at", None)
+    got = []
+    threads = [threading.Thread(target=lambda: got.append(search._embedder())) for _ in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert len(built) == 1 and len(got) == 2 and got[0] is got[1] and isinstance(got[0], CountingModel)

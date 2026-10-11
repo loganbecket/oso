@@ -437,7 +437,7 @@ def forget_page(name: str) -> str:
 @mcp.tool()
 def start_quiz(course: str, questions: list[dict], requested: str | None = None, sources: list[str] | None = None,
                retake_of: int | None = None, window: bool = True) -> dict:
-    """Record a quiz and open the quiz window."""
+    """Record a quiz and open the quiz window. Equations in LaTeX ($...$, $$...$$); the window typesets them."""
     from . import profile, quizwin
 
     with db.connect() as conn:

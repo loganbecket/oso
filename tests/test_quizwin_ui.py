@@ -24,8 +24,10 @@ def test_window_steps_through_and_submits(tmp_path: Path, monkeypatch):
     with db.connect() as conn:
         qid = profile.start_quiz(conn, cfg, "PHYS-110", [
             {"number": 1, "topic": "K", "type": "multiple_choice", "difficulty": "easy", "question": "Pick B", "choices": ["ex", "why"], "answer": "B"},
-            {"number": 2, "topic": "F", "type": "worked_problem", "difficulty": "hard", "question": "Solve it", "criteria": "x = 2"},
+            {"number": 2, "topic": "F", "type": "worked_problem", "difficulty": "hard",
+             "question": "Evaluate\n$$\\int_0^{\\pi} \\sin(x)\\,dx$$\nand compare with $\\frac{\\pi}{2}$.", "criteria": "x = 2"},
         ], window=True)
+    monkeypatch.setattr(cfgmod, "data_dir", lambda: tmp_path / "data")
 
     from tkinter import messagebox, ttk
 
@@ -48,6 +50,8 @@ def test_window_steps_through_and_submits(tmp_path: Path, monkeypatch):
         root.update()
         box = find(root, tk.Text)
         seen.append(find(root, ttk.Label).cget("text"))
+        seen.append(len(box.image_names()))  # the two equations are drawn in the question
+        seen.append(box.get("1.0", "end"))
         find(root, ttk.Button, "Review and submit").invoke()
         root.update()
         seen.append(find(root, ttk.Label).cget("text"))
@@ -58,7 +62,8 @@ def test_window_steps_through_and_submits(tmp_path: Path, monkeypatch):
     import gc
 
     gc.collect()  # free the window's Tcl objects here, on the main thread; Tcl aborts if a later test's thread frees them
-    assert seen == ["Question 2 of 2", "Answers submitted."]
+    assert seen[0] == "Question 2 of 2" and seen[1] == 2 and seen[-1] == "Answers submitted."
+    assert "Evaluate" in seen[2] and "compare with" in seen[2] and "\\int" not in seen[2]  # LaTeX is not shown as text
     with db.connect() as conn:
         view = profile.grading_view(conn, cfg, qid)
     assert view["questions"][0]["graded_by_window"] == "right" and view["questions"][1]["response"] is None
@@ -81,9 +86,14 @@ def test_a_taken_quiz_opens_read_only_with_the_answers(tmp_path: Path, monkeypat
             {"number": 1, "topic": "K", "type": "multiple_choice", "difficulty": "easy", "question": "Pick B", "choices": ["ex", "why"], "answer": "B"},
             {"number": 2, "topic": "F", "type": "short_answer", "difficulty": "medium", "question": "Newton's second law?",
              "criteria": {"expected": "F = ma (net force)", "partial_credit": "F = ma without net"}},
+            {"number": 3, "topic": "K", "type": "multiple_choice", "difficulty": "easy", "question": "Which is $\\omega$?",
+             "choices": ["$2\\pi f$", "$\\frac{1}{f}$"], "answer": "A"},
         ], window=True)
+    monkeypatch.setattr(cfgmod, "data_dir", lambda: tmp_path / "data")
+    with db.connect() as conn:
         profile.window_submit(conn, qid, {1: {"response": "A", "seconds": 4, "changes": 0},
-                                          2: {"response": "F = ma", "seconds": 20, "changes": 0}})
+                                          2: {"response": "F = ma", "seconds": 20, "changes": 0},
+                                          3: {"response": "A", "seconds": 5, "changes": 0}})
         profile.record_answers(conn, qid, [{"number": 2, "result": "partly_right", "mistake": "incomplete",
                                             "note": "It's the net force that equals ma."}])
         profile.finish_quiz(conn, qid)
@@ -107,6 +117,10 @@ def test_a_taken_quiz_opens_read_only_with_the_answers(tmp_path: Path, monkeypat
         next(w for w in all_widgets(root) if isinstance(w, ttk.Button) and w.cget("text") == "Next").invoke()
         root.update()
         seen.append([w.cget("text") for w in all_widgets(root) if isinstance(w, ttk.Label)])
+        next(w for w in all_widgets(root) if isinstance(w, ttk.Button) and w.cget("text") == "Next").invoke()
+        root.update()
+        radios = [w for w in all_widgets(root) if isinstance(w, tk.Radiobutton)]
+        seen.append([(w.cget("text"), bool(w.cget("image"))) for w in radios])  # drawn, not written as LaTeX
         next(w for w in all_widgets(root) if isinstance(w, ttk.Button) and w.cget("text") == "Close").invoke()
 
     monkeypatch.setattr(tk.Tk, "mainloop", lambda self, n=0: drive(self))
@@ -117,3 +131,4 @@ def test_a_taken_quiz_opens_read_only_with_the_answers(tmp_path: Path, monkeypat
     assert seen[0] == [("A. ex   ✗ your answer", "disabled"), ("B. why   ✓ correct answer", "disabled")]
     assert "Wrong" in seen[1] and not any("sure" in t.lower() for t in seen[1] + seen[2])
     assert "Correct answer: F = ma (net force)" in seen[2] and "Partly right" in seen[2] and "It's the net force that equals ma." in seen[2]
+    assert seen[3] == [("", True), ("", True)]

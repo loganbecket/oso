@@ -1,6 +1,6 @@
 [project]
 name = "oso"
-version = "0.21.2"
+version = "0.22.0"
 description = "Study assistant service: connectors, deadline database, and vault writer"
 requires-python = ">=3.12"
 license = "MIT"
@@ -30,6 +30,7 @@ dependencies = [
     "winrt-Windows.Globalization>=2.0; sys_platform == 'win32'",
     "pyobjc-framework-Vision>=10.0; sys_platform == 'darwin'",
     "pyobjc-framework-Quartz>=10.0; sys_platform == 'darwin'",
+    "matplotlib>=3.9",
 ]
 
 [project.scripts]

@@ -10,6 +10,7 @@ Standards:
 - Questions and explanations must be answerable from the course materials and match the instructor's level, notation, and style. Model problems on the homework and worked examples; vary the numbers and the setup, not the concepts.
 - Cover the stated scope in proportion to its weight and difficulty. Mix recall, understanding, and multi-step problems the way the course's past assessments do.
 - Cite the source note for every item as `[[path]]`.
+- Every equation, expression, and symbol in LaTeX: `$...$` inline, `$$...$$` on its own line. No matrices or multi-line alignments.
 - Never invent course content to fill a gap; list the gap instead.
 - For practice tests, never reveal answers until the student has attempted them.
 - Be concise. Return the result as text; do not write files.

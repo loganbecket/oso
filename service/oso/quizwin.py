@@ -21,7 +21,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from . import config as cfgmod
-from . import db, notes, profile
+from . import db, mathimg, notes, profile
 from .config import Config
 
 IMAGE_EXT = {".png", ".jpg", ".jpeg"}
@@ -144,6 +144,7 @@ def review(quiz_id: int) -> None:
     root = tk.Tk()
     root.title(f"Oso quiz review: {c.name if c else quiz['course']}")
     root.geometry("760x600")
+    dpi = mathimg.dpi_of(root)
     frm = ttk.Frame(root, padding=16)
     frm.pack(fill="both", expand=True)
     big = ("Segoe UI", 12) if sys.platform == "win32" else ("TkDefaultFont", 12)
@@ -165,7 +166,7 @@ def review(quiz_id: int) -> None:
         header.config(text=f"Question {state['i'] + 1} of {len(questions)}")
         text.config(state="normal")
         text.delete("1.0", "end")
-        text.insert("1.0", q["question"])
+        mathimg.fill(text, q["question"], size=12, dpi=dpi)
         text.config(state="disabled")
         for w in body.winfo_children():
             w.destroy()
@@ -179,8 +180,7 @@ def review(quiz_id: int) -> None:
                     mark, color = "   ✓ correct answer" + (" (your answer)" if mine else ""), RESULT_COLORS["right"]
                 elif letter == (q["response"] or "").upper():
                     mark, color = "   ✗ your answer", RESULT_COLORS["wrong"]
-                tk.Radiobutton(body, text=f"{letter}. {opt}{mark}", value=letter, variable=picked, state="disabled",
-                               disabledforeground=color, anchor="w", justify="left", wraplength=680).pack(anchor="w", pady=2)
+                _choice(body, f"{letter}. {opt}{mark}", letter, picked, dpi, state="disabled", disabledforeground=color)
             if not q["response"]:
                 ttk.Label(body, text="You left this blank.", foreground=RESULT_COLORS["wrong"]).pack(anchor="w", pady=(4, 0))
         else:
@@ -190,13 +190,12 @@ def review(quiz_id: int) -> None:
             box.config(state="disabled")
             box.pack(fill="x")
             if q["expected"]:
-                ttk.Label(body, text=f"Correct answer: {q['expected']}", foreground=RESULT_COLORS["right"], wraplength=700,
-                          justify="left").pack(anchor="w", pady=(8, 0))
+                _line(body, f"Correct answer: {q['expected']}", dpi, foreground=RESULT_COLORS["right"]).pack(anchor="w", pady=(8, 0))
         verdict = RESULT_WORDS.get(q["result"] or "", "Not graded yet")
         ttk.Label(body, text=verdict, foreground=RESULT_COLORS.get(q["result"] or "", "#666"),
                   font=("TkDefaultFont", 10, "bold")).pack(anchor="w", pady=(10, 0))
         if q["note"]:
-            ttk.Label(body, text=q["note"], wraplength=700, justify="left").pack(anchor="w", pady=(4, 0))
+            _line(body, q["note"], dpi).pack(anchor="w", pady=(4, 0))
         if q["type"] == "worked_problem" and pages:
             row = ttk.Frame(body)
             row.pack(anchor="w", pady=(8, 0))
@@ -297,6 +296,47 @@ def launch(quiz_id: int) -> None:
     subprocess.Popen([str(exe), "-m", "oso.quizwin", str(quiz_id)], **kwargs)
 
 
+# ---- equations in the window -------------------------------------------------------------------------
+
+
+def _choice(parent, label: str, letter: str, var, dpi: int, **kw):
+    """A round radio button for one choice; a choice with an equation in it is drawn as a picture."""
+    import tkinter as tk
+
+    kw.setdefault("anchor", "w")
+    kw.setdefault("justify", "left")
+    if mathimg.has_math(label):
+        image = mathimg.picture(label, size=11, dpi=dpi)
+        if image is not None:
+            try:
+                photo = tk.PhotoImage(file=str(image), master=parent)
+                b = tk.Radiobutton(parent, image=photo, value=letter, variable=var, **kw)
+                b._oso_photo = photo  # kept alive with the button
+                b.pack(anchor="w", pady=2)
+                return b
+            except tk.TclError:
+                pass
+    b = tk.Radiobutton(parent, text=label, value=letter, variable=var, wraplength=680, **kw)
+    b.pack(anchor="w", pady=2)
+    return b
+
+
+def _line(parent, text: str, dpi: int, foreground: str | None = None):
+    """A label; with an equation in it, a read-only text box that draws the equation in place."""
+    import tkinter as tk
+    from tkinter import ttk
+
+    if not mathimg.has_math(text):
+        return ttk.Label(parent, text=text, wraplength=700, justify="left", **({"foreground": foreground} if foreground else {}))
+    box = tk.Text(parent, height=1, wrap="word", relief="flat", background=parent.winfo_toplevel().cget("background"),
+                  width=80, **({"foreground": foreground} if foreground else {}))
+    mathimg.fill(box, text, size=11, dpi=dpi)
+    box.config(state="disabled")
+    rows = text.count("\n") + 1 + 2 * sum(1 for kind, _ in mathimg.split(text) if kind == "display")
+    box.config(height=min(8, rows + 1))  # pictures stand taller than a line of text, so one row of slack
+    return box
+
+
 # ---- the window -------------------------------------------------------------------------------------
 
 
@@ -316,6 +356,7 @@ def run(quiz_id: int) -> None:
     root = tk.Tk()
     root.title(title)
     root.geometry("760x560")
+    dpi = mathimg.dpi_of(root)
     frm = ttk.Frame(root, padding=16)
     frm.pack(fill="both", expand=True)
 
@@ -348,7 +389,7 @@ def run(quiz_id: int) -> None:
         header.config(text=f"Question {session.index + 1} of {len(questions)}")
         text.config(state="normal")
         text.delete("1.0", "end")
-        text.insert("1.0", q["question"])
+        mathimg.fill(text, q["question"], size=12, dpi=dpi)
         text.config(state="disabled")
         for w in body.winfo_children():
             w.destroy()
@@ -359,8 +400,7 @@ def run(quiz_id: int) -> None:
             for i, opt in enumerate(q["choices"]):
                 letter = chr(ord("A") + i)
                 # The classic radio button: round on every system (the themed one is a diamond on Linux).
-                tk.Radiobutton(body, text=f"{letter}. {opt}", value=letter, variable=choice_var, command=save_current,
-                               anchor="w", justify="left", wraplength=680).pack(anchor="w", pady=2)
+                _choice(body, f"{letter}. {opt}", letter, choice_var, dpi, command=save_current)
         else:
             if q["type"] == "worked_problem":
                 ttk.Label(body, text=f"Write your work on paper or the tablet, on a page labeled Q{q['number']} in the top corner. "
@@ -492,7 +532,8 @@ Answer with JSON only, no other text:
 
 Rules: multiple choice has the text of each choice without letters, every wrong choice a plausible mistake, and
 "answer" is the right letter. Every other question has its "criteria". Difficulty is honest: hard means several
-steps or a real idea, not bigger numbers. Questions are plain text; equations in plain notation a student can read.
+steps or a real idea, not bigger numbers. Every equation, expression, or symbol is LaTeX: `$...$` inline, `$$...$$` on its own line for a
+display equation (the window typesets them); plain text otherwise. No matrices or multi-line alignments.
 
 Course: {course}
 Open misconceptions: {misconceptions}
